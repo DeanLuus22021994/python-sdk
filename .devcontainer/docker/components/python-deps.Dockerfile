@@ -1,29 +1,12 @@
 # syntax=docker/dockerfile:1.4
 # Python Dependencies Component
 # Installs all Python packages using global version variables
+# This file is executed as shell commands within the main Dockerfile
 
-# Global package version arguments
-ARG GLOBAL_UV_VERSION
-ARG GLOBAL_FASTAPI_VERSION
-ARG GLOBAL_UVICORN_VERSION
-ARG GLOBAL_HTTPX_VERSION
-ARG GLOBAL_PYDANTIC_VERSION
-ARG GLOBAL_ANYIO_VERSION
-ARG GLOBAL_PYTEST_VERSION
-ARG GLOBAL_PYTEST_ASYNCIO_VERSION
-ARG GLOBAL_BLACK_VERSION
-ARG GLOBAL_RUFF_VERSION
-ARG GLOBAL_UVLOOP_VERSION
-ARG GLOBAL_ORJSON_VERSION
-ARG GLOBAL_CYTHON_VERSION
-ARG GLOBAL_NUMBA_VERSION
-ARG GLOBAL_PSUTIL_VERSION
-ARG GLOBAL_JEMALLOC_VERSION
-
-# Cache directories
-ARG GLOBAL_UV_CACHE_DIR=/opt/mcp-cache/uv
-ARG GLOBAL_PIP_DISABLE_PIP_VERSION_CHECK=true
-ARG GLOBAL_PIP_ROOT_USER_ACTION=ignore
+# Export environment variables for the installation commands
+export UV_CACHE_DIR=${GLOBAL_UV_CACHE_DIR:-/opt/mcp-cache/uv}
+export PIP_DISABLE_PIP_VERSION_CHECK=${GLOBAL_PIP_DISABLE_PIP_VERSION_CHECK:-true}
+export PIP_ROOT_USER_ACTION=${GLOBAL_PIP_ROOT_USER_ACTION:-ignore}
 
 # Install UV package manager
 RUN --mount=type=cache,target=${GLOBAL_UV_CACHE_DIR},sharing=locked \
