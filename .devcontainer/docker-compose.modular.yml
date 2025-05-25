@@ -1,5 +1,6 @@
 # Main Docker Compose - Orchestrates all modular services
 # Optimized for maximum performance with python:slim base
+# Global configuration referenced in individual service files
 
 include:
   - docker/services/app-service.yml
@@ -10,15 +11,15 @@ networks:
   default:
     driver: bridge
     driver_opts:
-      com.docker.network.driver.mtu: ${NETWORK_MTU:-9000}
+      com.docker.network.driver.mtu: ${GLOBAL_NETWORK_MTU:-9000}
       com.docker.network.bridge.enable_icc: "true"
       com.docker.network.bridge.enable_ip_masquerade: "true"
       com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
     ipam:
       driver: default
       config:
-        - subnet: 172.20.0.0/16
-          gateway: 172.20.0.1
+        - subnet: ${GLOBAL_NETWORK_SUBNET:-172.20.0.0/16}
+          gateway: ${GLOBAL_NETWORK_GATEWAY:-172.20.0.1}
 
 # Global volume definitions optimized for performance
 volumes:
@@ -27,28 +28,32 @@ volumes:
     driver_opts:
       type: tmpfs
       device: tmpfs
-      o: size=8G,uid=1000,gid=1000,mode=0755
+      o: size=${GLOBAL_PYTHON_CACHE_SIZE:-8G},uid=1000,gid=1000,mode=0755
+  
   python-wheels-volume:
     driver: local 
     driver_opts:
       type: tmpfs
       device: tmpfs
-      o: size=4G,uid=1000,gid=1000,mode=0755
+      o: size=${GLOBAL_WHEELS_CACHE_SIZE:-4G},uid=1000,gid=1000,mode=0755
+  
   python-bytecode-volume:
     driver: local
     driver_opts:
       type: tmpfs
       device: tmpfs
-      o: size=2G,uid=1000,gid=1000,mode=0755
+      o: size=${GLOBAL_BYTECODE_CACHE_SIZE:-2G},uid=1000,gid=1000,mode=0755
+  
   numba-cache-volume:
     driver: local
     driver_opts:
       type: tmpfs
       device: tmpfs
-      o: size=4G,uid=1000,gid=1000,mode=0755
+      o: size=${GLOBAL_NUMBA_CACHE_SIZE:-4G},uid=1000,gid=1000,mode=0755
+  
   postgres-data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${POSTGRES_DATA_PATH:-/opt/postgres-data}
+      device: ${GLOBAL_POSTGRES_DATA_PATH:-/opt/postgres-data}

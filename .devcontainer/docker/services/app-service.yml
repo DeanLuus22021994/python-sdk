@@ -1,5 +1,6 @@
 # App Service Configuration - Optimized for Maximum Performance
 # GPU-enabled with comprehensive caching and resource optimization
+# Uses global configuration from ../../config/docker-globals.env
 
 services:
   app:
@@ -8,34 +9,40 @@ services:
       dockerfile: .devcontainer/docker/Dockerfile.main
       target: runtime
       args:
-        BUILDKIT_INLINE_CACHE: 1
-        DOCKER_BUILDKIT: 1
+        BUILDKIT_INLINE_CACHE: ${GLOBAL_BUILDKIT_INLINE_CACHE:-1}
+        DOCKER_BUILDKIT: ${GLOBAL_DOCKER_BUILDKIT:-1}
       cache_from:
         - ghcr.io/modelcontextprotocol/python-sdk:cache
+    
+    # Load global configuration
     env_file:
-      - ../config/env/cpu.env
-      - ../config/env/memory.env
-      - ../config/env/gpu.env
-      - ../config/env/python.env
-      - ../config/env/docker.env
+      - ../../config/docker-globals.env
+    
+    # Additional environment variables using global references
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${GLOBAL_NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${GLOBAL_NVIDIA_DRIVER_CAPABILITIES:-all}
+      - CUDA_VISIBLE_DEVICES=${GLOBAL_CUDA_VISIBLE_DEVICES:-all}
+      - NUMBA_CACHE_DIR=${GLOBAL_NUMBA_CACHE_DIR:-/opt/mcp-cache/numba}
+      - PYTHONPATH=${GLOBAL_PYTHONPATH:-/workspaces/python-sdk/src}
+      - MALLOC_CONF=${GLOBAL_MALLOC_CONF:-dirty_decay_ms:1000,muzzy_decay_ms:1000}
+      - LD_PRELOAD=${GLOBAL_LD_PRELOAD:-/usr/lib/x86_64-linux-gnu/libjemalloc.so.2}
+    
+    # Resource allocation - unlimited with minimum reservations
     deploy:
       resources:
         limits:
-          cpus: '0'  # Use all available CPUs
-          memory: 0   # Use all available memory
+          cpus: "${GLOBAL_CPU_LIMIT:-0}"
+          memory: "${GLOBAL_MEMORY_LIMIT:-0}"
         reservations:
+          cpus: "${GLOBAL_CPU_RESERVATION:-4}"
+          memory: "${GLOBAL_MEMORY_RESERVATION:-8G}"
           devices:
             - driver: nvidia
               count: all
               capabilities: [gpu, compute, utility]
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
-      - CUDA_VISIBLE_DEVICES=all
-      - NUMBA_CACHE_DIR=/opt/mcp-cache/numba
-      - PYTHONPATH=/workspaces/python-sdk/src
-      - MALLOC_CONF=dirty_decay_ms:1000,muzzy_decay_ms:1000
-      - LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+    
+    # Volume mounts with global volume references
     volumes:
       - ../../..:/workspaces:cached
       - python-cache-volume:/opt/mcp-cache/python:cached
@@ -45,39 +52,46 @@ services:
       - type: tmpfs
         target: /tmp
         tmpfs:
-          size: ${TMPFS_SIZE:-32G}
+          size: ${GLOBAL_TMPFS_SIZE:-32G}
           mode: 1777
       - type: tmpfs
         target: /dev/shm
         tmpfs:
-          size: ${CONTAINER_SHM_SIZE:-16G}
+          size: ${GLOBAL_CONTAINER_SHM_SIZE:-16G}
           mode: 1777
       - type: tmpfs
         target: /var/tmp
         tmpfs:
           size: 8G
           mode: 1777
-    privileged: true
+    
+    # Security and performance optimizations
+    privileged: ${GLOBAL_PRIVILEGED_MODE:-true}
     init: true
     security_opt:
-      - seccomp:unconfined
-      - apparmor:unconfined
+      - ${GLOBAL_SECURITY_OPT:-seccomp:unconfined}
+      - ${GLOBAL_APPARMOR_PROFILE:-apparmor:unconfined}
+    
+    # System limits for performance using global values
     ulimits:
       memlock:
-        soft: -1
-        hard: -1
+        soft: ${GLOBAL_ULIMIT_MEMLOCK_SOFT:--1}
+        hard: ${GLOBAL_ULIMIT_MEMLOCK_HARD:--1}
       stack:
-        soft: 67108864
-        hard: 67108864
+        soft: ${GLOBAL_ULIMIT_STACK_SOFT:-67108864}
+        hard: ${GLOBAL_ULIMIT_STACK_HARD:-67108864}
       nofile:
-        soft: 1048576
-        hard: 1048576
+        soft: ${GLOBAL_ULIMIT_NOFILE_SOFT:-1048576}
+        hard: ${GLOBAL_ULIMIT_NOFILE_HARD:-1048576}
+    
+    # Kernel parameters for network and memory performance
     sysctls:
-      - net.core.somaxconn=32768
-      - net.ipv4.tcp_max_syn_backlog=32768
-      - net.core.netdev_max_backlog=32768
-      - vm.swappiness=1
-      - vm.dirty_ratio=80
-      - vm.dirty_background_ratio=5
-      - vm.vfs_cache_pressure=50
+      - net.core.somaxconn=${GLOBAL_SYSCTL_SOMAXCONN:-32768}
+      - net.ipv4.tcp_max_syn_backlog=${GLOBAL_SYSCTL_TCP_MAX_SYN_BACKLOG:-32768}
+      - net.core.netdev_max_backlog=${GLOBAL_SYSCTL_NETDEV_MAX_BACKLOG:-32768}
+      - vm.swappiness=${GLOBAL_SYSCTL_VM_SWAPPINESS:-1}
+      - vm.dirty_ratio=${GLOBAL_SYSCTL_VM_DIRTY_RATIO:-80}
+      - vm.dirty_background_ratio=${GLOBAL_SYSCTL_VM_DIRTY_BACKGROUND_RATIO:-5}
+      - vm.vfs_cache_pressure=${GLOBAL_SYSCTL_VM_VFS_CACHE_PRESSURE:-50}
+    
     command: sleep infinity

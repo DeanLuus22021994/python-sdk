@@ -1,15 +1,24 @@
 # Redis Service - In-Memory Performance Optimization
 # Configured for maximum throughput with tmpfs storage
+# Uses global configuration from ../../config/docker-globals.env
 
 services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    
+    # Load global configuration
+    env_file:
+      - ../../config/docker-globals.env
+    
+    # Redis environment configuration
     environment:
       - REDIS_REPLICATION_MODE=master
+    
+    # Advanced Redis configuration using global values
     command: >
       redis-server
-      --maxmemory 4gb
+      --maxmemory ${GLOBAL_REDIS_MAXMEMORY:-4gb}
       --maxmemory-policy allkeys-lru
       --save ""
       --appendonly no
@@ -33,6 +42,8 @@ services:
       --hll-sparse-max-bytes 3000
       --stream-node-max-bytes 4096
       --stream-node-max-entries 100
+    
+    # Tmpfs volumes for maximum performance
     volumes:
       - type: tmpfs
         target: /data
@@ -44,14 +55,27 @@ services:
         tmpfs:
           size: 1G
           mode: 1777
+    
+    # Resource allocation using global variables
     deploy:
       resources:
         limits:
-          cpus: '0'  # Use all available CPUs
-          memory: 0   # Use all available memory
+          cpus: "${GLOBAL_CPU_LIMIT:-0}"
+          memory: "${GLOBAL_MEMORY_LIMIT:-0}"
         reservations:
           cpus: '1'
           memory: 1G
+    
+    # Health monitoring
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    
+    # Port mapping using global variable
+    ports:
+      - "${GLOBAL_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
