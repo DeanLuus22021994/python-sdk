@@ -23,6 +23,7 @@ networks:
 
 # Global volume definitions optimized for performance
 volumes:
+  # High-performance cache volumes using tmpfs
   python-cache-volume:
     driver: local
     driver_opts:
@@ -50,10 +51,39 @@ volumes:
       type: tmpfs
       device: tmpfs
       o: size=${GLOBAL_NUMBA_CACHE_SIZE:-4G},uid=1000,gid=1000,mode=0755
-  
+
+  pip-cache-volume:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=${GLOBAL_PIP_CACHE_SIZE:-2G},uid=1000,gid=1000,mode=0755
+
+  cuda-cache-volume:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=${GLOBAL_CUDA_CACHE_SIZE:-4G},uid=1000,gid=1000,mode=0755
+
+  rust-cache-volume:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=${GLOBAL_RUST_CACHE_SIZE:-2G},uid=1000,gid=1000,mode=0755
+
+  # Persistent data volumes
   postgres-data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ${GLOBAL_POSTGRES_DATA_PATH:-/opt/postgres-data}
+
+  mcp-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${GLOBAL_MCP_CACHE_PATH:-/opt/mcp-cache}
