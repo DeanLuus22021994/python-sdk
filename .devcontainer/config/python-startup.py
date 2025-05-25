@@ -62,7 +62,12 @@ builtins.perf_timer = PerfTimer
 try:
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    # Only print in interactive mode to avoid noise
+    if hasattr(sys, 'ps1'):
+        print("✓ uvloop event loop policy activated")
 except ImportError:
     # uvloop not available, using default event loop policy
     # This is expected during initial setup before rebuild
+    if hasattr(sys, 'ps1'):
+        print("ℹ uvloop not available - using default event loop (will be fixed after rebuild)")
     pass
