@@ -1,0 +1,106 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/postgres
+{
+	"name": "High-Performance Python 3 & PostgreSQL",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"privileged": true,
+	"init": true,
+	"capAdd": [
+		"SYS_ADMIN",
+		"SYS_PTRACE",
+		"NET_ADMIN",
+		"IPC_LOCK",
+		"SYS_RESOURCE"
+	],
+	"securityOpt": [
+		"apparmor:unconfined"
+	],
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": true,
+			"azureDnsAutoDetection": true,
+			"installDockerBuildx": true,
+			"installDockerComposeSwitch": true,
+			"version": "latest",
+			"dockerDashComposeVersion": "v2"
+		},
+		"ghcr.io/devcontainers/features/nvidia-cuda:1": {
+			"cudaVersion": "12.5",
+			"cudnnVersion": "automatic"
+		},
+		"ghcr.io/devcontainers-extra/features/act:1": {
+			"version": "latest"
+		}
+	},
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// This can be used to network with other containers or the host.
+	"forwardPorts": [
+		5000,
+		5432,
+		8000,
+		8080,
+		9000
+	],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "bash .devcontainer/master-build.sh",
+	// Configure tool-specific properties for maximum performance
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"python.terminal.activateEnvironment": false,
+				"files.watcherExclude": {
+					"**/.git/**": true,
+					"**/node_modules/**": true,
+					"**/__pycache__/**": true,
+					"**/.pytest_cache/**": true
+				},
+				"search.useIgnoreFiles": true,
+				"search.exclude": {
+					"**/.git": true,
+					"**/node_modules": true,
+					"**/__pycache__": true,
+					"**/.pytest_cache": true,
+					"**/build": true,
+					"**/dist": true
+				}
+			},
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.debugpy",
+				"charliermarsh.ruff"
+			]
+		}
+	},
+	// Connect as root for full system access and performance optimization
+	"remoteUser": "root",
+	// Environment variables for performance optimization with binary caching
+	"remoteEnv": {
+		"PYTHONOPTIMIZE": "2",
+		"PYTHONDONTWRITEBYTECODE": "1",
+		"PYTHONUNBUFFERED": "1",
+		"PYTHONHASHSEED": "0",
+		"PYTHON_GIL": "0",
+		"MALLOC_ARENA_MAX": "4",
+		"UV_CACHE_DIR": "/opt/mcp-cache/python-cache/uv",
+		"PIP_CACHE_DIR": "/opt/mcp-cache/python-cache/pip",
+		"NUMBA_CACHE_DIR": "/opt/mcp-cache/numba-cache",
+		"CUDA_CACHE_PATH": "/opt/mcp-cache/cuda-cache",
+		"TMPDIR": "/tmp",
+		"OMP_NUM_THREADS": "auto",
+		"MKL_NUM_THREADS": "auto",
+		"UV_COMPILE_BYTECODE": "1",
+		"PIP_COMPILE": "1"
+	},
+	// Mount options for maximum performance with persistent binary volumes
+	"mounts": [
+		"source=/tmp,target=/tmp,type=tmpfs,tmpfs-size=8G",
+		"source=/dev/shm,target=/dev/shm,type=bind,bind-propagation=shared",
+		"source=/opt/mcp-cache,target=/opt/mcp-cache,type=bind,bind-propagation=shared,consistency=cached"
+	]
+}

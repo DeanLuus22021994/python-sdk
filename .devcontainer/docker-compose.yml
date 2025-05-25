@@ -1,0 +1,189 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      target: runtime
+
+    volumes:
+      - ../..:/workspaces:cached
+      # Persistent binary volumes for precompiled dependencies
+      - python-cache-volume:/opt/python-cache:cached
+      - python-wheels-volume:/mnt/binary-volumes/wheels:cached
+      - python-bytecode-volume:/mnt/binary-volumes/bytecode:cached
+      - numba-cache-volume:/opt/numba-cache:cached
+      # High-performance tmpfs mounts
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 8G
+          mode: 1777
+      - type: tmpfs
+        target: /dev/shm
+        tmpfs:
+          size: 4G
+          mode: 1777
+      # NVMe-optimized storage for builds
+      - type: tmpfs
+        target: /var/tmp
+        tmpfs:
+          size: 2G
+          mode: 1777
+
+    # Privileged mode for full system access and optimization
+    privileged: true
+    
+    # Security capabilities for performance optimization
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - NET_ADMIN
+      - IPC_LOCK
+      - SYS_RESOURCE
+      - SYS_NICE
+      
+    security_opt:
+      - apparmor:unconfined
+      
+    # Disable security restrictions for maximum performance
+    init: true
+    
+    # Resource limits for optimal performance with binary caching
+    deploy:
+      resources:
+        limits:
+          cpus: '0'  # Use all available CPUs
+          memory: 48G  # Increased for binary caching
+        reservations:
+          memory: 16G  # Increased reservation
+    
+    # CPU and memory optimizations
+    cpuset: "0-31"  # Use all CPU cores
+    mem_swappiness: 1
+    shm_size: 2G
+    
+    # High-performance networking
+    network_mode: service:db
+    
+    # Environment variables for maximum performance with binary caching
+    environment:
+      - PYTHONOPTIMIZE=2
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONHASHSEED=0
+      - PYTHON_GIL=0
+      - MALLOC_ARENA_MAX=4
+      - UV_CACHE_DIR=/opt/python-cache/uv
+      - PIP_CACHE_DIR=/opt/python-cache/pip
+      - NUMBA_CACHE_DIR=/opt/python-cache/numba
+      - CUDA_CACHE_PATH=/opt/python-cache/cuda
+      - OMP_NUM_THREADS=auto
+      - MKL_NUM_THREADS=auto
+      - UV_COMPILE_BYTECODE=1
+      - PIP_COMPILE=1
+      
+    # Sysctls for performance optimization
+    sysctls:
+      - net.core.rmem_max=134217728
+      - net.core.wmem_max=134217728
+      - net.core.netdev_max_backlog=5000
+      - net.ipv4.tcp_rmem=4096 131072 134217728
+      - net.ipv4.tcp_wmem=4096 131072 134217728
+      - net.ipv4.tcp_congestion_control=bbr
+      - vm.swappiness=1
+      - vm.dirty_ratio=15
+      - vm.dirty_background_ratio=5
+      - fs.file-max=2097152
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    
+    # High-performance storage configuration
+    volumes:
+      - postgres-data:/var/lib/postgresql/data:Z
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 1G
+          mode: 1777
+          
+    # Optimized PostgreSQL environment
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      # PostgreSQL performance tuning
+      POSTGRES_INITDB_ARGS: "--data-checksums --wal-segsize=64"
+      
+    # PostgreSQL performance command
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c shared_buffers=1GB
+      -c effective_cache_size=3GB
+      -c maintenance_work_mem=256MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=64MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_worker_processes=32
+      -c max_parallel_workers_per_gather=8
+      -c max_parallel_workers=32
+      -c max_parallel_maintenance_workers=8
+      -c fsync=off
+      -c synchronous_commit=off
+      -c checkpoint_segments=64
+      -c bgwriter_delay=200ms
+      -c bgwriter_lru_maxpages=100
+      -c bgwriter_lru_multiplier=2.0
+      
+    # Resource optimization for PostgreSQL
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+          
+    shm_size: 1G
+
+volumes:
+  postgres-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /tmp/postgres-data
+  # Persistent binary volumes for instant subsequent builds
+  python-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/python-cache
+  python-wheels-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/wheels
+  python-bytecode-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/bytecode
+  numba-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/numba-cache
