@@ -1,7 +1,6 @@
 # MCP Application Service Configuration
 # Main application service for Docker Swarm
 
-version: '3.8'
 
 services:
   mcp-python-sdk:

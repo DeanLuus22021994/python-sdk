@@ -11,16 +11,44 @@ networks:
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: ${NETWORK_MTU:-9000}
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
 
-# Global volume definitions
+# Global volume definitions optimized for performance
 volumes:
   python-cache-volume:
-    external: false
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=8G,uid=1000,gid=1000,mode=0755
   python-wheels-volume:
-    external: false
+    driver: local 
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=4G,uid=1000,gid=1000,mode=0755
   python-bytecode-volume:
-    external: false
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=2G,uid=1000,gid=1000,mode=0755
   numba-cache-volume:
-    external: false
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=4G,uid=1000,gid=1000,mode=0755
   postgres-data:
-    external: false
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_DATA_PATH:-/opt/postgres-data}

@@ -1,7 +1,6 @@
 # Docker Swarm Stack Configuration for MCP Python SDK
 # Simplified modular configuration with service composition
 
-version: '3.8'
 
 services:
   # Main MCP Application

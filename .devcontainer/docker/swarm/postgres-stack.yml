@@ -1,7 +1,6 @@
 # PostgreSQL Database Service Configuration
 # High-performance PostgreSQL for Docker Swarm
 
-version: '3.8'
 
 services:
   postgres:

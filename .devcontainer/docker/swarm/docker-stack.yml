@@ -1,7 +1,6 @@
 # Docker Swarm Stack Configuration for MCP Python SDK
 # High-performance configuration with GPU passthrough and resource optimization
 
-version: '3.8'
 
 services:
   mcp-python-sdk:

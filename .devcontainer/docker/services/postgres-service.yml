@@ -67,25 +67,3 @@ services:
       retries: 5
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
-      -c max_wal_size=4GB
-      -c max_worker_processes=32
-      -c max_parallel_workers_per_gather=8
-      -c max_parallel_workers=32
-      -c max_parallel_maintenance_workers=8
-      -c fsync=off
-      -c synchronous_commit=off
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-        reservations:
-          memory: 2G
-    shm_size: 1G
-
-volumes:
-  postgres-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /tmp/postgres-data

@@ -1,7 +1,6 @@
 # Redis Cache Service Configuration  
 # High-performance Redis for Docker Swarm
 
-version: '3.8'
 
 services:
   redis:
