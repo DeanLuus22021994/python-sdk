@@ -36,8 +36,13 @@ analyze_performance_metrics() {
     echo "=== Performance Metrics Analysis ==="
     
     # CPU usage patterns
-    echo "CPU usage (last 5 minutes):"
-    sar -u 1 5 | tail -1
+    echo "CPU usage:"
+    if command -v sar &> /dev/null; then
+        sar -u 1 5 | tail -1
+    else
+        echo "Current load average:"
+        cat /proc/loadavg
+    fi
     
     # Memory usage patterns  
     echo "Memory usage:"
@@ -45,11 +50,21 @@ analyze_performance_metrics() {
     
     # Disk I/O patterns
     echo "Disk I/O:"
-    iostat -x 1 1 | grep -v "^$"
+    if command -v iostat &> /dev/null; then
+        iostat -x 1 1 | grep -v "^$"
+    else
+        echo "Disk stats:"
+        cat /proc/diskstats | awk '{print $3, $4, $8}' | head -5
+    fi
     
     # Network usage
     echo "Network interfaces:"
-    sar -n DEV 1 1 | grep -v "^$" | tail -n +3
+    if command -v sar &> /dev/null; then
+        sar -n DEV 1 1 | grep -v "^$" | tail -n +3
+    else
+        echo "Network interface stats:"
+        cat /proc/net/dev | head -5
+    fi
 }
 
 generate_performance_report() {

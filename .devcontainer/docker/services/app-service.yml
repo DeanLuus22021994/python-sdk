@@ -8,6 +8,16 @@ services:
       target: runtime
     env_file:
       - ../.env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
       - ../../..:/workspaces:cached
       - python-cache-volume:/opt/mcp-cache/python:cached
@@ -17,12 +27,12 @@ services:
       - type: tmpfs
         target: /tmp
         tmpfs:
-          size: ${TMPFS_SIZE:-8G}
+          size: ${TMPFS_SIZE:-16G}
           mode: 1777
       - type: tmpfs
         target: /dev/shm
         tmpfs:
-          size: ${CONTAINER_SHM_SIZE:-4G}
+          size: ${CONTAINER_SHM_SIZE:-8G}
           mode: 1777
     privileged: true
     init: true

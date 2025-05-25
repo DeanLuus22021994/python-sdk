@@ -110,12 +110,16 @@ validate_io_optimizations() {
     
     # Check network buffer sizes
     echo "Checking network buffer sizes..."
-    local rmem_max=$(cat /proc/sys/net/core/rmem_max)
-    if [[ $rmem_max -lt 134217728 ]]; then
-        echo "❌ Network receive buffer too small: $rmem_max"
-        ((issues++))
+    if [[ -f /proc/sys/net/core/rmem_max ]]; then
+        local rmem_max=$(cat /proc/sys/net/core/rmem_max)
+        if [[ $rmem_max -lt 134217728 ]]; then
+            echo "❌ Network receive buffer too small: $rmem_max"
+            ((issues++))
+        else
+            echo "✓ Network receive buffer optimized: $rmem_max"
+        fi
     else
-        echo "✓ Network receive buffer optimized: $rmem_max"
+        echo "ℹ Network buffer settings not accessible (container environment)"
     fi
     
     return $issues

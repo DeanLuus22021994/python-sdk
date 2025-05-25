@@ -7,7 +7,13 @@ set -euo pipefail
 monitor_cpu() {
     echo "=== CPU Monitoring ==="
     echo "CPU Usage by Core:"
-    mpstat -P ALL 1 1 | grep -v "^$"
+    if command -v mpstat &> /dev/null; then
+        mpstat -P ALL 1 1 | grep -v "^$"
+    else
+        # Fallback to /proc/stat
+        echo "CPU usage from /proc/stat:"
+        grep "cpu" /proc/stat | head -5
+    fi
     
     echo "Top CPU-consuming processes:"
     ps aux --sort=-%cpu | head -10
@@ -48,7 +54,13 @@ monitor_disk() {
     echo
     
     echo "Disk I/O statistics:"
-    iostat -x 1 1 | grep -v "^$"
+    if command -v iostat &> /dev/null; then
+        iostat -x 1 1 | grep -v "^$"
+    else
+        # Fallback to /proc/diskstats
+        echo "Disk stats from /proc/diskstats:"
+        cat /proc/diskstats | head -10
+    fi
 }
 
 monitor_network() {
