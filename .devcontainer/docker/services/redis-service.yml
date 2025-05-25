@@ -1,26 +1,61 @@
-version: '3.8'
+# Redis Service - In-Memory Performance Optimization
+# Configured for maximum throughput with tmpfs storage
 
 services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    environment:
+      - REDIS_REPLICATION_MODE=master
     command: >
       redis-server
-      --maxmemory 1gb
+      --maxmemory 4gb
       --maxmemory-policy allkeys-lru
       --save ""
       --appendonly no
       --tcp-keepalive 60
       --tcp-backlog 511
+      --databases 16
+      --maxclients 10000
+      --timeout 0
+      --io-threads 4
+      --io-threads-do-reads yes
+      --lazyfree-lazy-eviction yes
+      --lazyfree-lazy-expire yes
+      --lazyfree-lazy-server-del yes
+      --replica-lazy-flush yes
+      --hash-max-ziplist-entries 512
+      --hash-max-ziplist-value 64
+      --list-max-ziplist-size -2
+      --set-max-intset-entries 512
+      --zset-max-ziplist-entries 128
+      --zset-max-ziplist-value 64
+      --hll-sparse-max-bytes 3000
+      --stream-node-max-bytes 4096
+      --stream-node-max-entries 100
     volumes:
       - type: tmpfs
         target: /data
+        tmpfs:
+          size: 4G
+          mode: 1777
+      - type: tmpfs
+        target: /tmp
         tmpfs:
           size: 1G
           mode: 1777
     deploy:
       resources:
         limits:
-          memory: 1G
+          cpus: '0'  # Use all available CPUs
+          memory: 0   # Use all available memory
         reservations:
-          memory: 512M
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    ports:
+      - "${REDIS_PORT:-6379}:6379"

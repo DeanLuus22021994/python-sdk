@@ -1,4 +1,5 @@
-version: '3.8'
+# App Service Configuration - Optimized for Maximum Performance
+# GPU-enabled with comprehensive caching and resource optimization
 
 services:
   app:
@@ -6,18 +7,35 @@ services:
       context: ../..
       dockerfile: .devcontainer/docker/Dockerfile.main
       target: runtime
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+        DOCKER_BUILDKIT: 1
+      cache_from:
+        - ghcr.io/modelcontextprotocol/python-sdk:cache
     env_file:
-      - ../.env
+      - ../config/env/cpu.env
+      - ../config/env/memory.env
+      - ../config/env/gpu.env
+      - ../config/env/python.env
+      - ../config/env/docker.env
     deploy:
       resources:
+        limits:
+          cpus: '0'  # Use all available CPUs
+          memory: 0   # Use all available memory
         reservations:
           devices:
             - driver: nvidia
               count: all
-              capabilities: [gpu]
+              capabilities: [gpu, compute, utility]
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
+      - CUDA_VISIBLE_DEVICES=all
+      - NUMBA_CACHE_DIR=/opt/mcp-cache/numba
+      - PYTHONPATH=/workspaces/python-sdk/src
+      - MALLOC_CONF=dirty_decay_ms:1000,muzzy_decay_ms:1000
+      - LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
     volumes:
       - ../../..:/workspaces:cached
       - python-cache-volume:/opt/mcp-cache/python:cached
@@ -27,15 +45,41 @@ services:
       - type: tmpfs
         target: /tmp
         tmpfs:
-          size: ${TMPFS_SIZE:-16G}
+          size: ${TMPFS_SIZE:-32G}
           mode: 1777
       - type: tmpfs
         target: /dev/shm
         tmpfs:
-          size: ${CONTAINER_SHM_SIZE:-8G}
+          size: ${CONTAINER_SHM_SIZE:-16G}
+          mode: 1777
+      - type: tmpfs
+        target: /var/tmp
+        tmpfs:
+          size: 8G
           mode: 1777
     privileged: true
     init: true
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack:
+        soft: 67108864
+        hard: 67108864
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    sysctls:
+      - net.core.somaxconn=32768
+      - net.ipv4.tcp_max_syn_backlog=32768
+      - net.core.netdev_max_backlog=32768
+      - vm.swappiness=1
+      - vm.dirty_ratio=80
+      - vm.dirty_background_ratio=5
+      - vm.vfs_cache_pressure=50
     command: sleep infinity
 
 volumes:

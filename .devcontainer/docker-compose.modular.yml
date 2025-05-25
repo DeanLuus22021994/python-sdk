@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Main Docker Compose - Orchestrates all modular services
 # Optimized for maximum performance with python:slim base
 
