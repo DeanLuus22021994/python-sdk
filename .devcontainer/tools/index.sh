@@ -6,11 +6,11 @@ TOOLS_DIR="/workspaces/python-sdk/.devcontainer/tools"
 
 # Tool Registry - Format: "ID:Category:Name:Description:Usage"
 TOOL_REGISTRY=(
-    "001:inspect:DevContainer State:Return current state of files in devcontainer directory:001-devcontainer-state.sh [json|table|summary]"
-    "002:utils:Build Status:Check current build status and active processes:002-build-status.sh [processes|docker|performance]"
-    "003:metrics:Dev Metrics:Track development cycle metrics and performance benchmarks:003-dev-metrics.sh [record|report|benchmark]"
-    "004:utils:System Migration:Migrate from old build system to new modular architecture:004-migrate-system.sh [check|migrate|rollback]"
-    "005:inspect:Modular Status:Comprehensive status check of the new modular architecture:005-modular-status.sh [detailed|summary|validation]"
+    "devcontainer-state:inspect:DevContainer State:Return current state of files in devcontainer directory:devcontainer-state.sh [json|table|summary]"
+    "build-status:utils:Build Status:Check current build status and active processes:build-status.sh [processes|docker|performance]"
+    "dev-metrics:metrics:Dev Metrics:Track development cycle metrics and performance benchmarks:dev-metrics.sh [record|report|benchmark]"
+    "migrate-system:utils:System Migration:Migrate from old build system to new modular architecture:migrate-system.sh [check|migrate|rollback]"
+    "modular-status:inspect:Modular Status:Comprehensive status check of the new modular architecture:modular-status.sh [detailed|summary|validation]"
 )
 
 show_tools() {

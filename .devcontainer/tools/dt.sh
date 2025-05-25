@@ -9,15 +9,23 @@ dt() {
     case "$1" in
         "state"|"s")
             shift
-            "$TOOLS_DIR/index.sh" 001 "$@"
+            "$TOOLS_DIR/index.sh" devcontainer-state "$@"
             ;;
         "status"|"st")
             shift
-            "$TOOLS_DIR/index.sh" 002 "$@"
+            "$TOOLS_DIR/index.sh" build-status "$@"
             ;;
         "metrics"|"m")
             shift
-            "$TOOLS_DIR/index.sh" 003 "$@"
+            "$TOOLS_DIR/index.sh" dev-metrics "$@"
+            ;;
+        "migrate")
+            shift
+            "$TOOLS_DIR/index.sh" migrate-system "$@"
+            ;;
+        "modular")
+            shift
+            "$TOOLS_DIR/index.sh" modular-status "$@"
             ;;
         "list"|"l"|"")
             "$TOOLS_DIR/index.sh" list
