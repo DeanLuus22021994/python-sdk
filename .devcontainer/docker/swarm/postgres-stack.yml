@@ -1,6 +1,6 @@
 # PostgreSQL Database Service Configuration
 # High-performance PostgreSQL for Docker Swarm
-
+# Uses global configuration variables with GLOBAL_ prefix
 
 services:
   postgres:
@@ -12,40 +12,34 @@ services:
           - node.role == manager
       resources:
         limits:
-          cpus: '2.0'
-          memory: 4G
+          cpus: "${GLOBAL_CPU_LIMIT:-0}"
+          memory: "${GLOBAL_MEMORY_LIMIT:-0}"
         reservations:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '2'
+          memory: 4G
       restart_policy:
         condition: on-failure
-        delay: 5s
         max_attempts: 3
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_SHARED_BUFFERS=${POSTGRES_SHARED_BUFFERS:-1GB}
-      - POSTGRES_EFFECTIVE_CACHE_SIZE=${POSTGRES_EFFECTIVE_CACHE_SIZE:-3GB}
-      - POSTGRES_MAINTENANCE_WORK_MEM=${POSTGRES_MAINTENANCE_WORK_MEM:-256MB}
-      - POSTGRES_MAX_CONNECTIONS=${POSTGRES_MAX_CONNECTIONS:-200}
-      - POSTGRES_MAX_WORKER_PROCESSES=${POSTGRES_MAX_WORKER_PROCESSES:-32}
+      - POSTGRES_USER=${GLOBAL_POSTGRES_USER:-postgres}
+      - POSTGRES_DB=${GLOBAL_POSTGRES_DB:-postgres}
+      - POSTGRES_PASSWORD=${GLOBAL_POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_INITDB_ARGS=--data-checksums --wal-segsize=64 --auth-local=trust --auth-host=md5
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${GLOBAL_POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - postgres-config:/etc/postgresql
     command: >
       postgres
-      -c shared_buffers=${POSTGRES_SHARED_BUFFERS:-1GB}
-      -c effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-3GB}
-      -c maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-256MB}
-      -c max_connections=${POSTGRES_MAX_CONNECTIONS:-200}
-      -c max_worker_processes=${POSTGRES_MAX_WORKER_PROCESSES:-32}
-      -c wal_buffers=16MB
-      -c checkpoint_completion_target=0.9
-      -c random_page_cost=1.1
-      -c effective_io_concurrency=200
+      -c shared_preload_libraries=pg_stat_statements,pg_buffercache
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c maintenance_work_mem=512MB
+      -c max_connections=200
+      -c max_worker_processes=32
+      -c synchronous_commit=off
+      -c fsync=off
     networks:
       - mcp-network
 

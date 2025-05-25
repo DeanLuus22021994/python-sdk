@@ -1,6 +1,6 @@
 # MCP Application Service Configuration
 # Main application service for Docker Swarm
-
+# Uses global configuration variables with GLOBAL_ prefix
 
 services:
   mcp-python-sdk:
@@ -10,61 +10,43 @@ services:
       placement:
         constraints:
           - node.role == manager
-        preferences:
-          - spread: node.labels.zone
       resources:
         limits:
-          cpus: '${CONTAINER_CPU_LIMIT:-0}'
-          memory: ${CONTAINER_MEMORY_LIMIT:-48G}
+          cpus: "${GLOBAL_CPU_LIMIT:-0}"
+          memory: "${GLOBAL_MEMORY_LIMIT:-0}"
         reservations:
-          cpus: '4.0'
-          memory: ${CONTAINER_MEMORY_RESERVATION:-16G}
-          generic_resources:
-            - discrete_resource_spec:
-                kind: 'gpu'
-                value: 1
-      update_config:
-        parallelism: ${SWARM_UPDATE_PARALLELISM:-1}
-        delay: ${SWARM_UPDATE_DELAY:-10s}
-        failure_action: rollback
-        monitor: 30s
-        max_failure_ratio: 0.1
+          cpus: "${GLOBAL_CPU_RESERVATION:-4}"
+          memory: "${GLOBAL_MEMORY_RESERVATION:-8G}"
       restart_policy:
-        condition: ${SWARM_RESTART_CONDITION:-on-failure}
-        delay: 5s
-        max_attempts: ${SWARM_RESTART_MAX_ATTEMPTS:-3}
-        window: 120s
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.mcp-api.rule=Host(`mcp.localhost`)"
-        - "traefik.http.services.mcp-api.loadbalancer.server.port=${MCP_SERVER_PORT:-5000}"
+        condition: on-failure
+        max_attempts: 3
     ports:
       - "${MCP_SERVER_PORT:-5000}:5000"
-      - "${FASTAPI_PORT:-8000}:8000"
       - "${UVICORN_PORT:-8080}:8080"
     volumes:
       - mcp-cache-volume:/opt/mcp-cache
-      - python-wheels:/opt/python-wheels
+      - python-wheels:/opt/mcp-cache/wheels
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     tmpfs:
-      - /tmp:size=${TMPFS_SIZE:-8G},mode=1777
-    shm_size: ${CONTAINER_SHM_SIZE:-4G}
-    privileged: ${PRIVILEGED_MODE:-true}
+      - /tmp:size=${GLOBAL_TMPFS_SIZE:-32G},mode=1777
+    shm_size: ${GLOBAL_CONTAINER_SHM_SIZE:-16G}
+    privileged: ${GLOBAL_PRIVILEGED_MODE:-true}
     security_opt:
-      - ${SECURITY_OPT:-apparmor:unconfined}
+      - ${GLOBAL_SECURITY_OPT:-seccomp:unconfined}
+      - ${GLOBAL_APPARMOR_PROFILE:-apparmor:unconfined}
     devices:
       - "/dev/dri:/dev/dri"
     runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${GLOBAL_NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${GLOBAL_NVIDIA_DRIVER_CAPABILITIES:-all}
+      - CUDA_VISIBLE_DEVICES=${GLOBAL_CUDA_VISIBLE_DEVICES:-all}
     networks:
       - mcp-network
 
 volumes:
   mcp-cache-volume:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${CACHE_ROOT:-/opt/mcp-cache}
   python-wheels:
     driver: local
 

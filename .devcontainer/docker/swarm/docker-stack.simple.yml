@@ -1,6 +1,6 @@
 # Docker Swarm Stack Configuration for MCP Python SDK
 # Simplified modular configuration with service composition
-
+# Uses global configuration variables with GLOBAL_ prefix
 
 services:
   # Main MCP Application
@@ -13,30 +13,32 @@ services:
           - node.role == manager
       resources:
         limits:
-          cpus: '${CONTAINER_CPU_LIMIT:-0}'
-          memory: ${CONTAINER_MEMORY_LIMIT:-48G}
+          cpus: "${GLOBAL_CPU_LIMIT:-0}"
+          memory: "${GLOBAL_MEMORY_LIMIT:-0}"
         reservations:
-          cpus: '4.0'
-          memory: ${CONTAINER_MEMORY_RESERVATION:-16G}
+          cpus: "${GLOBAL_CPU_RESERVATION:-4}"
+          memory: "${GLOBAL_MEMORY_RESERVATION:-8G}"
       restart_policy:
         condition: on-failure
-        delay: 5s
         max_attempts: 3
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://${GLOBAL_POSTGRES_USER:-postgres}:${GLOBAL_POSTGRES_PASSWORD:-postgres}@postgres:${GLOBAL_POSTGRES_PORT:-5432}/${GLOBAL_POSTGRES_DB:-postgres}
+      - REDIS_URL=redis://redis:${GLOBAL_REDIS_PORT:-6379}
       - MCP_SERVER_PORT=${MCP_SERVER_PORT:-5000}
+      - NVIDIA_VISIBLE_DEVICES=${GLOBAL_NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${GLOBAL_NVIDIA_DRIVER_CAPABILITIES:-all}
+      - CUDA_VISIBLE_DEVICES=${GLOBAL_CUDA_VISIBLE_DEVICES:-all}
     ports:
       - "${MCP_SERVER_PORT:-5000}:5000"
       - "${FASTAPI_PORT:-8000}:8000"
     volumes:
-      - mcp-cache:/opt/mcp-cache
-      - python-wheels:/opt/python-wheels
-    runtime: nvidia
-    privileged: true
-    devices:
-      - "/dev/nvidia0:/dev/nvidia0"
-      - "/dev/nvidiactl:/dev/nvidiactl"
+      - mcp-cache-volume:/opt/mcp-cache
+      - python-cache-volume:/opt/mcp-cache/python
+      - pip-cache-volume:/opt/mcp-cache/pip
+    tmpfs:
+      - /tmp:size=${GLOBAL_TMPFS_SIZE:-32G},mode=1777
+    shm_size: ${GLOBAL_CONTAINER_SHM_SIZE:-16G}
+    privileged: ${GLOBAL_PRIVILEGED_MODE:-true}
     networks:
       - mcp-network
 
@@ -48,12 +50,19 @@ services:
       placement:
         constraints:
           - node.role == manager
+      resources:
+        limits:
+          cpus: "${GLOBAL_CPU_LIMIT:-0}"
+          memory: "${GLOBAL_MEMORY_LIMIT:-0}"
+        reservations:
+          cpus: '2'
+          memory: 4G
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_USER=${GLOBAL_POSTGRES_USER:-postgres}
+      - POSTGRES_DB=${GLOBAL_POSTGRES_DB:-postgres}
+      - POSTGRES_PASSWORD=${GLOBAL_POSTGRES_PASSWORD:-postgres}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${GLOBAL_POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
@@ -67,8 +76,23 @@ services:
       placement:
         constraints:
           - node.role == manager
+      resources:
+        limits:
+          cpus: "${GLOBAL_CPU_LIMIT:-0}"
+          memory: "${GLOBAL_MEMORY_LIMIT:-0}"
+        reservations:
+          cpus: '1'
+          memory: 2G
+    command: >
+      redis-server
+      --maxmemory ${GLOBAL_REDIS_MAXMEMORY:-4gb}
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
     ports:
-      - "6379:6379"
+      - "${GLOBAL_REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     networks:
@@ -80,11 +104,13 @@ networks:
     attachable: true
 
 volumes:
-  mcp-cache:
-    external: true
-  python-wheels:
-    external: true
+  mcp-cache-volume:
+    driver: local
+  python-cache-volume:
+    driver: local
+  pip-cache-volume:
+    driver: local
   postgres-data:
-    external: true
+    driver: local
   redis-data:
-    external: true
+    driver: local
