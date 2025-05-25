@@ -1,5 +1,5 @@
-# Redis Service - In-Memory Performance Optimization
-# Configured for maximum throughput with tmpfs storage
+# Redis Service - High Performance Configuration  
+# Optimized for in-memory operations and caching
 # Uses global configuration from ../../config/docker-globals.env
 
 services:
@@ -11,31 +11,27 @@ services:
     env_file:
       - ../../config/docker-globals.env
     
-    # Redis environment configuration
-    environment:
-      - REDIS_REPLICATION_MODE=master
-    
-    # Advanced Redis configuration using global values
+    # High-performance Redis configuration
     command: >
       redis-server
       --maxmemory ${GLOBAL_REDIS_MAXMEMORY:-4gb}
       --maxmemory-policy allkeys-lru
-      --save ""
-      --appendonly no
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
       --tcp-keepalive 60
       --tcp-backlog 511
       --databases 16
-      --maxclients 10000
       --timeout 0
-      --io-threads 4
-      --io-threads-do-reads yes
-      --lazyfree-lazy-eviction yes
-      --lazyfree-lazy-expire yes
-      --lazyfree-lazy-server-del yes
-      --replica-lazy-flush yes
+      --rdbcompression yes
+      --rdbchecksum yes
+      --stop-writes-on-bgsave-error no
+      --maxclients 10000
       --hash-max-ziplist-entries 512
       --hash-max-ziplist-value 64
       --list-max-ziplist-size -2
+      --list-compress-depth 0
       --set-max-intset-entries 512
       --zset-max-ziplist-entries 128
       --zset-max-ziplist-value 64
@@ -43,18 +39,13 @@ services:
       --stream-node-max-bytes 4096
       --stream-node-max-entries 100
     
-    # Tmpfs volumes for maximum performance
+    # Volume configuration - using tmpfs for maximum performance
     volumes:
       - type: tmpfs
         target: /data
         tmpfs:
           size: 4G
-          mode: 1777
-      - type: tmpfs
-        target: /tmp
-        tmpfs:
-          size: 1G
-          mode: 1777
+          mode: 0755
     
     # Resource allocation using global variables
     deploy:
@@ -63,23 +54,22 @@ services:
           cpus: "${GLOBAL_CPU_LIMIT:-0}"
           memory: "${GLOBAL_MEMORY_LIMIT:-0}"
         reservations:
-          cpus: '1'
-          memory: 1G
+          cpus: "1"
+          memory: "2G"
     
     # Health monitoring
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
-      timeout: 5s
-      retries: 3
+      timeout: 3s
+      retries: 5
     
     # Port mapping using global variable
     ports:
       - "${GLOBAL_REDIS_PORT:-6379}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    
+    # Network configuration
+    networks:
+      - default
+
+# Note: Volumes are defined in the main docker-compose.modular.yml file
