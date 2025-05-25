@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1.4
-# MCP Python SDK - Optimized Multi-Stage Dockerfile
+# MCP Python SDK - Optimized Multi-Stage Dockerfile  
 # Built on python:slim with maximum performance optimizations
-# Uses global build arguments for consistency
+# Uses global build arguments with GLOBAL_ prefix
 
-# Global build arguments from docker-globals.env
-ARG GLOBAL_BUILDKIT_INLINE_CACHE=1
-ARG GLOBAL_DOCKER_BUILDKIT=1
-ARG GLOBAL_PYTHONOPTIMIZE=2
-ARG GLOBAL_PYTHONHASHSEED=0
+# Global build arguments for optimization
+ARG GLOBAL_BUILDKIT_INLINE_CACHE=${GLOBAL_BUILDKIT_INLINE_CACHE:-1}
+ARG GLOBAL_DOCKER_BUILDKIT=${GLOBAL_DOCKER_BUILDKIT:-1}
+ARG GLOBAL_PYTHONOPTIMIZE=${GLOBAL_PYTHONOPTIMIZE:-2}
+ARG GLOBAL_PYTHONHASHSEED=${GLOBAL_PYTHONHASHSEED:-0}
 
 # Stage 1: Base Python Environment
 FROM python:3.12-slim AS python-base
@@ -15,59 +15,50 @@ FROM python:3.12-slim AS python-base
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONOPTIMIZE=${GLOBAL_PYTHONOPTIMIZE:-2} \
-    PYTHONHASHSEED=${GLOBAL_PYTHONHASHSEED:-0} \
+    PYTHONOPTIMIZE=${GLOBAL_PYTHONOPTIMIZE} \
+    PYTHONHASHSEED=${GLOBAL_PYTHONHASHSEED} \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=0 \
     PIP_COMPILE=1
 
-# Create optimized user and directories using global cache paths
-RUN groupadd -r mcp && useradd -r -g mcp mcp && \
-    mkdir -p /opt/mcp-cache/{python,wheels,bytecode,numba,cuda} && \
-    chown -R mcp:mcp /opt/mcp-cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    groupadd -r mcp && useradd -r -g mcp mcp && \
+    mkdir -p /opt/mcp-cache/{python,wheels,bytecode,numba,cuda,pip,rust,ccache} && \
+    chown -R mcp:mcp /opt/mcp-cache && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
 
-# Install essential system packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
-    libjemalloc2 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+ENV PATH="/root/.cargo/bin:$PATH"
 
-# Install UV for ultra-fast Python package management
-RUN pip install --no-cache-dir uv
-
-# Stage 2: Development Tools
+# Build stages
 FROM python-base AS dev-tools
+COPY docker/components/dev-tools.Dockerfile /tmp/
+RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
+    cat /tmp/dev-tools.Dockerfile | sed '1,3d' | bash
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    build-essential \
-    gcc-11 \
-    g++-11 \
-    htop \
-    iotop \
-    sysstat \
-    net-tools \
-    procps \
-    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 \
-    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+FROM dev-tools AS gpu-support  
+COPY docker/components/gpu-support.Dockerfile /tmp/
+RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
+    cat /tmp/gpu-support.Dockerfile | sed '1,3d' | bash
 
-# Stage 3: Final Runtime
-FROM dev-tools AS runtime
+FROM gpu-support AS network-optimized
+COPY docker/components/network-optimize.Dockerfile /tmp/
+RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
+    cat /tmp/network-optimize.Dockerfile | sed '1,3d' | bash
 
-COPY docker/components/requirements-dev.txt /tmp/
-RUN uv pip install --system --no-cache-dir -r /tmp/requirements-dev.txt && \
-    rm /tmp/requirements-dev.txt && \
-    find /usr/local -name "*.pyc" -delete && \
-    find /usr/local -name "__pycache__" -type d -exec rm -rf {} + || true
+FROM network-optimized AS runtime
+COPY docker/components/runtime.Dockerfile /tmp/
+RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
+    cat /tmp/runtime.Dockerfile | sed '1,3d' | bash
 
+# Final optimizations
 USER mcp
-WORKDIR /workspaces
+WORKDIR /workspaces/python-sdk
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import sys; sys.exit(0)"
-
-CMD ["sleep", "infinity"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)"

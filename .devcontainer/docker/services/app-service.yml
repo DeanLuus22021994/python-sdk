@@ -5,12 +5,14 @@
 services:
   app:
     build:
-      context: ../..
+      context: ../../..
       dockerfile: .devcontainer/docker/Dockerfile.main
       target: runtime
       args:
-        BUILDKIT_INLINE_CACHE: ${GLOBAL_BUILDKIT_INLINE_CACHE:-1}
-        DOCKER_BUILDKIT: ${GLOBAL_DOCKER_BUILDKIT:-1}
+        GLOBAL_BUILDKIT_INLINE_CACHE: ${GLOBAL_BUILDKIT_INLINE_CACHE:-1}
+        GLOBAL_DOCKER_BUILDKIT: ${GLOBAL_DOCKER_BUILDKIT:-1}
+        GLOBAL_PYTHONOPTIMIZE: ${GLOBAL_PYTHONOPTIMIZE:-2}
+        GLOBAL_PYTHONHASHSEED: ${GLOBAL_PYTHONHASHSEED:-0}
       cache_from:
         - ghcr.io/modelcontextprotocol/python-sdk:cache
     
