@@ -1,0 +1,268 @@
+# Docker Swarm Stack Configuration for MCP Python SDK
+# High-performance configuration with GPU passthrough and resource optimization
+
+version: '3.8'
+
+services:
+  mcp-python-sdk:
+    image: ${DEV_CONTAINER_NAME:-mcp-python-sdk-dev}:latest
+    deploy:
+      replicas: ${SWARM_REPLICAS:-1}
+      placement:
+        constraints:
+          - node.role == manager
+        preferences:
+          - spread: node.labels.zone
+      resources:
+        limits:
+          cpus: '${CONTAINER_CPU_LIMIT:-0}'
+          memory: ${CONTAINER_MEMORY_LIMIT:-48G}
+        reservations:
+          cpus: '4.0'
+          memory: ${CONTAINER_MEMORY_RESERVATION:-16G}
+          generic_resources:
+            - discrete_resource_spec:
+                kind: 'gpu'
+                value: 1
+      update_config:
+        parallelism: ${SWARM_UPDATE_PARALLELISM:-1}
+        delay: ${SWARM_UPDATE_DELAY:-10s}
+        failure_action: rollback
+        monitor: 30s
+        max_failure_ratio: 0.1
+      restart_policy:
+        condition: ${SWARM_RESTART_CONDITION:-on-failure}
+        delay: 5s
+        max_attempts: ${SWARM_RESTART_MAX_ATTEMPTS:-3}
+        window: 120s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.mcp-api.rule=Host(`mcp.localhost`)"
+        - "traefik.http.services.mcp-api.loadbalancer.server.port=${MCP_SERVER_PORT:-5000}"
+    environment:
+      # Load all environment variables from .env file
+      - PYTHONOPTIMIZE=${PYTHONOPTIMIZE}
+      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - PYTHONHASHSEED=${PYTHONHASHSEED}
+      - PYTHON_GIL=${PYTHON_GIL}
+      - MALLOC_ARENA_MAX=${MALLOC_ARENA_MAX}
+      - LD_PRELOAD=${LD_PRELOAD}
+      - OMP_NUM_THREADS=${OMP_NUM_THREADS}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES}
+    devices:
+      # GPU passthrough without additional software overhead
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+    volumes:
+      # Persistent binary volumes for precompiled dependencies
+      - mcp-cache-volume:${CACHE_ROOT:-/opt/mcp-cache}:rw
+      - python-cache-volume:${UV_CACHE_DIR:-/opt/mcp-cache/python-cache/uv}:rw
+      - pip-cache-volume:${PIP_CACHE_DIR:-/opt/mcp-cache/python-cache/pip}:rw
+      - numba-cache-volume:${NUMBA_CACHE_DIR:-/opt/mcp-cache/numba-cache}:rw
+      - cuda-cache-volume:${CUDA_CACHE_PATH:-/opt/mcp-cache/cuda-cache}:rw
+      - rust-cache-volume:${RUST_CACHE_DIR:-/opt/mcp-cache/rust-cache}:rw
+      # High-speed tmpfs mounts
+      - type: tmpfs
+        target: ${TMPDIR:-/tmp}
+        tmpfs:
+          size: ${TMPFS_SIZE:-8G}
+          mode: 1777
+      # Source code mount
+      - type: bind
+        source: ${WORKSPACE_FOLDER:-/workspaces/python-sdk}
+        target: /workspaces/python-sdk
+        bind:
+          propagation: cached
+    tmpfs:
+      - /tmp:size=${TMPFS_SIZE:-8G},exec,mode=1777
+      - /var/tmp:size=2G,exec,mode=1777
+      - /run:size=1G,mode=0755
+    sysctls:
+      # Network optimization
+      - net.core.rmem_max=${NET_CORE_RMEM_MAX:-134217728}
+      - net.core.wmem_max=${NET_CORE_WMEM_MAX:-134217728}
+      - net.core.netdev_max_backlog=${NET_CORE_NETDEV_MAX_BACKLOG:-5000}
+      - net.ipv4.tcp_congestion_control=${TCP_CONGESTION_CONTROL:-bbr}
+      # Memory optimization
+      - vm.swappiness=10
+      - vm.dirty_ratio=15
+      - vm.dirty_background_ratio=5
+      - vm.vfs_cache_pressure=50
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - NET_ADMIN
+      - IPC_LOCK
+      - SYS_RESOURCE
+    security_opt:
+      - ${SECURITY_OPT:-apparmor:unconfined}
+    privileged: ${PRIVILEGED_MODE:-true}
+    shm_size: ${CONTAINER_SHM_SIZE:-4G}
+    networks:
+      - mcp-network
+    ports:
+      - "${MCP_SERVER_PORT:-5000}:5000"
+      - "${FASTAPI_PORT:-8000}:8000"
+      - "${UVICORN_PORT:-8080}:8080"
+      - "${MONITORING_PORT:-9000}:9000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:5000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 1G
+    command: |
+      postgres
+        -c shared_buffers=${POSTGRES_SHARED_BUFFERS:-1GB}
+        -c effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-3GB}
+        -c maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-256MB}
+        -c checkpoint_completion_target=0.9
+        -c wal_buffers=16MB
+        -c default_statistics_target=100
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c work_mem=4MB
+        -c huge_pages=try
+        -c max_worker_processes=${POSTGRES_MAX_WORKER_PROCESSES:-32}
+        -c max_parallel_workers_per_gather=4
+        -c max_parallel_workers=32
+        -c max_parallel_maintenance_workers=4
+        -c max_connections=${POSTGRES_MAX_CONNECTIONS:-200}
+        -c synchronous_commit=off
+        -c fsync=off
+        -c full_page_writes=off
+    networks:
+      - mcp-network
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Load balancer and service mesh
+  traefik:
+    image: traefik:v3.0
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    command:
+      - --api.dashboard=true
+      - --api.debug=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker=true
+      - --providers.docker.swarmMode=true
+      - --providers.docker.exposedbydefault=false
+      - --log.level=INFO
+      - --accesslog=true
+      - --metrics.prometheus=true
+      - --metrics.prometheus.addEntryPointsLabels=true
+      - --metrics.prometheus.addServicesLabels=true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - mcp-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+
+networks:
+  mcp-network:
+    driver: overlay
+    attachable: true
+    driver_opts:
+      com.docker.network.driver.mtu: 9000
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  # Persistent binary volumes for instant subsequent builds
+  mcp-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache
+  python-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/python-cache/uv
+  pip-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/python-cache/pip
+  numba-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/numba-cache
+  cuda-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/cuda-cache
+  rust-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/rust-cache
+  postgres-data:
+    driver: local
