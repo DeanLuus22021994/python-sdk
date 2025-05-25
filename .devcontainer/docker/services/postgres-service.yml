@@ -1,92 +1,13 @@
-# PostgreSQL Service - High Performance Configuration
-# Optimized for development workloads with maximum throughput
-# Uses global configuration from ../../config/docker-globals.env
-
+# PostgreSQL Service Configuration - Uses Global Templates
 services:
-  postgres:
+  db:
+    <<: *postgres-service
     image: postgres:16-alpine
-    restart: unless-stopped
-    
-    # Load global configuration
-    env_file:
-      - ../../config/docker-globals.env
-    
-    # Database configuration using global variables
-    environment:
-      POSTGRES_USER: ${GLOBAL_POSTGRES_USER:-postgres}
-      POSTGRES_DB: ${GLOBAL_POSTGRES_DB:-postgres}
-      POSTGRES_PASSWORD: ${GLOBAL_POSTGRES_PASSWORD:-postgres}
-      POSTGRES_INITDB_ARGS: "--data-checksums --wal-segsize=64 --auth-local=trust --auth-host=md5"
-      PGDATA: /var/lib/postgresql/data/pgdata
-    
-    # Volume configuration using global volume definitions
-    volumes:
-      - postgres-data:/var/lib/postgresql/data:Z
-      - type: tmpfs
-        target: /tmp
-        tmpfs:
-          size: 4G
-          mode: 1777
-      - type: tmpfs
-        target: /var/run/postgresql
-        tmpfs:
-          size: 1G
-          mode: 1777
-    
-    # Resource allocation using global variables
-    deploy:
-      resources:
-        limits:
-          cpus: "${GLOBAL_CPU_LIMIT:-0}"
-          memory: "${GLOBAL_MEMORY_LIMIT:-0}"
-        reservations:
-          cpus: "2"
-          memory: "2G"
-    
-    # High-performance PostgreSQL configuration
-    command: >
-      postgres
-      -c shared_preload_libraries=pg_stat_statements,pg_buffercache
-      -c shared_buffers=2GB
-      -c effective_cache_size=6GB
-      -c maintenance_work_mem=512MB
-      -c checkpoint_completion_target=0.9
-      -c wal_buffers=64MB
-      -c default_statistics_target=100
-      -c random_page_cost=1.1
-      -c effective_io_concurrency=400
-      -c work_mem=128MB
-      -c min_wal_size=2GB
-      -c max_wal_size=8GB
-      -c checkpoint_timeout=10min
-      -c max_connections=200
-      -c max_prepared_transactions=100
-      -c wal_level=replica
-      -c max_wal_senders=10
-      -c max_replication_slots=10
-      -c hot_standby=on
-      -c wal_keep_size=1GB
-      -c max_worker_processes=16
-      -c max_parallel_workers_per_gather=8
-      -c max_parallel_workers=16
-      -c max_parallel_maintenance_workers=8
-      -c synchronous_commit=off
-      -c fsync=off
-      -c full_page_writes=off
-    
-    # Health monitoring
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${GLOBAL_POSTGRES_USER:-postgres} -d ${GLOBAL_POSTGRES_DB:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
-    
-    # Port mapping using global variable
-    ports:
-      - "${GLOBAL_POSTGRES_PORT:-5432}:5432"
-    
-    # Network configuration
-    networks:
-      - default
-
-# Note: Volumes are defined in the main docker-compose.modular.yml file
+      start_period: 30s

@@ -1,8 +1,8 @@
 # Main Docker Compose - Orchestrates all modular services
-# Optimized for maximum performance with python:slim base
-# Global configuration referenced in individual service files
+# Uses consolidated global configuration from docker-globals.yml
 
 include:
+  - config/docker-globals.yml
   - docker/services/app-service.yml
   - docker/services/postgres-service.yml
   - docker/services/redis-service.yml
