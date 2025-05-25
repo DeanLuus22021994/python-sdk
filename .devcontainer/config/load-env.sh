@@ -1,0 +1,45 @@
+#!/bin/bash
+# Environment Loader
+# Loads all modular environment configurations
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_DIR="$SCRIPT_DIR/env"
+
+load_env_files() {
+    local env_files=(
+        "python.env"
+        "memory.env" 
+        "cpu.env"
+        "storage.env"
+        "build.env"
+        "docker.env"
+        "gpu.env"
+        "swarm.env"
+        "database.env"
+        "system.env"
+    )
+    
+    for env_file in "${env_files[@]}"; do
+        local file_path="$ENV_DIR/$env_file"
+        if [[ -f "$file_path" ]]; then
+            echo "Loading environment: $env_file"
+            set -a  # Export all variables
+            source "$file_path"
+            set +a  # Stop exporting
+        else
+            echo "Warning: Environment file not found: $file_path"
+        fi
+    done
+    
+    echo "All environment configurations loaded"
+}
+
+# Export function for use in other scripts
+export -f load_env_files
+
+# Run if executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    load_env_files
+fi

@@ -1,8 +1,8 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/postgres
 {
-	"name": "High-Performance Python 3 & PostgreSQL",
-	"dockerComposeFile": "docker-compose.yml",
+	"name": "High-Performance Python 3 & PostgreSQL - Modular",
+	"dockerComposeFile": "docker-compose.modular.yml",
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 	"privileged": true,
@@ -46,7 +46,7 @@
 		9000
 	],
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "bash .devcontainer/master-orchestrator.sh --parallel && source .devcontainer/tools/dt.sh",
+	"postCreateCommand": "bash .devcontainer/master-orchestrator.modular.sh --parallel && source .devcontainer/tools/dt.sh",
 	// Configure tool-specific properties for maximum performance
 	"customizations": {
 		"vscode": {

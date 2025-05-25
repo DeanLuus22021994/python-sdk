@@ -126,12 +126,17 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+.env.backup.*
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Include modular environment configuration
+!.devcontainer/config/env/*.env
 
 # Spyder project settings
 .spyderproject

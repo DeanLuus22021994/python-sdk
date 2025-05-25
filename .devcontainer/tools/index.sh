@@ -10,6 +10,7 @@ TOOL_REGISTRY=(
     "002:utils:Build Status:Check current build status and active processes:002-build-status.sh [processes|docker|performance]"
     "003:metrics:Dev Metrics:Track development cycle metrics and performance benchmarks:003-dev-metrics.sh [record|report|benchmark]"
     "004:utils:System Migration:Migrate from old build system to new modular architecture:004-migrate-system.sh [check|migrate|rollback]"
+    "005:inspect:Modular Status:Comprehensive status check of the new modular architecture:005-modular-status.sh [detailed|summary|validation]"
 )
 
 show_tools() {
