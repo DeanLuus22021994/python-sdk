@@ -46,7 +46,7 @@
 		9000
 	],
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "bash .devcontainer/master-build.sh",
+	"postCreateCommand": "bash .devcontainer/master-orchestrator.sh --parallel && source .devcontainer/tools/dt.sh",
 	// Configure tool-specific properties for maximum performance
 	"customizations": {
 		"vscode": {

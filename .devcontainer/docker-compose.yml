@@ -4,6 +4,8 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
       target: runtime
+    env_file:
+      - .env
 
     volumes:
       - ../..:/workspaces:cached
@@ -67,20 +69,20 @@ services:
     
     # Environment variables for maximum performance with binary caching
     environment:
-      - PYTHONOPTIMIZE=2
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONUNBUFFERED=1
-      - PYTHONHASHSEED=0
-      - PYTHON_GIL=0
-      - MALLOC_ARENA_MAX=4
-      - UV_CACHE_DIR=/opt/python-cache/uv
-      - PIP_CACHE_DIR=/opt/python-cache/pip
-      - NUMBA_CACHE_DIR=/opt/python-cache/numba
-      - CUDA_CACHE_PATH=/opt/python-cache/cuda
-      - OMP_NUM_THREADS=auto
-      - MKL_NUM_THREADS=auto
-      - UV_COMPILE_BYTECODE=1
-      - PIP_COMPILE=1
+      - PYTHONOPTIMIZE=${PYTHON_OPTIMIZE}
+      - PYTHONDONTWRITEBYTECODE=${PYTHON_DONT_WRITE_BYTECODE}
+      - PYTHONUNBUFFERED=${PYTHON_UNBUFFERED}
+      - PYTHONHASHSEED=${PYTHON_HASH_SEED}
+      - PYTHON_GIL=${PYTHON_GIL}
+      - MALLOC_ARENA_MAX=${MEMORY_MALLOC_ARENA_MAX}
+      - UV_CACHE_DIR=${CACHE_UV_DIR}
+      - PIP_CACHE_DIR=${CACHE_PIP_DIR}
+      - NUMBA_CACHE_DIR=${CACHE_NUMBA_DIR}
+      - CUDA_CACHE_PATH=${CACHE_CUDA_DIR}
+      - OMP_NUM_THREADS=${CPU_OMP_THREADS}
+      - MKL_NUM_THREADS=${CPU_MKL_THREADS}
+      - UV_COMPILE_BYTECODE=${PYTHON_UV_COMPILE_BYTECODE}
+      - PIP_COMPILE=${PYTHON_PIP_COMPILE}
       
     # Sysctls for performance optimization
     sysctls:
