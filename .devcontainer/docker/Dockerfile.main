@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1.4
+# MCP Python SDK - Optimized Multi-Stage Dockerfile
+# Built on python:slim with maximum performance optimizations
+
+# Stage 1: Base Python Environment
+FROM python:3.12-slim AS python-base
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONOPTIMIZE=2 \
+    PYTHONHASHSEED=0 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=0 \
+    PIP_COMPILE=1
+
+RUN groupadd -r mcp && useradd -r -g mcp mcp && \
+    mkdir -p /opt/mcp-cache/{python,wheels,bytecode,numba,cuda} && \
+    chown -R mcp:mcp /opt/mcp-cache && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean && \
+    pip install --no-cache-dir uv
+
+# Stage 2: Development Tools
+FROM python-base AS dev-tools
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git build-essential gcc-11 g++-11 htop iotop sysstat && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100 && \
+    rm -rf /var/lib/apt/lists/* && apt-get clean
+
+# Stage 3: Final Runtime
+FROM dev-tools AS runtime
+
+COPY docker/components/requirements-dev.txt /tmp/
+RUN uv pip install --system --no-cache-dir -r /tmp/requirements-dev.txt && \
+    rm /tmp/requirements-dev.txt && \
+    mkdir -p /var/log/performance && \
+    chown mcp:mcp /var/log/performance && \
+    ldconfig && find /usr/local -name "*.pyc" -delete
+
+USER mcp
+WORKDIR /workspaces
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import sys; sys.exit(0)"
+
+CMD ["sleep", "infinity"]

@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: .devcontainer/docker/Dockerfile.main
+      target: runtime
+    env_file:
+      - ../.env
+    volumes:
+      - ../../..:/workspaces:cached
+      - python-cache-volume:/opt/mcp-cache/python:cached
+      - python-wheels-volume:/opt/mcp-cache/wheels:cached
+      - python-bytecode-volume:/opt/mcp-cache/bytecode:cached
+      - numba-cache-volume:/opt/mcp-cache/numba:cached
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: ${TMPFS_SIZE:-8G}
+          mode: 1777
+      - type: tmpfs
+        target: /dev/shm
+        tmpfs:
+          size: ${CONTAINER_SHM_SIZE:-4G}
+          mode: 1777
+    privileged: true
+    init: true
+    command: sleep infinity
+
+volumes:
+  python-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/python
+  python-wheels-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/wheels
+  python-bytecode-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/bytecode
+  numba-cache-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/mcp-cache/numba

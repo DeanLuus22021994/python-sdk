@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_INITDB_ARGS: "--data-checksums --wal-segsize=64"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data:Z
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 1G
+          mode: 1777
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c shared_buffers=1GB
+      -c effective_cache_size=3GB
+      -c maintenance_work_mem=256MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=64MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_worker_processes=32
+      -c max_parallel_workers_per_gather=8
+      -c max_parallel_workers=32
+      -c max_parallel_maintenance_workers=8
+      -c fsync=off
+      -c synchronous_commit=off
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    shm_size: 1G
+
+volumes:
+  postgres-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /tmp/postgres-data

@@ -1,0 +1,28 @@
+version: '3.8'
+
+# Main Docker Compose - Orchestrates all modular services
+# Optimized for maximum performance with python:slim base
+
+include:
+  - docker/services/app-service.yml
+  - docker/services/postgres-service.yml
+  - docker/services/redis-service.yml
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: ${NETWORK_MTU:-9000}
+
+# Global volume definitions
+volumes:
+  python-cache-volume:
+    external: false
+  python-wheels-volume:
+    external: false
+  python-bytecode-volume:
+    external: false
+  numba-cache-volume:
+    external: false
+  postgres-data:
+    external: false
