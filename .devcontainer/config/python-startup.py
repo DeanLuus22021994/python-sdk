@@ -4,6 +4,7 @@ Python startup script for performance optimizations
 This script is loaded by PYTHONSTARTUP environment variable
 """
 
+import builtins
 import sys
 import os
 import gc
@@ -37,26 +38,31 @@ if mcp_path not in sys.path:
     sys.path.insert(0, mcp_path)
 
 # Performance monitoring utilities
+
+
 class PerfTimer:
     """Context manager for timing code execution"""
+
     def __init__(self, name="Operation"):
         self.name = name
-        
+
     def __enter__(self):
         self.start = time.perf_counter()
         return self
-        
+
     def __exit__(self, *args):
         elapsed = time.perf_counter() - self.start
         print(f"{self.name} took {elapsed:.4f} seconds")
 
+
 # Make performance utilities available globally
-import builtins
 builtins.perf_timer = PerfTimer
 
-# Configure uvloop if available
+# Configure uvloop if available (will be installed during rebuild)
 try:
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 except ImportError:
+    # uvloop not available, using default event loop policy
+    # This is expected during initial setup before rebuild
     pass
