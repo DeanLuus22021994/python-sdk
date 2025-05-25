@@ -9,6 +9,29 @@ ARG GLOBAL_DOCKER_BUILDKIT=${GLOBAL_DOCKER_BUILDKIT:-1}
 ARG GLOBAL_PYTHONOPTIMIZE=${GLOBAL_PYTHONOPTIMIZE:-2}
 ARG GLOBAL_PYTHONHASHSEED=${GLOBAL_PYTHONHASHSEED:-0}
 
+# Global Python package version arguments
+ARG GLOBAL_UV_VERSION=${GLOBAL_UV_VERSION:-0.5.0}
+ARG GLOBAL_FASTAPI_VERSION=${GLOBAL_FASTAPI_VERSION:-0.115.0}
+ARG GLOBAL_UVICORN_VERSION=${GLOBAL_UVICORN_VERSION:-0.32.0}
+ARG GLOBAL_HTTPX_VERSION=${GLOBAL_HTTPX_VERSION:-0.28.0}
+ARG GLOBAL_PYDANTIC_VERSION=${GLOBAL_PYDANTIC_VERSION:-2.10.0}
+ARG GLOBAL_ANYIO_VERSION=${GLOBAL_ANYIO_VERSION:-4.6.0}
+ARG GLOBAL_PYTEST_VERSION=${GLOBAL_PYTEST_VERSION:-8.3.0}
+ARG GLOBAL_PYTEST_ASYNCIO_VERSION=${GLOBAL_PYTEST_ASYNCIO_VERSION:-0.24.0}
+ARG GLOBAL_BLACK_VERSION=${GLOBAL_BLACK_VERSION:-24.10.0}
+ARG GLOBAL_RUFF_VERSION=${GLOBAL_RUFF_VERSION:-0.8.0}
+ARG GLOBAL_UVLOOP_VERSION=${GLOBAL_UVLOOP_VERSION:-0.21.0}
+ARG GLOBAL_ORJSON_VERSION=${GLOBAL_ORJSON_VERSION:-3.10.0}
+ARG GLOBAL_CYTHON_VERSION=${GLOBAL_CYTHON_VERSION:-3.0.11}
+ARG GLOBAL_NUMBA_VERSION=${GLOBAL_NUMBA_VERSION:-0.60.0}
+ARG GLOBAL_PSUTIL_VERSION=${GLOBAL_PSUTIL_VERSION:-6.1.0}
+ARG GLOBAL_JEMALLOC_VERSION=${GLOBAL_JEMALLOC_VERSION:-2.0.0}
+
+# Global path and cache arguments
+ARG GLOBAL_PYTHONPATH=${GLOBAL_PYTHONPATH:-/workspaces/python-sdk/src}
+ARG GLOBAL_NUMBA_CACHE_DIR=${GLOBAL_NUMBA_CACHE_DIR:-/opt/mcp-cache/numba}
+ARG GLOBAL_UV_CACHE_DIR=${GLOBAL_UV_CACHE_DIR:-/opt/mcp-cache/uv}
+
 # Stage 1: Base Python Environment
 FROM python:3.12-slim AS python-base
 
@@ -50,7 +73,12 @@ COPY docker/components/network-optimize.Dockerfile /tmp/
 RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
     cat /tmp/network-optimize.Dockerfile | sed '1,3d' | bash
 
-FROM network-optimized AS runtime
+FROM network-optimized AS python-deps
+COPY docker/components/python-deps.Dockerfile /tmp/
+RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
+    cat /tmp/python-deps.Dockerfile | sed '1,3d' | bash
+
+FROM python-deps AS runtime
 COPY docker/components/runtime.Dockerfile /tmp/
 RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
     cat /tmp/runtime.Dockerfile | sed '1,3d' | bash
