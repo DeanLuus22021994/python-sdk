@@ -113,14 +113,27 @@ class EnvironmentManager:
         env_info = get_environment_info()
         optional_paths = get_optional_paths_status()
 
-        return {
-            **{
-                k: str(v) if not isinstance(v, (str, int, bool)) else v
-                for k, v in env_info.items()
-            },
-            "project_structure_valid": is_project_structure_valid(),
-            "optional_paths": len([p for p in optional_paths.values() if p]),
-        }
+        # Convert all values to appropriate types for the return type
+        status_dict: dict[str, str | int | bool] = {}
+
+        # Handle nested dict values by flattening or converting to strings
+        for key, value in env_info.items():
+            if isinstance(value, dict):
+                # Convert nested dict to a string representation
+                status_dict[key] = str(value)
+            elif isinstance(value, str | int | bool):
+                status_dict[key] = value
+            else:
+                # Convert other types to string
+                status_dict[key] = str(value)
+
+        # Add additional status information
+        status_dict["project_structure_valid"] = is_project_structure_valid()
+        status_dict["optional_paths_available"] = len(
+            [p for p in optional_paths.values() if p]
+        )
+
+        return status_dict
 
 
 __all__ = [

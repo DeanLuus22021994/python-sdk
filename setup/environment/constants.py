@@ -1,4 +1,3 @@
-# filepath: c:\Projects\python-sdk\setup\environment\constants.py
 """
 Constants and Configuration Values
 Centralized constants for the MCP Python SDK setup with type safety and immutability.
@@ -112,7 +111,7 @@ RECOMMENDED_EXTENSIONS: Final[tuple[str, ...]] = (
 # Default performance settings instance
 PERFORMANCE_SETTINGS: Final[PerformanceSettings] = PerformanceSettings()
 
-# VS Code performance settings - Fixed type compatibility
+# VS Code performance settings - Properly typed for VS Code configuration
 VS_CODE_PERFORMANCE_SETTINGS: Final[
     Mapping[str, str | int | bool | Mapping[str, bool]]
 ] = {

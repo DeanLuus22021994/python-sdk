@@ -1,4 +1,3 @@
-# filepath: c:\Projects\python-sdk\setup\environment\python_validator.py
 """
 Python Environment Validator
 Comprehensive Python environment validation and information gathering.
@@ -64,7 +63,7 @@ def get_environment_info() -> dict[str, Any]:
     # Get Python executable information
     executable_info = {
         "executable": sys.executable,
-        "executable_path": Path(sys.executable).resolve(),
+        "executable_path": str(Path(sys.executable).resolve()),
         "version": str(current_version),
         "version_full": sys.version,
         "implementation": platform.python_implementation(),
