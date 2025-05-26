@@ -6,14 +6,20 @@ Orchestrates the complete setup process
 import sys
 from pathlib import Path
 
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
 
-from setup.env_validator import validate_environment
-from setup.package_manager import setup_packages
-from setup.sdk_validator import validate_sdk
-from setup.vscode_config import setup_vscode_config
+def get_module_functions():
+    """Import modules after adding path to avoid import issues."""
+    # Add project root to path for imports
+    project_root = Path(__file__).parent.parent
+    sys.path.insert(0, str(project_root))
+
+    # Import setup modules
+    from setup.env_validator import validate_environment
+    from setup.package_manager import setup_packages
+    from setup.sdk_validator import validate_sdk
+    from setup.vscode_config import setup_vscode_config
+
+    return validate_environment, setup_packages, validate_sdk, setup_vscode_config
 
 
 def print_header():
@@ -43,6 +49,11 @@ def print_footer(success: bool):
 def main() -> int:
     """Main setup orchestrator."""
     print_header()
+
+    # Get imported functions
+    validate_environment, setup_packages, validate_sdk, setup_vscode_config = (
+        get_module_functions()
+    )
 
     try:
         # Step 1: Validate environment

@@ -3,6 +3,7 @@ Setup Module 02: Package Manager
 Handles installation and verification of required packages
 """
 
+import platform
 import subprocess
 import sys
 
@@ -18,8 +19,10 @@ REQUIRED_PACKAGES = [
     "ujson",
     "xxhash",
     "zstandard",
-    "uvloop",
 ]
+
+# Platform-specific packages
+PLATFORM_PACKAGES = {"uvloop": ["linux", "darwin"]}  # Only install on Linux/macOS
 
 
 def install_package(package: str) -> tuple[bool, str]:
@@ -50,23 +53,42 @@ def setup_packages() -> bool:
     print("📦 Setting up packages...")
 
     success = True
+    current_platform = platform.system().lower()
 
-    # Install packages
+    # Install core packages
     for package in REQUIRED_PACKAGES:
         installed, message = install_package(package)
         print(f"  {message}")
         if not installed:
             success = False
 
+    # Install platform-specific packages
+    for package, supported_platforms in PLATFORM_PACKAGES.items():
+        if current_platform in supported_platforms:
+            installed, message = install_package(package)
+            print(f"  {message}")
+            if not installed:
+                success = False
+        else:
+            print(f"  ⚠ {package} - skipped (not supported on {current_platform})")
+
     if not success:
         return False
 
-    # Verify imports
+    # Verify imports for core packages
     print("\n🔍 Verifying imports...")
     for package in REQUIRED_PACKAGES:
         verified, message = verify_import(package)
         print(f"  {message}")
         if not verified:
             success = False
+
+    # Verify platform-specific packages if installed
+    for package, supported_platforms in PLATFORM_PACKAGES.items():
+        if current_platform in supported_platforms:
+            verified, message = verify_import(package)
+            print(f"  {message}")
+            if not verified:
+                success = False
 
     return success
