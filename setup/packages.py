@@ -85,4 +85,16 @@ def normalize_package_name(package: str) -> str:
     Returns:
         The package name as it should be imported
     """
+    # Special mappings for packages with different import names
+    special_mappings = {
+        "pyyaml": "yaml",
+        "httpx-sse": "httpx_sse",
+        "sse-starlette": "sse_starlette",
+        "pydantic-ai": "pydantic_ai",
+        "pytest-asyncio": "pytest_asyncio",
+    }
+
+    if package in special_mappings:
+        return special_mappings[package]
+
     return package.replace("-", "_")
