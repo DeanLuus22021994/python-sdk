@@ -56,8 +56,8 @@ execute_modules_sequential() {
 
 start_module_job() {
     local module="$1"
-    local -n job_pids="$2"
-    local -n job_results="$3"
+    local -n pids="$2"
+    local -n results="$3"
     local module_name
     module_name=$(basename "$module" .sh)
     
@@ -71,47 +71,47 @@ start_module_job() {
         fi
     ) &
     
-    job_pids+=($!)
-    job_results[${#job_pids[@]}]="/tmp/job_result_$$"
+    pids+=($!)
+    results[${#pids[@]}]="/tmp/job_result_$$"
 }
 
 wait_for_job_completion() {
-    local -n job_pids="$1"
-    local -n job_results="$2"
+    local -n pids="$1"
+    local -n results="$2"
     
     # Wait for any job to complete
-    wait -n "${job_pids[@]}"
+    wait -n "${pids[@]}"
     
     # Remove completed jobs from arrays
     local new_pids=()
     local new_results=()
     
-    for i in "${!job_pids[@]}"; do
-        if kill -0 "${job_pids[$i]}" 2>/dev/null; then
-            new_pids+=("${job_pids[$i]}")
-            new_results+=("${job_results[$i]}")
+    for i in "${!pids[@]}"; do
+        if kill -0 "${pids[$i]}" 2>/dev/null; then
+            new_pids+=("${pids[$i]}")
+            new_results+=("${results[$i]}")
         fi
     done
     
-    job_pids=("${new_pids[@]}")
-    job_results=("${new_results[@]}")
+    pids=("${new_pids[@]}")
+    results=("${new_results[@]}")
 }
 
 wait_for_all_jobs() {
-    local -n job_pids="$1"
-    local -n job_results="$2"  # Referenced but not modified, keeping for consistency
+    local -n pids="$1"
+    local -n results="$2"  # Referenced but not modified, keeping for consistency
     
     debug "Waiting for all background jobs to complete"
     
-    for pid in "${job_pids[@]}"; do
+    for pid in "${pids[@]}"; do
         wait "$pid" 2>/dev/null || true
     done
     
-    job_pids=()
+    pids=()
 }
 
 report_parallel_results() {
-    local -n job_results="$1"
+    local -n results="$1"
     
     info "Parallel execution results:"
     
@@ -119,7 +119,7 @@ report_parallel_results() {
     local failed_count=0
     local error_count=0
     
-    for result_file in "${job_results[@]}"; do
+    for result_file in "${results[@]}"; do
         if [[ -f "$result_file" ]]; then
             local result
             result=$(cat "$result_file")

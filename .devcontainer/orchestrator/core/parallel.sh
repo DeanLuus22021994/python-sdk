@@ -55,6 +55,28 @@ start_module_job_core() {
     results_array_ref+=("/tmp/orchestrator_result_${module}_$$")
 }
 
+wait_for_job_completion_core() {
+    local -n pids_array_ref="$1"
+    local -n results_array_ref="$2"
+    
+    # Wait for any job to complete
+    wait -n "${pids_array_ref[@]}" 2>/dev/null || true
+    
+    # Remove completed jobs from arrays
+    local new_pids=()
+    local new_results=()
+    
+    for i in "${!pids_array_ref[@]}"; do
+        if kill -0 "${pids_array_ref[$i]}" 2>/dev/null; then
+            new_pids+=("${pids_array_ref[$i]}")
+            new_results+=("${results_array_ref[$i]}")
+        fi
+    done
+    
+    pids_array_ref=("${new_pids[@]}")
+    results_array_ref=("${new_results[@]}")
+}
+
 wait_for_all_jobs_core() {
     local -n pids_array_ref="$1"
     local -n results_array_ref="$2"
