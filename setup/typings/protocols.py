@@ -8,7 +8,32 @@ consistent interfaces across implementations.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    # Import actual types for type checking
+    try:
+        from .core import SetupResult
+        from .environment import (
+            EnvironmentInfo,
+            ProjectStructureInfo,
+            PythonVersion,
+            ValidationDetails,
+        )
+    except ImportError:
+        # Fallback type aliases if imports fail
+        SetupResult = Any
+        ValidationDetails = Any
+        EnvironmentInfo = Any
+        PythonVersion = Any
+        ProjectStructureInfo = Any
+else:
+    # Runtime type aliases to prevent name errors
+    SetupResult = Any
+    ValidationDetails = Any
+    EnvironmentInfo = Any
+    PythonVersion = Any
+    ProjectStructureInfo = Any
 
 __all__ = [
     "Validator",
