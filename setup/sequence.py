@@ -26,7 +26,9 @@ def run_setup_sequence() -> bool:
     # Now import from setup packages
     from setup.environment import (
         check_required_paths,
-        create_modern_vscode_settings,
+        create_vscode_directory,
+        get_modern_vscode_settings,
+        should_create_settings_json,
         validate_python_version,
     )
     from setup.packages import get_packages_for_platform
@@ -52,15 +54,54 @@ def run_setup_sequence() -> bool:
     # Step 3: Configure VS Code settings
     try:
         print("Creating modern VS Code configuration...")
-        if create_modern_vscode_settings():
+        vscode_dir = create_vscode_directory()
+        settings_path = vscode_dir / "settings.json"
+
+        if should_create_settings_json():
+            settings = get_modern_vscode_settings()
+            with open(settings_path, "w", encoding="utf-8") as f:
+                import json
+
+                json.dump(settings, f, indent=2)
             print("✓ VS Code configuration created successfully")
             print("  - settings.json (Python development settings)")
-            print("  - launch.json (Debug configurations)")
-            print("  - tasks.json (Build and test tasks)")
-            print("  - extensions.json (Recommended extensions)")
         else:
-            print("✗ Failed to create VS Code configuration")
-            success = False
+            print("✓ VS Code settings.json already exists")
+
+        # Create other VS Code configuration files
+        launch_path = vscode_dir / "launch.json"
+        if not launch_path.exists():
+            from setup.environment import get_modern_launch_config
+
+            launch_config = get_modern_launch_config()
+            with open(launch_path, "w", encoding="utf-8") as f:
+                import json
+
+                json.dump(launch_config, f, indent=2)
+            print("  - launch.json (Debug configurations)")
+
+        tasks_path = vscode_dir / "tasks.json"
+        if not tasks_path.exists():
+            from setup.environment import get_modern_tasks_config
+
+            tasks_config = get_modern_tasks_config()
+            with open(tasks_path, "w", encoding="utf-8") as f:
+                import json
+
+                json.dump(tasks_config, f, indent=2)
+            print("  - tasks.json (Build and test tasks)")
+
+        extensions_path = vscode_dir / "extensions.json"
+        if not extensions_path.exists():
+            from setup.environment import create_vscode_extensions_config
+
+            extensions_config = create_vscode_extensions_config()
+            with open(extensions_path, "w", encoding="utf-8") as f:
+                import json
+
+                json.dump(extensions_config, f, indent=2)
+            print("  - extensions.json (Recommended extensions)")
+
     except Exception as e:
         print(f"✗ Failed to configure VS Code: {str(e)}")
         success = False
