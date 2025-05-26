@@ -4,16 +4,12 @@ import json
 from pathlib import Path
 
 try:
-    from setup.environment import (
-        get_project_root,
-        get_vscode_settings,
-    )
+    from setup.environment import get_project_root, get_vscode_settings
 except ImportError:
-    # Fallback functions if import fails    def get_project_root() -> Path:
+    # Fallback functions if import fails
+    def get_project_root() -> Path:
         """Get project root directory."""
-        return (
-            Path(__file__).parent.parent.parent
-        )
+        return Path(__file__).parent.parent.parent
 
     def get_vscode_settings() -> dict[str, str | bool]:
         """Get default VS Code settings."""
@@ -97,8 +93,7 @@ def update_vscode_settings(new_settings: dict[str, str]) -> bool:
         vscode_path = create_vscode_directory()
         settings_path = vscode_path / "settings.json"
 
-        current_settings = get_current_vsycode_settings()
-        current_settings.update(new_settings)
+        current_settings = get_current_vscode_settings()
 
         with open(settings_path, "w", encoding="utf-8") as f:
             json.dump(current_settings, f, indent=2)
