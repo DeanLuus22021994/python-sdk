@@ -6,5 +6,13 @@
     "**/*.pyc": true,
     ".pytest_cache": true,
     "*.egg-info": true
+  },
+  "python.analysis.typeCheckingMode": "basic",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
   }
 }

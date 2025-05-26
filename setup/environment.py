@@ -28,6 +28,11 @@ VSCODE_SETTINGS = {
 }
 
 
+def get_vscode_settings() -> dict[str, str | bool]:
+    """Get the default VS Code settings."""
+    return VSCODE_SETTINGS
+
+
 def get_project_root() -> Path:
     """
     Get the project root directory.

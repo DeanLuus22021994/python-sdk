@@ -1,16 +1,8 @@
-"""
-Setup Module 1.2: Package Manager
-Installs and verifies required packages
-"""
+"""Package management module for Python SDK setup."""
 
 import platform
 import subprocess
 import sys
-from pathlib import Path
-
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 try:
     from setup.packages import (
@@ -33,11 +25,13 @@ except ImportError:
         "zstandard",
     ]
 
-    def get_platform_package_status():
+    def get_platform_package_status() -> dict[str, bool]:
+        """Get platform-specific package requirements."""
         current_platform = platform.system().lower()
         return {"uvloop": current_platform in ["linux", "darwin"]}
 
-    def normalize_package_name(package):
+    def normalize_package_name(package: str) -> str:
+        """Normalize package name for import."""
         return package.replace("-", "_")
 
 
@@ -70,7 +64,7 @@ def setup_packages() -> bool:
     print("📦 Setting up packages...")
     success = True
     current_platform = platform.system().lower()
-    platform_status = get_platform_package_status()
+    platform_packages = get_platform_package_status()
 
     # Install main packages
     for package in REQUIRED_PACKAGES:
@@ -80,7 +74,7 @@ def setup_packages() -> bool:
             success = False
 
     # Install platform-specific packages
-    for package, should_install in platform_status.items():
+    for package, should_install in platform_packages.items():
         if should_install:
             installed, msg = install_package(package)
             print(f"  {msg}")
@@ -100,7 +94,8 @@ def setup_packages() -> bool:
         if not verified:
             success = False
 
-    for package, should_install in platform_status.items():
+    # Verify platform-specific packages
+    for package, should_install in platform_packages.items():
         if should_install:
             verified, msg = verify_import(package)
             print(f"  {msg}")
@@ -108,3 +103,30 @@ def setup_packages() -> bool:
                 success = False
 
     return success
+
+
+def check_package_availability(package: str) -> bool:
+    """Check if a package is available without installing."""
+    try:
+        __import__(normalize_package_name(package))
+        return True
+    except ImportError:
+        return False
+
+
+def get_installed_packages() -> list[str]:
+    """Get list of currently installed packages."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "list", "--format=freeze"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return [
+            line.split("==")[0]
+            for line in result.stdout.strip().split("\n")
+            if "==" in line
+        ]
+    except subprocess.CalledProcessError:
+        return []

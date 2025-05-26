@@ -1,21 +1,14 @@
-"""
-Setup Module 1.3: SDK Validator
-Verifies MCP SDK structure and performance module
-"""
+"""SDK validation module for Python SDK setup."""
 
-import sys
 from importlib import util
 from pathlib import Path
-
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 try:
     from setup.environment import get_project_root
 except ImportError:
 
-    def get_project_root():
+    def get_project_root() -> Path:
+        """Get project root directory."""
         return Path(__file__).parent.parent.parent
 
 
@@ -46,13 +39,54 @@ def validate_performance_module() -> tuple[bool, str]:
         return False, f"✗ Performance module error: {str(e)}"
 
 
+def validate_core_modules() -> tuple[bool, str]:
+    """Validate core MCP modules exist."""
+    try:
+        project_root = get_project_root()
+        core_modules = ["client", "server", "types"]
+        mcp_path = project_root / "src" / "mcp"
+
+        missing_modules = []
+        for module in core_modules:
+            module_path = mcp_path / f"{module}.py"
+            if not module_path.exists():
+                missing_modules.append(module)
+
+        if missing_modules:
+            return (False, f"✗ Missing core modules: {', '.join(missing_modules)}")
+
+        return True, "✓ Core MCP modules validated"
+    except Exception as e:
+        return False, f"✗ Core module validation failed: {str(e)}"
+
+
 def validate_sdk() -> bool:
     """Main SDK validation flow."""
     print("🔧 Validating MCP SDK...")
-    checks = [validate_mcp_structure(), validate_performance_module()]
+    checks = [
+        validate_mcp_structure(),
+        validate_performance_module(),
+        validate_core_modules(),
+    ]
     success = True
     for passed, message in checks:
         print(f"  {message}")
         if not passed:
             success = False
     return success
+
+
+def check_sdk_completeness() -> dict[str, bool]:
+    """Check SDK component completeness."""
+    results = {}
+    checks = [
+        ("mcp_structure", validate_mcp_structure),
+        ("performance_module", validate_performance_module),
+        ("core_modules", validate_core_modules),
+    ]
+
+    for check_name, check_func in checks:
+        passed, _ = check_func()
+        results[check_name] = passed
+
+    return results
