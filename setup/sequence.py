@@ -105,18 +105,16 @@ def run_setup_sequence() -> bool:
 
     except Exception as e:
         print(f"✗ Failed to configure VS Code: {str(e)}")
-        success = False
-
-    # Step 4: Verify required packages
+        success = False  # Step 4: Verify required packages
     print("\nChecking required packages:")
+    from setup.packages import normalize_package_name
+
     packages = get_packages_for_platform(include_dev=True)
 
     for package in packages:
         try:
             # Simple check using importlib to see if package can be imported
-            module_name = package.replace(
-                "-", "_"
-            )  # Convert package name to module name
+            module_name = normalize_package_name(package)
             __import__(module_name)
             print(f"✓ {package} is installed")
         except ImportError:
