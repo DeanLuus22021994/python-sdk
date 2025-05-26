@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Source logging utilities
+# shellcheck source=./logging.sh
+source "$(dirname "${BASH_SOURCE[0]}")/logging.sh"
+
 # Global configuration with defaults
 declare -g MAX_PARALLEL_JOBS="${MAX_PARALLEL_JOBS:-4}"
 declare -g JOB_TIMEOUT="${JOB_TIMEOUT:-300}"
@@ -25,24 +29,24 @@ execute_modules_parallel() {
     
     info "Executing modules in parallel (max jobs: $MAX_PARALLEL_JOBS)"
     
-    local pids=()
-    local results=()
+    local job_pids=()
+    local result_files=()
     
     for module in "${modules[@]}"; do
         # Wait if we've reached max parallel jobs
-        while [[ ${#pids[@]} -ge $MAX_PARALLEL_JOBS ]]; do
-            wait_for_job_completion pids results
+        while [[ ${#job_pids[@]} -ge $MAX_PARALLEL_JOBS ]]; do
+            wait_for_job_completion job_pids result_files
         done
         
         # Start module in background
-        start_module_job "$modules_dir" "$module" pids results
+        start_module_job "$modules_dir" "$module" job_pids result_files
     done
     
     # Wait for all remaining jobs
-    wait_for_all_jobs pids results
+    wait_for_all_jobs job_pids result_files
     
     # Report results
-    report_parallel_results results
+    report_parallel_results result_files
 }
 
 # Execute modules sequentially
@@ -78,7 +82,7 @@ execute_single_module() {
     if [[ ! -x "$module_path" ]]; then
         error "Module not found or not executable: $module"
         return 1
-    }
+    fi
     
     info "Executing module: $module"
     if timeout "$JOB_TIMEOUT" bash "$module_path"; then
@@ -95,13 +99,13 @@ execute_single_module() {
 # Arguments:
 #   $1: modules_dir - Directory containing the module scripts
 #   $2: module - Name of module to execute (without .sh extension)
-#   $3: pids_ref - Name of array variable to store PIDs
-#   $4: results_ref - Name of array variable to store result file paths
+#   $3: pids_array_name - Name of array variable to store PIDs
+#   $4: results_array_name - Name of array variable to store result file paths
 start_module_job() {
     local modules_dir="$1"
     local module="$2"
-    local -n pids_ref="$3"
-    local -n results_ref="$4"
+    local -n pids_array="$3"
+    local -n results_array="$4"
     local module_path="${modules_dir}/${module}.sh"
     local result_file="${TEMP_DIR}/orchestrator_result_${module}_$$"
     
@@ -119,58 +123,58 @@ start_module_job() {
         fi
     ) &
     
-    pids_ref+=($!)
-    results_ref+=("$result_file")
+    pids_array+=($!)
+    results_array+=("$result_file")
 }
 
 # Wait for a single job to complete
 # Arguments:
-#   $1: pids_ref - Name of array variable storing PIDs
-#   $2: results_ref - Name of array variable storing result file paths
+#   $1: pids_array_name - Name of array variable storing PIDs
+#   $2: results_array_name - Name of array variable storing result file paths
 wait_for_job_completion() {
-    local -n pids_ref="$1"
-    local -n results_ref="$2"
+    local -n pids_array="$1"
+    local -n results_array="$2"
     
     # Wait for any job to complete
-    wait -n "${pids_ref[@]}" 2>/dev/null || true
+    wait -n "${pids_array[@]}" 2>/dev/null || true
     
     # Remove completed jobs from arrays
     local new_pids=()
     local new_results=()
     
-    for i in "${!pids_ref[@]}"; do
-        if kill -0 "${pids_ref[$i]}" 2>/dev/null; then
-            new_pids+=("${pids_ref[$i]}")
-            new_results+=("${results_ref[$i]}")
+    for i in "${!pids_array[@]}"; do
+        if kill -0 "${pids_array[$i]}" 2>/dev/null; then
+            new_pids+=("${pids_array[$i]}")
+            new_results+=("${results_array[$i]}")
         fi
     done
     
-    pids_ref=("${new_pids[@]}")
-    results_ref=("${new_results[@]}")
+    pids_array=("${new_pids[@]}")
+    results_array=("${new_results[@]}")
 }
 
 # Wait for all jobs to complete
 # Arguments:
-#   $1: pids_ref - Name of array variable storing PIDs
-#   $2: results_ref - Name of array variable storing result file paths
+#   $1: pids_array_name - Name of array variable storing PIDs
+#   $2: results_array_name - Name of array variable storing result file paths
 wait_for_all_jobs() {
-    local -n pids_ref="$1"
-    local -n results_ref="$2"
+    local -n pids_array="$1"
+    local -n results_array="$2"  # Referenced but not modified, keeping for consistency
     
     debug "Waiting for all background jobs to complete"
     
-    for pid in "${pids_ref[@]}"; do
+    for pid in "${pids_array[@]}"; do
         wait "$pid" 2>/dev/null || true
     done
     
-    pids_ref=()
+    pids_array=()
 }
 
 # Report results from parallel execution
 # Arguments:
-#   $1: results_ref - Name of array variable storing result file paths
+#   $1: results_array_name - Name of array variable storing result file paths
 report_parallel_results() {
-    local -n results_ref="$1"
+    local -n results_array="$1"
     
     info "Parallel execution results:"
     
@@ -178,11 +182,14 @@ report_parallel_results() {
     local failed_count=0
     local error_count=0
     
-    for result_file in "${results_ref[@]}"; do
+    for result_file in "${results_array[@]}"; do
         if [[ -f "$result_file" ]]; then
-            local result=$(cat "$result_file")
-            local status=$(echo "$result" | cut -d':' -f1)
-            local module=$(echo "$result" | cut -d':' -f2)
+            local result
+            result=$(cat "$result_file")
+            local status
+            status=$(echo "$result" | cut -d':' -f1)
+            local module
+            module=$(echo "$result" | cut -d':' -f2)
             
             case "$status" in
                 "SUCCESS")
@@ -194,7 +201,8 @@ report_parallel_results() {
                     ((failed_count++))
                     ;;
                 "ERROR")
-                    local error_msg=$(echo "$result" | cut -d':' -f3-)
+                    local error_msg
+                    error_msg=$(echo "$result" | cut -d':' -f3-)
                     error "  ✗ $module error: $error_msg"
                     ((error_count++))
                     ;;
