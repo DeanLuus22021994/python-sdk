@@ -33,8 +33,11 @@ except ImportError:
         missing = [
             path
             for path in required
-            if not os.path.exists(os.path.join(base_path, path))        ]
-        return len(missing) == 0, missing    def get_project_root() -> Path:
+            if not os.path.exists(os.path.join(base_path, path))
+        ]
+        return len(missing) == 0, missing
+
+    def get_project_root() -> Path:
         """Get project root directory."""
         return Path.cwd()
 
