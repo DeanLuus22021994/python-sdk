@@ -1,0 +1,21 @@
+{
+  "include": ["src/**/*.py", "setup/**/*.py", "tests/**/*.py"],
+  "exclude": [
+    "**/venv/**",
+    "**/__pycache__/**",
+    "**/.pytest_cache/**",
+    "**/.mypy_cache/**",
+    "**/.venv/**",
+    "**/build/**",
+    "**/dist/**"
+  ],
+  "pythonVersion": "3.10",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+  "reportArgumentType": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportUnknownVariableType": "none",
+  "reportUnusedImport": "information",
+  "reportUnusedVariable": "information"
+}
