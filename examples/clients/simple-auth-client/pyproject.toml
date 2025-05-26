@@ -14,10 +14,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
 ]
-dependencies = [
-    "click>=8.0.0",
-    "mcp>=1.0.0",
-]
+dependencies = ["click>=8.0.0", "mcp>=1.0.0"]
 
 [project.scripts]
 mcp-simple-auth-client = "mcp_simple_auth_client.main:cli"
@@ -39,7 +36,7 @@ select = ["E", "F", "I"]
 ignore = []
 
 [tool.ruff]
-line-length = 88
+line-length = 120
 target-version = "py310"
 
 [tool.uv]

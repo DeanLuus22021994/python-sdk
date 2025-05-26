@@ -126,7 +126,7 @@ select = ["C4", "E", "F", "I", "PERF", "UP"]
 ignore = ["PERF203"]
 
 [tool.ruff]
-line-length = 88
+line-length = 120
 target-version = "py310"
 
 [tool.ruff.lint.per-file-ignores]
@@ -152,5 +152,5 @@ filterwarnings = [
     # This should be fixed on Uvicorn's side.
     "ignore::DeprecationWarning:websockets",
     "ignore:websockets.server.WebSocketServerProtocol is deprecated:DeprecationWarning",
-    "ignore:Returning str or bytes.*:DeprecationWarning:mcp.server.lowlevel"
+    "ignore:Returning str or bytes.*:DeprecationWarning:mcp.server.lowlevel",
 ]
