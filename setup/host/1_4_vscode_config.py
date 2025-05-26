@@ -1,6 +1,6 @@
 """
-Setup Module 04: VS Code Configuration
-Ensures VS Code Insiders is properly configured for development
+Setup Module 1.4: VS Code Configuration
+Ensures VS Code is properly configured for development
 """
 
 import json
@@ -9,7 +9,7 @@ from pathlib import Path
 
 def validate_vscode_config() -> tuple[bool, str]:
     """Validate VS Code configuration exists and is correct."""
-    project_root = Path(__file__).parent.parent
+    project_root = Path(__file__).parent.parent.parent
     vscode_path = project_root / ".vscode"
     settings_path = vscode_path / "settings.json"
 
@@ -22,11 +22,10 @@ def validate_vscode_config() -> tuple[bool, str]:
         with open(settings_path, encoding="utf-8") as f:
             settings = json.load(f)
 
-        # Check for Python interpreter setting
         if "python.defaultInterpreterPath" in settings:
             return True, "✓ VS Code configuration validated"
         else:
-            return True, "✓ VS Code directory exists (basic config)"
+            return True, "✓ Basic .vscode setup detected"
 
     except json.JSONDecodeError:
         return False, "✗ Invalid JSON in settings.json"
@@ -37,23 +36,19 @@ def validate_vscode_config() -> tuple[bool, str]:
 def setup_vscode_config() -> bool:
     """Setup VS Code configuration for Python development."""
     print("⚙️  Setting up VS Code configuration...")
-
     validated, message = validate_vscode_config()
     print(f"  {message}")
 
     if not validated:
-        project_root = Path(__file__).parent.parent
+        project_root = Path(__file__).parent.parent.parent
         vscode_path = project_root / ".vscode"
         vscode_path.mkdir(exist_ok=True)
 
-        # Create minimal settings if needed
         settings_path = vscode_path / "settings.json"
         if not settings_path.exists():
             minimal_settings = {"python.defaultInterpreterPath": "python"}
-
             with open(settings_path, "w", encoding="utf-8") as f:
                 json.dump(minimal_settings, f, indent=2)
-
             print("  ✓ Created minimal VS Code settings")
 
     return True

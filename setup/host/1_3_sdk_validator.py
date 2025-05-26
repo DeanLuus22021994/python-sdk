@@ -1,6 +1,6 @@
 """
-Setup Module 03: SDK Validator
-Validates MCP SDK structure and functionality
+Setup Module 1.3: SDK Validator
+Verifies MCP SDK structure and performance module
 """
 
 from pathlib import Path
@@ -8,7 +8,7 @@ from pathlib import Path
 
 def validate_mcp_structure() -> tuple[bool, str]:
     """Validate MCP SDK structure exists."""
-    project_root = Path(__file__).parent.parent
+    project_root = Path(__file__).parent.parent.parent
     mcp_path = project_root / "src" / "mcp"
 
     if not mcp_path.exists():
@@ -22,20 +22,17 @@ def validate_mcp_structure() -> tuple[bool, str]:
 
 
 def validate_performance_module() -> tuple[bool, str]:
-    """Validate performance module can be imported."""
+    """Validate basic performance module import."""
     try:
         import sys
+        from importlib import util
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-        # Test basic import using importlib for availability check
-        import importlib.util
-
-        spec = importlib.util.find_spec("src.mcp.shared.performance")
+        spec = util.find_spec("src.mcp.shared.performance")
         if spec is not None:
             return True, "✓ Performance module found and available"
-        else:
-            return False, "✗ Performance module not found"
+        return False, "✗ Performance module not found"
     except ImportError as e:
         return False, f"✗ Performance module import failed: {str(e)}"
     except Exception as e:
@@ -43,15 +40,14 @@ def validate_performance_module() -> tuple[bool, str]:
 
 
 def validate_sdk() -> bool:
-    """Main SDK validation."""
+    """Main SDK validation flow."""
     print("🔧 Validating MCP SDK...")
-
     checks = [validate_mcp_structure(), validate_performance_module()]
 
     success = True
-    for check_passed, message in checks:
+    for passed, message in checks:
         print(f"  {message}")
-        if not check_passed:
+        if not passed:
             success = False
 
     return success

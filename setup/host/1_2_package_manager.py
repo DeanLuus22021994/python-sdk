@@ -1,6 +1,6 @@
 """
-Setup Module 02: Package Manager
-Handles installation and verification of required packages
+Setup Module 1.2: Package Manager
+Installs and verifies required packages
 """
 
 import platform
@@ -20,8 +20,7 @@ REQUIRED_PACKAGES = [
     "zstandard",
 ]
 
-# Platform-specific packages
-PLATFORM_PACKAGES = {"uvloop": ["linux", "darwin"]}  # Only install on Linux/macOS
+PLATFORM_PACKAGES = {"uvloop": ["linux", "darwin"]}
 
 
 def install_package(package: str) -> tuple[bool, str]:
@@ -50,43 +49,41 @@ def verify_import(package: str) -> tuple[bool, str]:
 def setup_packages() -> bool:
     """Install and verify all required packages."""
     print("📦 Setting up packages...")
-
     success = True
     current_platform = platform.system().lower()
 
-    # Install core packages
+    # Install main packages
     for package in REQUIRED_PACKAGES:
-        installed, message = install_package(package)
-        print(f"  {message}")
+        installed, msg = install_package(package)
+        print(f"  {msg}")
         if not installed:
             success = False
 
-    # Install platform-specific packages
+    # Platform-specific packages
     for package, supported_platforms in PLATFORM_PACKAGES.items():
         if current_platform in supported_platforms:
-            installed, message = install_package(package)
-            print(f"  {message}")
+            installed, msg = install_package(package)
+            print(f"  {msg}")
             if not installed:
                 success = False
         else:
-            print(f"  ⚠ {package} - skipped (not supported on {current_platform})")
+            print(f"  ⚠ {package} skipped (not for {current_platform})")
 
     if not success:
         return False
 
-    # Verify imports for core packages
+    # Verify imports
     print("\n🔍 Verifying imports...")
     for package in REQUIRED_PACKAGES:
-        verified, message = verify_import(package)
-        print(f"  {message}")
+        verified, msg = verify_import(package)
+        print(f"  {msg}")
         if not verified:
             success = False
 
-    # Verify platform-specific packages if installed
     for package, supported_platforms in PLATFORM_PACKAGES.items():
         if current_platform in supported_platforms:
-            verified, message = verify_import(package)
-            print(f"  {message}")
+            verified, msg = verify_import(package)
+            print(f"  {msg}")
             if not verified:
                 success = False
 

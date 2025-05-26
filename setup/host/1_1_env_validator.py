@@ -1,6 +1,6 @@
 """
-Setup Module 01: Core Environment Validation
-Validates Python version and environment compatibility
+Setup Module 1.1: Environment Validator
+Validates Python version and basic project structure
 """
 
 import sys
@@ -13,18 +13,16 @@ def validate_python_version() -> tuple[bool, str]:
     current = sys.version_info[:2]
 
     if current >= min_version:
-        version_msg = f"✓ Python {current[0]}.{current[1]}"
-        min_msg = f"(meets minimum {min_version[0]}.{min_version[1]})"
-        return True, f"{version_msg} {min_msg}"
+        msg = f"✓ Python {current[0]}.{current[1]} (meets {min_version[0]}.{min_version[1]})"
+        return True, msg
 
-    current_msg = f"✗ Python {current[0]}.{current[1]}"
-    required_msg = f"(requires {min_version[0]}.{min_version[1]}+)"
-    return False, f"{current_msg} {required_msg}"
+    msg = f"✗ Python {current[0]}.{current[1]} (requires {min_version[0]}.{min_version[1]}+)"
+    return False, msg
 
 
 def validate_project_structure() -> tuple[bool, str]:
     """Validate required project structure exists."""
-    project_root = Path(__file__).parent.parent
+    project_root = Path(__file__).parent.parent.parent
     required_paths = ["src/mcp", "pyproject.toml", ".vscode"]
 
     for path in required_paths:
@@ -35,15 +33,14 @@ def validate_project_structure() -> tuple[bool, str]:
 
 
 def validate_environment() -> bool:
-    """Main environment validation."""
+    """Main environment validation entry point."""
     print("🔍 Validating Environment...")
-
     checks = [validate_python_version(), validate_project_structure()]
 
     success = True
-    for check_passed, message in checks:
+    for passed, message in checks:
         print(f"  {message}")
-        if not check_passed:
+        if not passed:
             success = False
 
     return success
