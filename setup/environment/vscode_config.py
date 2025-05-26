@@ -208,6 +208,12 @@ def get_modern_vscode_settings() -> dict[str, Any]:
         "diffEditor.renderSideBySide": True,
         # Timeline
         "timeline.excludeSources": ["git.fileHistory"],
+        # Docker configuration
+        "docker.host": "unix:///var/run/docker.sock",  # Update for Windows if needed
+        "docker.enableTelemetry": False,
+        "docker.showStartPage": False,
+        "docker.formatComposeFiles": True,
+        "docker.truncateStrings": False,
     }
 
 

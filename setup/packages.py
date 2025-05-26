@@ -17,6 +17,8 @@ REQUIRED_PACKAGES: list[str] = [
     "ujson",
     "xxhash",
     "zstandard",
+    "docker",  # Added Docker SDK for Python
+    "pyyaml",  # Added for YAML handling
 ]
 
 # Platform-specific packages with their supported platforms

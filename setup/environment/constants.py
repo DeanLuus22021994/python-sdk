@@ -11,7 +11,14 @@ RECOMMENDED_PYTHON_VERSION = (3, 11)
 REQUIRED_PROJECT_PATHS = ["src/mcp", "pyproject.toml", ".vscode"]
 
 # Optional project paths
-OPTIONAL_PROJECT_PATHS = ["tests", "docs", "examples", "README.md", "LICENSE"]
+OPTIONAL_PROJECT_PATHS = [
+    "tests",
+    "docs",
+    "examples",
+    "README.md",
+    "LICENSE",
+    "docker-compose.yml",
+]
 
 # VS Code extension recommendations
 RECOMMENDED_EXTENSIONS = [
@@ -28,6 +35,7 @@ RECOMMENDED_EXTENSIONS = [
     "tamasfe.even-better-toml",
     "redhat.vscode-yaml",
     "yzhang.markdown-all-in-one",
+    "ms-azuretools.vscode-docker",  # Added Docker extension
 ]
 
 # Performance settings
@@ -67,3 +75,10 @@ PERFORMANCE_SETTINGS = {
         "**/uv.lock": True,
     },
 }
+
+# Docker requirements
+DOCKER_MIN_VERSION = (20, 10, 0)
+REQUIRED_DOCKER_IMAGES = [
+    "postgres:14-alpine",
+    "python:3.11-slim",
+]

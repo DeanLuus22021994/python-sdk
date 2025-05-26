@@ -16,6 +16,7 @@ def run_setup_sequence() -> bool:
     2. Check required project structure
     3. Configure VS Code settings
     4. Ensure dependencies are installed
+    5. Configure Docker environment (if available)
 
     Returns:
         bool: True if setup completed successfully, False otherwise
@@ -23,7 +24,7 @@ def run_setup_sequence() -> bool:
     # Add current directory to path to ensure imports work
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
-    # Now import from setup packages
+    # Import from setup packages
     from setup.environment import (
         check_required_paths,
         create_vscode_directory,
@@ -122,5 +123,74 @@ def run_setup_sequence() -> bool:
             print(f"✗ {package} is not installed or cannot be imported")
             print(f"  Install with: pip install {package}")
             success = False
+
+    # Step 5: Configure Docker environment (if available)
+    try:
+        from setup.docker import (
+            check_required_images,
+            configure_containers,
+            configure_volumes,
+            pull_required_images,
+            validate_docker_environment,
+        )
+
+        print("\nChecking Docker environment:")
+        docker_valid, docker_info = validate_docker_environment()
+
+        if docker_valid:
+            print("✓ Docker environment is valid:")
+            print(f"  - {docker_info['daemon_message']}")
+            print(f"  - {docker_info['version_message']}")
+            print(f"  - {docker_info['compose_message']}")
+
+            # Check required images
+            print("\nChecking required Docker images:")
+            image_status = check_required_images()
+            missing_images = [img for img, exists in image_status.items() if not exists]
+
+            if missing_images:
+                print(f"Missing {len(missing_images)} required Docker images")
+                pull_success, pull_errors = pull_required_images()
+                if not pull_success:
+                    print("⚠ Some Docker images could not be pulled")
+                    success = False
+            else:
+                print("✓ All required Docker images are available")
+
+            # Configure Docker components
+            print("\nConfiguring Docker environment:")
+
+            # Configure volumes
+            volumes_success, volume_errors = configure_volumes()
+            if volumes_success:
+                print("✓ Docker volumes configured successfully")
+            else:
+                print("⚠ Failed to configure some Docker volumes")
+                for error in volume_errors:
+                    print(f"  - {error}")
+                success = False
+
+            # Configure containers
+            if configure_containers():
+                print("✓ Docker containers configured successfully")
+            else:
+                print("⚠ Failed to configure Docker containers")
+                success = False
+
+        else:
+            print("⚠ Docker environment is not valid or not available:")
+            print(f"  - {docker_info['daemon_message']}")
+            print(f"  - {docker_info['version_message']}")
+            print(f"  - {docker_info['compose_message']}")
+            print("\nDocker configuration will be skipped.")
+            # Don't fail the setup if Docker is not available
+
+    except ImportError:
+        print(
+            "\n⚠ Docker setup module not available. Docker configuration will be skipped."
+        )
+    except Exception as e:
+        print(f"\n⚠ Error during Docker setup: {str(e)}")
+        # Don't fail the setup if Docker setup fails
 
     return success
