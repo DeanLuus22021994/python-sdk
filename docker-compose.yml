@@ -25,11 +25,11 @@ services:
       retries: 5
   mcp-dev:
     build:
-      context: C:\Projects\python-sdk
+      context: c:\Projects\python-sdk
       dockerfile: setup/docker/dockerfiles/Dockerfile.dev
     container_name: mcp-dev
     volumes:
-    - C:\Projects\python-sdk:/app
+    - c:\Projects\python-sdk:/app
     - mcp-python-cache:/root/.cache/pip
     working_dir: /app
     command: sleep infinity
