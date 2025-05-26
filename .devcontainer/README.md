@@ -1,15 +1,15 @@
-# MCP Python SDK DevContainer
+# MCP Python SDK DevContainer Orchestrator
 
-This directory contains the development container configuration for the MCP Python SDK with performance optimizations, modular architecture, and comprehensive Docker orchestration.
+This directory contains the development container configuration for the MCP Python SDK with performance optimizations, unified modular architecture, and comprehensive Docker orchestration.
 
 ## Architecture Overview
 
-The `.devcontainer` structure is modularized for clarity, performance, and maintainability:
+The updated `.devcontainer` structure follows SOLID principles with a unified orchestrator architecture:
 
 ```structure
 .devcontainer/
-├── config/                # Configuration files
-│   ├── env/               # Environment variables by category
+├── config/               # Configuration files
+│   ├── env/              # Environment variable definitions by category
 │   │   ├── build.env
 │   │   ├── cpu.env
 │   │   ├── database.env
@@ -19,6 +19,50 @@ The `.devcontainer` structure is modularized for clarity, performance, and maint
 │   │   ├── python.env
 │   │   ├── storage.env
 │   │   ├── swarm.env
+│   ├── setup/            # Setup scripts
+│   │   ├── dependencies.sh
+│   │   └── environment-setup.sh
+│   └── load-env.sh       # Environment loader
+├── master-orchestrator.modular.sh  # Main entry point
+├── orchestrator/         # Unified orchestration system
+│   ├── constants.sh      # Central constants definitions
+│   ├── types.sh          # Type definitions & data structures
+│   ├── utils.sh          # Common utility functions
+│   ├── registry.sh       # Module & tool registry
+│   ├── core/             # Core orchestrator engine
+│   │   ├── main.sh       # Main orchestrator logic
+│   │   ├── parallel.sh   # Parallel execution engine
+│   │   ├── sequential.sh # Sequential execution engine
+│   │   └── validator.sh  # Input validation
+│   ├── modules/          # Optimization modules
+│   │   ├── binary-precompile.sh
+│   │   ├── cpu-optimize.sh
+│   │   ├── io-optimize.sh
+│   │   └── memory-optimize.sh
+│   ├── utils/            # Utility scripts
+│   │   ├── log-analyzer.sh
+│   │   ├── logging.sh
+│   │   └── system-monitor.sh
+│   ├── lifecycle/        # Container lifecycle hooks
+│   │   ├── lifecycle-manager.sh
+│   │   ├── post-rebuild.sh
+│   │   └── pre-rebuild.sh
+│   └── tools/            # Development tools
+│       ├── dt.sh         # Tools dispatcher
+│       ├── index.sh      # Tools index
+│       ├── inspect/      # Inspection tools
+│       ├── metrics/      # Metrics tools
+│       └── utils/        # Tool utilities
+└── validation/           # Validation framework
+    ├── core/             # Core validation system
+    │   └── main.sh
+    └── tests/            # Validation tests
+        ├── config-validation.sh
+        ├── cpu-tests.sh
+        ├── io-tests.sh
+        ├── memory-tests.sh
+        ├── performance-validator.sh
+        └── python-tests.sh
 │   │   └── system.env
 │   ├── docker-globals.yml # Global Docker configuration
 │   ├── development.env    # Development overrides
