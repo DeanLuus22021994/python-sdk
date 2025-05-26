@@ -7,7 +7,6 @@ import platform
 import subprocess
 import sys
 
-
 REQUIRED_PACKAGES = [
     "asyncpg",
     "httpx-sse",
