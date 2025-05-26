@@ -65,7 +65,7 @@ install_gpu_tools() {
     fi
     
     # Install Intel tools if GPU is detected
-    if lspci | grep -i intel.*graphics; then
+    if lspci | grep -i 'intel.*graphics'; then
         apt-get install -y intel-gpu-tools || true
     fi
 }

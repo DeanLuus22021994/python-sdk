@@ -4,6 +4,7 @@
 
 set -euo pipefail
 
+# shellcheck source=../utils/logging.sh
 source "$(dirname "$0")/../utils/logging.sh"
 
 cpu_optimization_main() {
@@ -32,9 +33,10 @@ set_cpu_governor() {
 }
 
 configure_cpu_frequency() {
-    local max_freq_file="/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq"
     if [[ -f "$max_freq_file" ]]; then
-        local max_freq=$(cat "$max_freq_file")
+        local max_freq
+        max_freq=$(cat "$max_freq_file")
+        info "Setting CPU frequency to maximum: ${max_freq}kHz"
         info "Setting CPU frequency to maximum: ${max_freq}kHz"
         echo "$max_freq" | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq >/dev/null 2>&1 || true
     fi
