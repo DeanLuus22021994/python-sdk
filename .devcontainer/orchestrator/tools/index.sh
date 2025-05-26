@@ -1,63 +1,58 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-#
-# DevContainer Tools Index
-# Centralized registry and launcher for all development utilities
+set -euo pipefail
 
-TOOLS_DIR="/workspaces/python-sdk/.devcontainer/tools"
+TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Tool Registry - Format: "ID:Category:Name:Description:Usage"
+# Tool Registry (ID:Category:Name:Description:Usage)
 TOOL_REGISTRY=(
-    "devcontainer-state:inspect:DevContainer State:Return current state of files in devcontainer directory:devcontainer-state.sh [json|table|summary]"
-    "build-status:utils:Build Status:Check current build status and active processes:build-status.sh [processes|docker|performance]"
-    "dev-metrics:metrics:Dev Metrics:Track development cycle metrics and performance benchmarks:dev-metrics.sh [record|report|benchmark]"
-    "migrate-system:utils:System Migration:Migrate from old build system to new modular architecture:migrate-system.sh [check|migrate|rollback]"
-    "modular-status:inspect:Modular Status:Comprehensive status check of the new modular architecture:modular-status.sh [detailed|summary|validation]"
+    "devcontainer-state:inspect:DevContainer State:Return current devcontainer status:devcontainer-state.sh [json|table|summary]"
+    "build-status:utils:Build Status:Check current build status:build-status.sh [processes|docker|performance]"
+    "dev-metrics:metrics:Dev Metrics:Track dev cycle metrics:dev-metrics.sh [record|report|benchmark]"
+    "migrate-system:utils:System Migration:Migrate from old to new system:migrate-system.sh [check|migrate|rollback]"
+    "modular-status:inspect:Modular Status:Check new modular architecture:modular-status.sh [summary|detailed|validation]"
 )
 
 show_tools() {
-    echo "=== DevContainer Tools Registry ==="
-    printf "%-4s %-10s %-20s %-50s\n" "ID" "CATEGORY" "NAME" "DESCRIPTION"
-    printf '%*s\n' 90 '' | tr ' ' '='
-
-    for tool in "${TOOL_REGISTRY[@]}"; do
-        IFS=':' read -r id category name description usage <<< "$tool"
-        printf "%-4s %-10s %-20s %-50s\n" "$id" "$category" "$name" "$description"
+    echo "Available Tools:"
+    for entry in "${TOOL_REGISTRY[@]}"; do
+        IFS=":" read -r tool_id tool_cat tool_name tool_desc tool_usage <<< "$entry"
+        echo " - $tool_id ($tool_cat): $tool_name"
+        echo "   $tool_desc"
+        echo "   Usage: $tool_usage"
+        echo
     done
 }
 
 run_tool() {
-    local tool_id="$1"
-    shift
-
-    for tool in "${TOOL_REGISTRY[@]}"; do
-        IFS=':' read -r id category name description usage <<< "$tool"
-        if [[ "$id" == "$tool_id" ]]; then
-            local script_name
-            # Instead of echo + awk, we pass usage through a here-string to awk
-            script_name="$(awk '{print $1}' <<< "$usage")"
-            local script_path="$TOOLS_DIR/$category/$script_name"
-
-            if [[ -x "$script_path" ]]; then
-                echo "Running: $name ($id)"
-                "$script_path" "$@"
-            else
-                echo "Error: Tool script not found or not executable: $script_path"
-                return 1
-            fi
-            return 0
-        fi
-    done
-
-    echo "Error: Tool $tool_id not found"
-    return 1
+    local tool_key="$1"
+    shift || true
+    case "$tool_key" in
+        devcontainer-state)
+            "$TOOLS_DIR/inspect/devcontainer-state.sh" "$@"
+            ;;
+        build-status)
+            "$TOOLS_DIR/utils/build-status.sh" "$@"
+            ;;
+        dev-metrics)
+            "$TOOLS_DIR/metrics/dev-metrics.sh" "$@"
+            ;;
+        migrate-system)
+            "$TOOLS_DIR/utils/migrate-system.sh" "$@"
+            ;;
+        modular-status)
+            "$TOOLS_DIR/inspect/modular-status.sh" "$@"
+            ;;
+        *)
+            echo "Tool '$tool_key' not found."
+            show_tools
+            ;;
+    esac
 }
 
 case "${1:-help}" in
-    "list"|"show"|"help")
+    list|help)
         show_tools
-        echo -e "\nUsage: $0 <tool_id> [arguments...]"
-        echo "       $0 list                    # Show all available tools"
         ;;
     *)
         run_tool "$@"
