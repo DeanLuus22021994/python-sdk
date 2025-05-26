@@ -1,18 +1,6 @@
 {
   "python.defaultInterpreterPath": "python",
-  "python.analysis.diagnosticSeverityOverrides": {
-    "reportMissingTypeStubs": "information",
-    "reportUnknownMemberType": "information",
-    "reportMissingImports": "warning",
-    "reportUndefinedVariable": "error",
-    "reportConstantRedefinition": "information",
-    "reportUnusedImport": "information"
-  },
-  "python.analysis.typeCheckingMode": "basic",
   "python.analysis.autoImportCompletions": true,
-  "python.analysis.extraPaths": [
-    "./src"
-  ],
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.pyc": true,
