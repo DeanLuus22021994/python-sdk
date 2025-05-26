@@ -1,116 +1,222 @@
-"""
-Host Setup Package
-Provides host-based development environment setup for MCP Python SDK.
-"""
+"""Docker container configuration utilities."""
 
 from pathlib import Path
+from typing import Any
 
-from ..vscode.integration import VSCodeIntegrationManager
-from .env_validator import get_environment_info, validate_environment
-from .package_manager import check_package_availability, setup_packages
-from .sdk_validator import check_sdk_completeness, validate_sdk
+import yaml
+
+try:
+    from setup.environment import get_project_root
+except ImportError:
+    from pathlib import Path
+
+    def get_project_root() -> Path:
+        """Get the project root directory."""
+        return Path(__file__).parent.parent.parent
 
 
-class HostSetupManager:
-    """
-    Host-based setup manager following Single Responsibility Principle.
+class DockerContainerManager:
+    """Manages Docker container configuration."""
 
-    Coordinates host environment setup without Docker dependencies.
-    """
+    def __init__(self, project_root: Path) -> None:
+        """Initialize container manager."""
+        self.project_root = project_root
 
-    def __init__(self, verbose: bool = False) -> None:
-        self.verbose = verbose
-        self._setup_results: dict[str, bool] = {}
-
-    def setup(self) -> tuple[bool, dict[str, bool]]:
-        """
-        Perform complete host-based setup.
-
-        Returns:
-            Tuple of (success, setup_results)
-        """
-        print("🏠 Starting host-based setup...")
-
-        # Environment validation
-        env_valid, env_info = validate_environment()
-        self._setup_results["environment"] = env_valid
-        if self.verbose:
-            print(f"Environment validation: {'✓' if env_valid else '✗'}")
-
-        # Package setup
-        packages_success = setup_packages()
-        self._setup_results["packages"] = packages_success
-        if self.verbose:
-            print(
-                f"Package setup: {'✓' if packages_success else '✗'}"
-            )  # VS Code configuration
-        try:
-            vscode_manager = VSCodeIntegrationManager(Path.cwd())
-            vscode_success = vscode_manager.create_all_configurations()
-        except Exception:
-            vscode_success = False
-        self._setup_results["vscode"] = vscode_success
-        if self.verbose:
-            print(f"VS Code setup: {'✓' if vscode_success else '✗'}")
-
-        # SDK validation
-        sdk_valid = validate_sdk()
-        self._setup_results["sdk"] = sdk_valid
-        if self.verbose:
-            print(f"SDK validation: {'✓' if sdk_valid else '✗'}")
-
-        overall_success = all(self._setup_results.values())
-
-        if overall_success:
-            print("✅ Host setup completed successfully!")
-        else:
-            print("❌ Host setup completed with some issues.")
-
-        return overall_success, self._setup_results
-
-    def validate(self) -> bool:
-        """
-        Validate current host environment.
-
-        Returns:
-            True if environment is valid for development
-        """
-        env_valid, _ = validate_environment()
-        sdk_completeness = check_sdk_completeness()
-
-        return env_valid and all(sdk_completeness.values())
-
-    def get_status(self) -> dict[str, bool | dict[str, bool]]:
-        """
-        Get current host environment status.
-
-        Returns:
-            Dictionary with environment status information
-        """
-        env_valid, env_info = validate_environment()
-        sdk_status = check_sdk_completeness()
-
+    def get_container_config(self) -> dict[str, Any]:
+        """Get Docker container configuration for development."""
         return {
-            "environment_valid": env_valid,
-            "environment_details": env_info,
-            "sdk_components": sdk_status,
-            "setup_results": self._setup_results,
+            "mcp-postgres": {
+                "image": "postgres:14-alpine",
+                "container_name": "mcp-postgres",
+                "environment": {
+                    "POSTGRES_USER": "mcp_user",
+                    "POSTGRES_PASSWORD": "mcp_password",
+                    "POSTGRES_DB": "mcp_development",
+                },
+                "ports": ["5432:5432"],
+                "volumes": ["mcp-postgres-data:/var/lib/postgresql/data"],
+                "restart": "unless-stopped",
+                "healthcheck": {
+                    "test": [
+                        "CMD",
+                        "pg_isready",
+                        "-U",
+                        "mcp_user",
+                        "-d",
+                        "mcp_development",
+                    ],
+                    "interval": "5s",
+                    "timeout": "5s",
+                    "retries": 5,
+                },
+            },
+            "mcp-dev": {
+                "build": {
+                    "context": str(self.project_root),
+                    "dockerfile": "setup/docker/dockerfiles/Dockerfile.dev",
+                },
+                "container_name": "mcp-dev",
+                "volumes": [
+                    f"{self.project_root}:/app",
+                    "mcp-python-cache:/root/.cache/pip",
+                ],
+                "working_dir": "/app",
+                "command": "sleep infinity",
+                "depends_on": ["mcp-postgres"],
+            },
         }
 
+    def create_container_config(self) -> bool:
+        """Create container configuration."""
+        return True
 
-__version__ = "1.0.0"
-__all__ = [
-    # Main manager
-    "HostSetupManager",
-    # Validation functions
-    "validate_environment",
-    "get_environment_info",
-    "validate_sdk",
-    "check_sdk_completeness",
-    # Setup functions
-    "setup_packages",
-    "VSCodeIntegrationManager",
-    # Utility functions
-    "check_package_availability",
-    "get_current_vscode_settings",
-]
+
+def get_container_config() -> dict[str, Any]:
+    """
+    Get Docker container configuration for development.
+
+    Returns:
+        Dictionary with container configurations
+    """
+    project_root = get_project_root()
+
+    return {
+        "mcp-postgres": {
+            "image": "postgres:14-alpine",
+            "container_name": "mcp-postgres",
+            "environment": {
+                "POSTGRES_USER": "mcp_user",
+                "POSTGRES_PASSWORD": "mcp_password",
+                "POSTGRES_DB": "mcp_development",
+            },
+            "ports": ["5432:5432"],
+            "volumes": ["mcp-postgres-data:/var/lib/postgresql/data"],
+            "restart": "unless-stopped",
+            "healthcheck": {
+                "test": [
+                    "CMD",
+                    "pg_isready",
+                    "-U",
+                    "mcp_user",
+                    "-d",
+                    "mcp_development",
+                ],
+                "interval": "5s",
+                "timeout": "5s",
+                "retries": 5,
+            },
+        },
+        "mcp-dev": {
+            "build": {
+                "context": str(project_root),
+                "dockerfile": "setup/docker/dockerfiles/Dockerfile.dev",
+            },
+            "container_name": "mcp-dev",
+            "volumes": [
+                f"{project_root}:/app",
+                "mcp-python-cache:/root/.cache/pip",
+            ],
+            "working_dir": "/app",
+            "command": "sleep infinity",
+            "depends_on": ["mcp-postgres"],
+        },
+    }
+
+
+def create_docker_compose_file(output_path: Path | None = None) -> Path:
+    """
+    Create a docker-compose.yml file for local development.
+
+    Args:
+        output_path: Custom path to write the file (defaults to project root)
+
+    Returns:
+        Path to the created docker-compose.yml file
+    """
+    if output_path is None:
+        output_path = get_project_root() / "docker-compose.yml"
+
+    container_config = get_container_config()
+
+    # Import volume config
+    from .volume_config import get_volume_config
+
+    volume_config = get_volume_config()
+
+    compose_config = {
+        "version": "3.8",
+        "services": container_config,
+        "volumes": volume_config,
+    }
+
+    # Convert to YAML
+    with open(output_path, "w", encoding="utf-8") as f:
+        yaml.dump(compose_config, f, default_flow_style=False, sort_keys=False)
+
+    return output_path
+
+
+def configure_containers() -> bool:
+    """
+    Configure Docker containers for MCP development.
+
+    Returns:
+        True if configuration was successful, False otherwise
+    """
+    try:
+        docker_compose_path = create_docker_compose_file()
+        print(f"✓ Docker Compose configuration created at {docker_compose_path}")
+
+        # Create Dockerfile.dev
+        create_development_dockerfile()
+        print("✓ Development Dockerfile created")
+
+        return True
+    except Exception as e:
+        print(f"✗ Failed to configure Docker containers: {str(e)}")
+        return False
+
+
+def create_development_dockerfile() -> Path:
+    """
+    Create a development Dockerfile.
+
+    Returns:
+        Path to the created Dockerfile
+    """
+    project_root = get_project_root()
+    dockerfile_dir = project_root / "setup" / "docker" / "dockerfiles"
+    dockerfile_dir.mkdir(parents=True, exist_ok=True)
+
+    dockerfile_path = dockerfile_dir / "Dockerfile.dev"
+
+    dockerfile_content = """FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \\
+    git \\
+    curl \\
+    build-essential \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY src/ /app/src/
+
+# Set environment variables
+ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+CMD ["bash"]
+"""
+
+    with open(dockerfile_path, "w", encoding="utf-8") as f:
+        f.write(dockerfile_content)
+
+    return dockerfile_path

@@ -1,4 +1,3 @@
-# filepath: c:\Projects\python-sdk\setup\vscode\integration.py
 """
 VS Code Integration Manager
 Comprehensive VS Code workspace configuration and management.
@@ -33,10 +32,10 @@ class VSCodeIntegrationManager:
         self.vscode_dir = self.workspace_root / ".vscode"
 
         # Initialize component managers
-        self.extensions = VSCodeExtensionsManager(self.vscode_dir)
-        self.settings = VSCodeSettingsManager(self.vscode_dir)
-        self.tasks = VSCodeTasksManager(self.vscode_dir)
-        self.launch = VSCodeLaunchManager(self.vscode_dir)
+        self.extensions = VSCodeExtensionsManager(self.workspace_root)
+        self.settings = VSCodeSettingsManager(self.workspace_root)
+        self.tasks = VSCodeTasksManager(self.workspace_root)
+        self.launch = VSCodeLaunchManager(self.workspace_root)
 
     def create_workspace_configuration(
         self,
@@ -59,37 +58,22 @@ class VSCodeIntegrationManager:
             # Ensure .vscode directory exists
             self.vscode_dir.mkdir(exist_ok=True)
 
-            # Setup core configurations
-            success_flags = []
+            success = True
 
-            # Extensions recommendations
-            if force_overwrite or self.extensions.should_create_extensions():
-                success_flags.append(self.extensions.create_extensions_file())
+            # Create or update all configuration files
+            if not self.settings.create_settings_file() and not force_overwrite:
+                success = False
 
-            # Settings configuration
-            if force_overwrite or self.settings.should_create_settings():
-                if custom_config and "settings" in custom_config:
-                    merged_settings = self.settings.merge_settings(
-                        custom_config["settings"]
-                    )
-                    success_flags.append(
-                        self.settings.update_settings(merged_settings, merge=False)
-                    )
-                else:
-                    success_flags.append(self.settings.create_settings_file())
+            if not self.launch.create_launch_file() and not force_overwrite:
+                success = False
 
-            # Task configurations
-            if force_overwrite or self.tasks.should_create_tasks():
-                success_flags.append(self.tasks.create_tasks_file())
+            if not self.tasks.create_tasks_file() and not force_overwrite:
+                success = False
 
-            # Launch configurations (optional)
-            if include_optional and (
-                force_overwrite or self.launch.should_create_launch()
-            ):
-                success_flags.append(self.launch.create_launch_file())
+            if not self.extensions.create_extensions_file() and not force_overwrite:
+                success = False
 
-            # Return True if all operations succeeded
-            return all(success_flags) if success_flags else True
+            return success
 
         except Exception:
             return False
@@ -119,30 +103,23 @@ class VSCodeIntegrationManager:
         ]
 
         for component_name, validation in validations:
-            # Prefix component name to messages for clarity
-            all_warnings.extend(
-                [f"{component_name}: {warning}" for warning in validation.warnings]
-            )
-            all_errors.extend(
-                [f"{component_name}: {error}" for error in validation.errors]
-            )
-            all_recommendations.extend(
-                [f"{component_name}: {rec}" for rec in validation.recommendations]
-            )
+            all_warnings.extend(validation.warnings)
+            all_errors.extend(validation.errors)
+            all_recommendations.extend(validation.recommendations)
 
         # Determine overall status
         if all_errors:
             status = ValidationStatus.ERROR
             is_valid = False
-            message = f"Workspace validation failed with {len(all_errors)} errors"
+            message = f"Validation failed with {len(all_errors)} errors"
         elif all_warnings:
             status = ValidationStatus.WARNING
             is_valid = True
-            message = f"Workspace validation passed with {len(all_warnings)} warnings"
+            message = f"Validation passed with {len(all_warnings)} warnings"
         else:
             status = ValidationStatus.VALID
             is_valid = True
-            message = "Workspace validation passed successfully"
+            message = "All configurations are valid"
 
         # Collect metadata from all components
         combined_metadata = {
@@ -171,30 +148,12 @@ class VSCodeIntegrationManager:
             Dictionary with status information for all components
         """
         return {
-            "workspace_directory": str(self.vscode_dir),
-            "workspace_exists": self.vscode_dir.exists(),
-            "components": {
-                "extensions": {
-                    "file_exists": self.extensions.extensions_path.exists(),
-                    "should_create": self.extensions.should_create_extensions(),
-                    "validation": self.extensions.validate_extensions(),
-                },
-                "settings": {
-                    "file_exists": self.settings.settings_path.exists(),
-                    "should_create": self.settings.should_create_settings(),
-                    "validation": self.settings.validate_settings(),
-                },
-                "tasks": {
-                    "file_exists": self.tasks.tasks_path.exists(),
-                    "should_create": self.tasks.should_create_tasks(),
-                    "validation": self.tasks.validate_tasks(),
-                },
-                "launch": {
-                    "file_exists": self.launch.launch_path.exists(),
-                    "should_create": self.launch.should_create_launch(),
-                    "validation": self.launch.validate_launch(),
-                },
-            },
+            "workspace_root": str(self.workspace_root),
+            "vscode_dir_exists": self.vscode_dir.exists(),
+            "settings_exists": self.settings.settings_path.exists(),
+            "launch_exists": self.launch.launch_path.exists(),
+            "tasks_exists": self.tasks.tasks_path.exists(),
+            "extensions_exists": self.extensions.extensions_path.exists(),
         }
 
     def update_workspace_config(
@@ -204,43 +163,31 @@ class VSCodeIntegrationManager:
 
         Args:
             config_updates: Configuration updates to apply
-            merge: Whether to merge with existing configurations
+            merge: Whether to merge with existing config
 
         Returns:
-            True if all updates were successful
+            True if update was successful
         """
         try:
-            success_flags = []
+            success = True
 
-            # Update extensions if provided
-            if "extensions" in config_updates:
-                success_flags.append(
-                    self.extensions.update_extensions(
-                        config_updates["extensions"], merge=merge
-                    )
-                )
-
-            # Update settings if provided
             if "settings" in config_updates:
-                success_flags.append(
-                    self.settings.update_settings(
-                        config_updates["settings"], merge=merge
-                    )
+                success &= self.settings.update_settings(
+                    config_updates["settings"], merge
                 )
 
-            # Update tasks if provided
-            if "tasks" in config_updates:
-                success_flags.append(
-                    self.tasks.update_tasks(config_updates["tasks"], merge=merge)
-                )
-
-            # Update launch if provided
             if "launch" in config_updates:
-                success_flags.append(
-                    self.launch.update_launch(config_updates["launch"], merge=merge)
+                success &= self.launch.update_launch(config_updates["launch"], merge)
+
+            if "tasks" in config_updates:
+                success &= self.tasks.update_tasks(config_updates["tasks"], merge)
+
+            if "extensions" in config_updates:
+                success &= self.extensions.update_extensions(
+                    config_updates["extensions"], merge
                 )
 
-            return all(success_flags) if success_flags else True
+            return success
 
         except Exception:
             return False
@@ -249,54 +196,51 @@ class VSCodeIntegrationManager:
         """Export current workspace configuration.
 
         Returns:
-            Dictionary containing all workspace configurations
+            Dictionary with all configuration data
         """
         return {
-            "extensions": self.extensions.get_current_extensions(),
             "settings": self.settings.get_current_settings(),
-            "tasks": self.tasks.get_current_tasks(),
             "launch": self.launch.get_current_launch(),
+            "tasks": self.tasks.get_current_tasks(),
+            "extensions": self.extensions.get_current_extensions(),
         }
 
     def reset_workspace(self, components: list[str] | None = None) -> bool:
-        """Reset workspace configuration to defaults.
+        """Reset workspace configuration components.
 
         Args:
-            components: Specific components to reset, all if None
+            components: List of components to reset, or None for all
 
         Returns:
             True if reset was successful
         """
         try:
-            target_components = components or [
-                "extensions",
-                "settings",
-                "tasks",
-                "launch",
-            ]
+            components = components or ["settings", "launch", "tasks", "extensions"]
 
-            success_flags = []
+            success = True
 
-            for component in target_components:
-                if component == "extensions":
-                    success_flags.append(self.extensions.create_extensions_file())
-                elif component == "settings":
-                    success_flags.append(self.settings.create_settings_file())
-                elif component == "tasks":
-                    success_flags.append(self.tasks.create_tasks_file())
-                elif component == "launch":
-                    success_flags.append(self.launch.create_launch_file())
+            if "settings" in components:
+                success &= self.settings.create_settings_file()
 
-            return all(success_flags)
+            if "launch" in components:
+                success &= self.launch.create_launch_file()
+
+            if "tasks" in components:
+                success &= self.tasks.create_tasks_file()
+
+            if "extensions" in components:
+                success &= self.extensions.create_extensions_file()
+
+            return success
 
         except Exception:
             return False
 
     def cleanup_workspace(self, remove_vscode_dir: bool = False) -> bool:
-        """Clean up workspace configuration files.
+        """Clean up workspace configuration.
 
         Args:
-            remove_vscode_dir: Whether to remove entire .vscode directory
+            remove_vscode_dir: Whether to remove the entire .vscode directory
 
         Returns:
             True if cleanup was successful
@@ -306,37 +250,34 @@ class VSCodeIntegrationManager:
                 import shutil
 
                 shutil.rmtree(self.vscode_dir)
-                return True
-
-            # Remove individual files
-            files_to_remove = [
-                self.extensions.extensions_path,
-                self.settings.settings_path,
-                self.tasks.tasks_path,
-                self.launch.launch_path,
-            ]
-
-            for file_path in files_to_remove:
-                if file_path.exists():
-                    file_path.unlink()
+            else:
+                # Remove individual files
+                for path in [
+                    self.settings.settings_path,
+                    self.launch.launch_path,
+                    self.tasks.tasks_path,
+                    self.extensions.extensions_path,
+                ]:
+                    if path.exists():
+                        path.unlink()
 
             return True
 
         except Exception:
             return False
 
-    # Add the missing methods that are being called
+    # Compatibility methods for the interface
     def get_python_extensions(self) -> list[str]:
-        """Get Python-related extensions for this workspace."""
+        """Get Python-specific extensions."""
         return self.extensions.get_python_extensions()
 
     def get_python_tasks(self) -> dict[str, Any]:
-        """Get Python-related tasks for this workspace."""
-        return self.tasks.get_python_tasks()
+        """Get Python-specific task definitions."""
+        return {"tasks": self.tasks.get_task_definitions()}
 
     def get_python_launch_configs(self) -> dict[str, Any]:
-        """Get Python launch configurations for this workspace."""
-        return self.launch.get_python_launch_configs()
+        """Get Python debug configurations."""
+        return {"configurations": self.launch.get_debug_configurations()}
 
     def create_all_configurations(self, **kwargs) -> bool:
         """Create all VS Code configurations."""

@@ -3,7 +3,6 @@ Environment Configuration Package
 Modern environment configuration for the MCP Python SDK setup with clean architecture.
 """
 
-# Core environment components
 # Import new modular VS Code system
 from ..vscode.integration import VSCodeIntegrationManager
 from .constants import (
@@ -16,10 +15,8 @@ from .constants import (
     RECOMMENDED_PYTHON_VERSION,
     REQUIRED_PROJECT_PATHS,
     ContainerConfig,
-    LogLevel,
     PerformanceSettings,
     PythonVersion,
-    SetupMode,
 )
 from .path_utils import (
     check_required_paths,
@@ -50,38 +47,34 @@ class EnvironmentManager:
     def __init__(self) -> None:
         self._cache_initialized = False
 
-    def validate_environment(self) -> tuple[bool, dict[str, bool | str]]:
+    def validate_environment(self) -> tuple[bool, dict[str, str]]:
         """
         Comprehensive environment validation.
 
         Returns:
             Tuple of (is_valid, validation_details)
         """
-        validation_results = {}
+        validation_results: dict[str, str] = {}
 
         # Python version validation
         python_valid, python_msg = validate_python_version()
-        validation_results["python_version"] = python_valid
         validation_results["python_message"] = python_msg
 
         # Project structure validation
         paths_valid, missing_paths = check_required_paths()
-        validation_results["project_structure"] = paths_valid
         validation_results["missing_paths"] = (
-            missing_paths  # VS Code configuration check
+            ", ".join(missing_paths) if missing_paths else "none"
         )
+
+        # VS Code configuration check
         try:
             vscode_manager = VSCodeIntegrationManager(get_project_root())
-            validation = vscode_manager.validate_all_configurations()
-            validation_results["vscode_config"] = validation.is_valid
+            validation = vscode_manager.validate_workspace()
             validation_results["vscode_status"] = validation.status.value
         except Exception:
-            validation_results["vscode_config"] = False
             validation_results["vscode_status"] = "error"
 
-        overall_valid = (
-            python_valid and paths_valid and validation_results["vscode_config"]
-        )
+        overall_valid = python_valid and paths_valid
 
         return overall_valid, validation_results
 
@@ -99,26 +92,34 @@ class EnvironmentManager:
             for required_path in REQUIRED_PROJECT_PATHS:
                 path = project_root / required_path
                 if not path.exists() and not required_path.endswith((".toml", ".py")):
-                    ensure_directory_exists(path)  # Setup VS Code configuration
+                    ensure_directory_exists(path)
+
+            # Setup VS Code configuration
             vscode_manager = VSCodeIntegrationManager(project_root)
-            vscode_manager.create_all_configurations()
+            vscode_manager.create_workspace_configuration()
 
             return True
 
         except Exception:
             return False
 
-    def get_status(self) -> dict[str, bool | str | int]:
+    def get_status(self) -> dict[str, str | int | bool]:
         """
         Get current environment status.
 
         Returns:
             Status dictionary with environment information
         """
+        env_info = get_environment_info()
+        optional_paths = get_optional_paths_status()
+
         return {
-            **get_environment_info(),
+            **{
+                k: str(v) if not isinstance(v, (str, int, bool)) else v
+                for k, v in env_info.items()
+            },
             "project_structure_valid": is_project_structure_valid(),
-            "optional_paths": get_optional_paths_status(),
+            "optional_paths": len([p for p in optional_paths.values() if p]),
         }
 
 
@@ -132,8 +133,6 @@ __all__ = [
     "PERFORMANCE_SETTINGS",
     "RECOMMENDED_EXTENSIONS",
     "DEFAULT_CONTAINER_CONFIG",
-    "SetupMode",
-    "LogLevel",
     "PythonVersion",
     "PerformanceSettings",
     "ContainerConfig",
@@ -151,28 +150,10 @@ __all__ = [
     "get_environment_info",
     "get_python_version_info",
     "validate_python_version",
-    # Main interface
-    "EnvironmentManager",
-]
-
-__version__ = "1.0.0"
-__all__ = [
-    # Constants
-    "MIN_PYTHON_VERSION",
-    "RECOMMENDED_PYTHON_VERSION",
-    "REQUIRED_PROJECT_PATHS",
-    "OPTIONAL_PROJECT_PATHS",
-    # Path utilities
-    "get_project_root",
-    "check_required_paths",
-    "get_optional_paths_status",
-    "ensure_directory_exists",
-    # Python validation
-    "get_python_version_info",
-    "validate_python_version",
-    "get_environment_info",
     "check_virtual_environment",
     "validate_python_environment",
     # VS Code configuration (new modular system)
     "VSCodeIntegrationManager",
+    # Main interface
+    "EnvironmentManager",
 ]

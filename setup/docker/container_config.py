@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 try:
     from setup.environment import get_project_root
 except ImportError:
@@ -11,6 +13,62 @@ except ImportError:
     def get_project_root() -> Path:
         """Get the project root directory."""
         return Path(__file__).parent.parent.parent
+
+
+class DockerContainerManager:
+    """Manages Docker container configuration."""
+
+    def __init__(self, project_root: Path) -> None:
+        """Initialize container manager."""
+        self.project_root = project_root
+
+    def get_container_config(self) -> dict[str, Any]:
+        """Get Docker container configuration for development."""
+        return {
+            "mcp-postgres": {
+                "image": "postgres:14-alpine",
+                "container_name": "mcp-postgres",
+                "environment": {
+                    "POSTGRES_USER": "mcp_user",
+                    "POSTGRES_PASSWORD": "mcp_password",
+                    "POSTGRES_DB": "mcp_development",
+                },
+                "ports": ["5432:5432"],
+                "volumes": ["mcp-postgres-data:/var/lib/postgresql/data"],
+                "restart": "unless-stopped",
+                "healthcheck": {
+                    "test": [
+                        "CMD",
+                        "pg_isready",
+                        "-U",
+                        "mcp_user",
+                        "-d",
+                        "mcp_development",
+                    ],
+                    "interval": "5s",
+                    "timeout": "5s",
+                    "retries": 5,
+                },
+            },
+            "mcp-dev": {
+                "build": {
+                    "context": str(self.project_root),
+                    "dockerfile": "setup/docker/dockerfiles/Dockerfile.dev",
+                },
+                "container_name": "mcp-dev",
+                "volumes": [
+                    f"{self.project_root}:/app",
+                    "mcp-python-cache:/root/.cache/pip",
+                ],
+                "working_dir": "/app",
+                "command": "sleep infinity",
+                "depends_on": ["mcp-postgres"],
+            },
+        }
+
+    def create_container_config(self) -> bool:
+        """Create container configuration."""
+        return True
 
 
 def get_container_config() -> dict[str, Any]:
@@ -80,8 +138,8 @@ def create_docker_compose_file(output_path: Path | None = None) -> Path:
 
     container_config = get_container_config()
 
-    # Circular import resolved by importing here
-    from setup.docker.volume_config import get_volume_config
+    # Import volume config
+    from .volume_config import get_volume_config
 
     volume_config = get_volume_config()
 
@@ -92,8 +150,6 @@ def create_docker_compose_file(output_path: Path | None = None) -> Path:
     }
 
     # Convert to YAML
-    import yaml
-
     with open(output_path, "w", encoding="utf-8") as f:
         yaml.dump(compose_config, f, default_flow_style=False, sort_keys=False)
 
