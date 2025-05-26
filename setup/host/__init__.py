@@ -3,10 +3,10 @@ Host Setup Package
 Provides host-based development environment setup for MCP Python SDK.
 """
 
+from ..environment.vscode_config import get_current_vscode_settings, setup_vscode_config
 from .env_validator import get_environment_info, validate_environment
 from .package_manager import check_package_availability, setup_packages
 from .sdk_validator import check_sdk_completeness, validate_sdk
-from .vscode_config import get_current_vscode_settings, setup_vscode_config
 
 
 class HostSetupManager:
