@@ -1,40 +1,27 @@
-#!/bin/bash
-# Orchestrator Core - Main coordination logic
-# Coordinates execution of all optimization modules
-
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# shellcheck source="../utils/logging.sh"
+# shellcheck source="./validator.sh"
+# shellcheck source="./sequential.sh"
+# shellcheck source="./parallel.sh"
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Import needed scripts
 source "$SCRIPT_DIR/../utils/logging.sh"
 source "$SCRIPT_DIR/validator.sh"
 source "$SCRIPT_DIR/sequential.sh"
 source "$SCRIPT_DIR/parallel.sh"
 
-orchestrator_core_main() {
-    local modules=("$@")
-    local modules_dir="$SCRIPT_DIR/../modules"
-    
-    # Default modules if none specified
-    if [[ ${#modules[@]} -eq 0 ]]; then
-        modules=("cpu" "memory" "io" "binary")
-    fi
-    
-    info "Starting orchestrator core with modules: ${modules[*]}"
-    
-    # Validate modules exist
-    validate_modules "$modules_dir" "${modules[@]}"
-    
-    # Execute based on parallel mode
-    if [[ "${ORCHESTRATOR_PARALLEL:-false}" == "true" ]]; then
-        execute_modules_parallel "$modules_dir" "${modules[@]}"
-    else
-        execute_modules_sequential "$modules_dir" "${modules[@]}"
-    fi
-    
-    info "Orchestrator core execution completed"
+main() {
+    log_info "Starting orchestrator main procedure..."
+    run_sequential
+    run_parallel
+    validate_system
+    log_info "Main procedure completed."
 }
 
-# Run if executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    orchestrator_core_main "$@"
+    main "$@"
 fi

@@ -1,11 +1,24 @@
-#!/bin/bash
-# Environment Setup
-# Sets up the complete development environment with all dependencies
-
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# shellcheck source="../load-env.sh"
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../../config/load-env.sh"
+
+# Source the load-env script located one directory up
+source "$SCRIPT_DIR/../load-env.sh"
+
+setup_environment() {
+    echo "Configuring environment variables..."
+    load_env  # Invoke the load-env function
+
+    # Example: check OS release
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck source=/etc/os-release
+        source /etc/os-release
+        echo "Detected OS: $NAME"
+    fi
+}
 
 setup_python_environment() {
     echo "Setting up Python environment..."
@@ -72,7 +85,7 @@ setup_gpu_support() {
 main() {
     echo "=== MCP Python SDK Environment Setup ==="
     
-    load_env_files
+    setup_environment
     
     setup_python_environment
     setup_docker_environment
@@ -82,4 +95,6 @@ main() {
     echo "You can now run: ./master-orchestrator.modular.sh"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

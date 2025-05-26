@@ -1,7 +1,5 @@
-#!/bin/bash
-# Environment Loader
-# Loads all modular environment configurations
-
+#!/usr/bin/env bash
+# shellcheck shell=bash
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,10 +36,19 @@ load_env_files() {
     echo "All environment configurations loaded"
 }
 
-# Export function for use in other scripts
+load_env() {
+    echo "Loading environment variables..."
+    # Example environment exports
+    export FOO="bar"
+    export PATH="$PATH:/opt/custom/bin"
+}
+
+# Export functions for use in other scripts
 export -f load_env_files
+export -f load_env
 
 # Run if executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     load_env_files
+    load_env
 fi

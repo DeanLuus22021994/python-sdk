@@ -1,8 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
 # Dependencies Installer
 # Installs all required system and Python dependencies
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 install_system_dependencies() {
     echo "Installing system dependencies..."
@@ -90,20 +93,21 @@ compile_python_optimizations() {
         orjson
 }
 
-main() {
-    echo "=== Dependencies Installation ==="
-    
+install_dependencies() {
+    echo "Installing dependencies..."
+    install_system_dependencies
+    install_performance_tools
+    install_gpu_tools
+    compile_python_optimizations
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if [[ $EUID -ne 0 ]]; then
         echo "Error: This script must be run as root"
         exit 1
     fi
     
-    install_system_dependencies
-    install_performance_tools
-    install_gpu_tools
-    compile_python_optimizations
-    
+    echo "=== Dependencies Installation ==="
+    install_dependencies "$@"
     echo "Dependencies installation completed!"
-}
-
-main "$@"
+fi
