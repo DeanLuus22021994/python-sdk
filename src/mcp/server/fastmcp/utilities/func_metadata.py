@@ -5,6 +5,7 @@ from typing import (
     Annotated,
     Any,
     ForwardRef,
+    TypeVar,
 )
 
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
@@ -16,6 +17,8 @@ from mcp.server.fastmcp.exceptions import InvalidSignature
 from mcp.server.fastmcp.utilities.logging import get_logger
 
 logger = get_logger(__name__)
+
+T = TypeVar("T")
 
 
 class ArgModelBase(BaseModel):
@@ -44,11 +47,11 @@ class FuncMetadata(BaseModel):
 
     async def call_fn_with_arg_validation(
         self,
-        fn: Callable[..., Any] | Awaitable[Any],
+        fn: Callable[..., T] | Awaitable[T],
         fn_is_async: bool,
         arguments_to_validate: dict[str, Any],
         arguments_to_pass_directly: dict[str, Any] | None,
-    ) -> Any:
+    ) -> T:
         """Call the given function with arguments validated and injected.
 
         Arguments are first attempted to be parsed from JSON, then validated against
@@ -62,10 +65,10 @@ class FuncMetadata(BaseModel):
 
         if fn_is_async:
             if isinstance(fn, Awaitable):
-                return await fn
-            return await fn(**arguments_parsed_dict)
+                return await fn  # type: ignore
+            return await fn(**arguments_parsed_dict)  # type: ignore
         if isinstance(fn, Callable):
-            return fn(**arguments_parsed_dict)
+            return fn(**arguments_parsed_dict)  # type: ignore
         raise TypeError("fn must be either Callable or Awaitable")
 
     def pre_parse_json(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -88,7 +91,7 @@ class FuncMetadata(BaseModel):
                     pre_parsed = json.loads(data[field_name])
                 except json.JSONDecodeError:
                     continue  # Not JSON - skip
-                if isinstance(pre_parsed, str | int | float):
+                if isinstance(pre_parsed, (str, int, float)):
                     # This is likely that the raw value is e.g. `"hello"` which we
                     # Should really be parsed as '"hello"' in Python - but if we parse
                     # it as JSON it'll turn into just 'hello'. So we skip it.

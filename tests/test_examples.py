@@ -1,14 +1,36 @@
 """Tests for example servers"""
 
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
-from pytest_examples import CodeExample, EvalExample, find_examples
-
 from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
 from mcp.types import TextContent, TextResourceContents
+
+if TYPE_CHECKING:
+    from pytest_examples import CodeExample, EvalExample, find_examples
+else:
+    # Mock these classes/functions for type checking, but they're not used at runtime
+    # except in the test_docs_examples function which is skipped if the module is missing
+    class CodeExample:
+        pass
+
+    class EvalExample:
+        def set_config(self, **kwargs):
+            pass
+
+        def format(self, example):
+            pass
+
+        def lint(self, example):
+            pass
+
+        update_examples = False
+
+    def find_examples(path):
+        return []
 
 
 @pytest.mark.anyio
@@ -82,8 +104,12 @@ async def test_desktop(monkeypatch):
             assert "/fake/path/file2.txt" in content.text
 
 
-@pytest.mark.parametrize("example", find_examples("README.md"), ids=str)
-def test_docs_examples(example: CodeExample, eval_example: EvalExample):
+@pytest.mark.parametrize(
+    "example",
+    pytest.importorskip("pytest_examples").find_examples("README.md"),
+    ids=str,
+)
+def test_docs_examples(example: "CodeExample", eval_example: "EvalExample"):
     ruff_ignore: list[str] = ["F841", "I001"]
 
     eval_example.set_config(

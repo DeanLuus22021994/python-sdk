@@ -34,7 +34,10 @@ def validate_issuer_url(url: AnyHttpUrl):
     if (
         url.scheme != "https"
         and url.host is not None
-        and not (url.host == "localhost" or url.host.startswith("127.0.0.1"))
+        and not (
+            url.host == "localhost"
+            or (url.host is not None and url.host.startswith("127.0.0.1"))
+        )
     ):
         raise ValueError("Issuer URL must be HTTPS")
 
@@ -156,7 +159,7 @@ def modify_url_path(url: AnyHttpUrl, path_mapper: Callable[[str], str]) -> AnyHt
         scheme=url.scheme,
         username=url.username,
         password=url.password,
-        host=url.host,
+        host=url.host,  # At this point we've already checked it's not None
         port=url.port,
         path=path_mapper(url.path or ""),
         query=url.query,
