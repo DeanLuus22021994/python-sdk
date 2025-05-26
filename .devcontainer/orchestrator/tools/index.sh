@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
 # DevContainer Tools Index
 # Centralized registry and launcher for all development utilities
 
@@ -16,8 +18,8 @@ TOOL_REGISTRY=(
 show_tools() {
     echo "=== DevContainer Tools Registry ==="
     printf "%-4s %-10s %-20s %-50s\n" "ID" "CATEGORY" "NAME" "DESCRIPTION"
-    echo "$(printf '=%.0s' {1..90})"
-    
+    printf '%*s\n' 90 '' | tr ' ' '='
+
     for tool in "${TOOL_REGISTRY[@]}"; do
         IFS=':' read -r id category name description usage <<< "$tool"
         printf "%-4s %-10s %-20s %-50s\n" "$id" "$category" "$name" "$description"
@@ -27,14 +29,15 @@ show_tools() {
 run_tool() {
     local tool_id="$1"
     shift
-    
+
     for tool in "${TOOL_REGISTRY[@]}"; do
         IFS=':' read -r id category name description usage <<< "$tool"
         if [[ "$id" == "$tool_id" ]]; then
             local script_name
-            script_name=$(echo "$usage" | awk '{print $1}')
+            # Instead of echo + awk, we pass usage through a here-string to awk
+            script_name="$(awk '{print $1}' <<< "$usage")"
             local script_path="$TOOLS_DIR/$category/$script_name"
-            
+
             if [[ -x "$script_path" ]]; then
                 echo "Running: $name ($id)"
                 "$script_path" "$@"
@@ -45,7 +48,7 @@ run_tool() {
             return 0
         fi
     done
-    
+
     echo "Error: Tool $tool_id not found"
     return 1
 }

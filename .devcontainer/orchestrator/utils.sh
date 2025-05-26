@@ -1,10 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# shellcheck source="./constants.sh"
+# shellcheck source="./types.sh"
+#
 # DevContainer Orchestrator Utilities
 # Common utility functions used across the orchestrator system
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=./constants.sh
+# shellcheck source="./constants.sh"
 if [[ -r "$SCRIPT_DIR/constants.sh" ]]; then
     source "$SCRIPT_DIR/constants.sh"
 else
@@ -12,7 +16,7 @@ else
     exit 1
 fi
 
-# shellcheck source=./types.sh
+# shellcheck source="./types.sh"
 if [[ -r "$SCRIPT_DIR/types.sh" ]]; then
     source "$SCRIPT_DIR/types.sh"
 else
@@ -156,7 +160,8 @@ get_timestamp() {
 }
 
 format_timestamp() {
-    date -d "@$1" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || date -r "$1" "+%Y-%m-%d %H:%M:%S" 2>/dev/null
+    date -d "@$1" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || \
+    date -r "$1" "+%Y-%m-%d %H:%M:%S" 2>/dev/null
 }
 
 time_diff() {

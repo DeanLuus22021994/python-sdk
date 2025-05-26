@@ -1,10 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
 # DevContainer Orchestrator Constants
 # Centralized constants for the entire orchestrator system
 
 # ====== PATH CONSTANTS ======
 if [[ -z "${DEVCONTAINER_DIR:-}" ]]; then
-    DEVCONTAINER_DIR=""
     DEVCONTAINER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
     export DEVCONTAINER_DIR
 fi

@@ -1,28 +1,51 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
 # Tool 004: System Migration Helper
 # Purpose: Migrate from old build system to new modular architecture
-# Usage: ./004-migrate-system.sh [check|migrate|rollback]
+# Usage: ./migrate-system.sh [check|migrate|rollback]
 
 migrate_system() {
     local action="${1:-check}"
     local backup_dir="/workspaces/python-sdk/.devcontainer/.migration-backup"
-    
+
     case "$action" in
         "check")
             echo "=== Migration Status Check ==="
             echo "Old Scripts Present:"
-            [[ -f "/workspaces/python-sdk/.devcontainer/master-build.sh" ]] && echo "  ✓ master-build.sh" || echo "  ✗ master-build.sh"
-            [[ -f "/workspaces/python-sdk/.devcontainer/setup-performance.sh" ]] && echo "  ✓ setup-performance.sh" || echo "  ✗ setup-performance.sh"
-            
+            if [[ -f "/workspaces/python-sdk/.devcontainer/master-build.sh" ]]; then
+                echo "  ✓ master-build.sh"
+            else
+                echo "  ✗ master-build.sh"
+            fi
+            if [[ -f "/workspaces/python-sdk/.devcontainer/setup-performance.sh" ]]; then
+                echo "  ✓ setup-performance.sh"
+            else
+                echo "  ✗ setup-performance.sh"
+            fi
+
+            echo ""
             echo "New Modular System:"
-            [[ -d "/workspaces/python-sdk/.devcontainer/scripts" ]] && echo "  ✓ scripts/ directory" || echo "  ✗ scripts/ directory"
-            [[ -f "/workspaces/python-sdk/.devcontainer/master-orchestrator.sh" ]] && echo "  ✓ master-orchestrator.sh" || echo "  ✗ master-orchestrator.sh"
-            [[ -f "/workspaces/python-sdk/.devcontainer/.env" ]] && echo "  ✓ .env file" || echo "  ✗ .env file"
+            if [[ -d "/workspaces/python-sdk/.devcontainer/scripts" ]]; then
+                echo "  ✓ scripts/ directory"
+            else
+                echo "  ✗ scripts/ directory"
+            fi
+            if [[ -f "/workspaces/python-sdk/.devcontainer/master-orchestrator.sh" ]]; then
+                echo "  ✓ master-orchestrator.sh"
+            else
+                echo "  ✗ master-orchestrator.sh"
+            fi
+            if [[ -f "/workspaces/python-sdk/.devcontainer/.env" ]]; then
+                echo "  ✓ .env file"
+            else
+                echo "  ✗ .env file"
+            fi
             ;;
         "migrate")
             echo "=== Starting System Migration ==="
             mkdir -p "$backup_dir"
-            
+
             # Backup old files
             for file in master-build.sh setup-performance.sh; do
                 if [[ -f "/workspaces/python-sdk/.devcontainer/$file" ]]; then
@@ -30,11 +53,14 @@ migrate_system() {
                     echo "Backed up: $file"
                 fi
             done
-            
+
             echo "Migration completed. Old files backed up to $backup_dir"
             ;;
+        "rollback")
+            echo "Rollback logic not implemented yet."
+            ;;
         *)
-            echo "Usage: migrate_system [check|migrate|rollback]"
+            echo "Usage: $0 [check|migrate|rollback]"
             ;;
     esac
 }

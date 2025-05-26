@@ -1,21 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
 # Tool 003: Development Metrics Tracker
 # Purpose: Track development cycle metrics and performance benchmarks
-# Usage: ./003-dev-metrics.sh [record|report|benchmark]
+# Usage: ./dev-metrics.sh [record|report|benchmark]
 
 track_dev_metrics() {
     local action="${1:-report}"
     local metrics_file="/workspaces/python-sdk/.devcontainer/.dev-metrics.json"
-    
+
     case "$action" in
         "record")
             local timestamp
-            timestamp=$(date +%s)
+            timestamp="$(date +%s)"
             local build_time
-            build_time=$(stat -c %Y /workspaces/python-sdk/.devcontainer/master-orchestrator.sh 2>/dev/null || echo "0")
+            build_time="$(stat -c %Y /workspaces/python-sdk/.devcontainer/master-orchestrator.sh 2>/dev/null || echo "0")"
             local file_count
-            file_count=$(find /workspaces/python-sdk -name "*.py" | wc -l)
-            
+            file_count="$(find /workspaces/python-sdk -name "*.py" | wc -l)"
+
             echo "{\"timestamp\":$timestamp,\"build_time\":$build_time,\"python_files\":$file_count,\"memory_mb\":$(free -m | awk 'NR==2{print $3}')}" >> "$metrics_file"
             echo "Metrics recorded at $(date)"
             ;;

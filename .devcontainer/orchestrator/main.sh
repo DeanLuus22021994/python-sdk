@@ -1,4 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# shellcheck source="./constants.sh"
+# shellcheck source="./types.sh"
+# shellcheck source="./utils.sh"
+# shellcheck source="./registry.sh"
+# shellcheck source="../config/load-env.sh"
+# shellcheck source="./utils/logging.sh"
+#
 # MCP Python SDK - Modular Master Orchestrator
 # Coordinates all performance optimization modules with maximum efficiency
 
@@ -7,7 +15,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# shellcheck source=./constants.sh
+# shellcheck source="./constants.sh"
 if [[ -r "$SCRIPT_DIR/constants.sh" ]]; then
     source "$SCRIPT_DIR/constants.sh"
 else
@@ -15,7 +23,7 @@ else
     exit 1
 fi
 
-# shellcheck source=./types.sh
+# shellcheck source="./types.sh"
 if [[ -r "$SCRIPT_DIR/types.sh" ]]; then
     source "$SCRIPT_DIR/types.sh"
 else
@@ -23,7 +31,7 @@ else
     exit 1
 fi
 
-# shellcheck source=./utils.sh
+# shellcheck source="./utils.sh"
 if [[ -r "$SCRIPT_DIR/utils.sh" ]]; then
     source "$SCRIPT_DIR/utils.sh"
 else
@@ -31,7 +39,7 @@ else
     exit 1
 fi
 
-# shellcheck source=./registry.sh
+# shellcheck source="./registry.sh"
 if [[ -r "$SCRIPT_DIR/registry.sh" ]]; then
     source "$SCRIPT_DIR/registry.sh"
 else
@@ -39,7 +47,7 @@ else
     exit 1
 fi
 
-# shellcheck source=../config/load-env.sh
+# shellcheck source="../config/load-env.sh"
 if [[ -r "$ROOT_DIR/config/load-env.sh" ]]; then
     source "$ROOT_DIR/config/load-env.sh"
     # Ensure any load_env_files function is called if defined
@@ -48,8 +56,7 @@ if [[ -r "$ROOT_DIR/config/load-env.sh" ]]; then
     fi
 fi
 
-# Logging script is optional but recommended
-# shellcheck source=./utils/logging.sh
+# shellcheck source="./utils/logging.sh"
 if [[ -r "$SCRIPT_DIR/utils/logging.sh" ]]; then
     source "$SCRIPT_DIR/utils/logging.sh"
 fi
@@ -141,22 +148,19 @@ main() {
         case $1 in
             --parallel|-p)
                 ORCHESTRATOR_PARALLEL="true"
-                shift
                 ;;
             --dry-run|-d)
                 ORCHESTRATOR_DRY_RUN="true"
-                shift
                 ;;
             --force|-f)
                 ORCHESTRATOR_FORCE="true"
-                shift
                 ;;
             --help|-h)
                 show_usage
                 exit 0
                 ;;
             --version|-v)
-                echo "MCP Python SDK Master Orchestrator v$ORCHESTRATOR_VERSION"
+                echo "MCP Orchestrator version $ORCHESTRATOR_VERSION"
                 exit 0
                 ;;
             --list|-l)
@@ -165,9 +169,9 @@ main() {
                 ;;
             *)
                 modules+=("$1")
-                shift
                 ;;
         esac
+        shift
     done
 
     execute_orchestration "${modules[@]}"

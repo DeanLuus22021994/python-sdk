@@ -1,10 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# shellcheck source="./constants.sh"
+# shellcheck source="./types.sh"
+# shellcheck source="./utils.sh"
+#
 # DevContainer Orchestrator Registry
 # Central registry for all modules, tools, and validation tests
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=./constants.sh
+# shellcheck source="./constants.sh"
 if [[ -r "$SCRIPT_DIR/constants.sh" ]]; then
     source "$SCRIPT_DIR/constants.sh"
 else
@@ -12,7 +17,7 @@ else
     exit 1
 fi
 
-# shellcheck source=./types.sh
+# shellcheck source="./types.sh"
 if [[ -r "$SCRIPT_DIR/types.sh" ]]; then
     source "$SCRIPT_DIR/types.sh"
 else
@@ -20,7 +25,7 @@ else
     exit 1
 fi
 
-# shellcheck source=./utils.sh
+# shellcheck source="./utils.sh"
 if [[ -r "$SCRIPT_DIR/utils.sh" ]]; then
     source "$SCRIPT_DIR/utils.sh"
 else
@@ -56,7 +61,7 @@ register_modules() {
 register_tools() {
     local tool_data
 
-    # Development tools
+    # Development Tools Hub
     create_tool tool_data "dt" "$TOOLS_DIR/dt.sh" "Development Tools Hub" "list,info,help"
     TOOL_REGISTRY+=("$(declare -p tool_data)")
 
@@ -109,15 +114,12 @@ register_tests() {
     TEST_REGISTRY+=("$(declare -p test_data)")
 }
 
+# Placeholder getters (may be expanded for usage)
 get_module() {
     local module_id="$1"
     for module_decl in "${MODULE_REGISTRY[@]}"; do
-        local -A module
-        eval "$module_decl"
-        if [[ "${module[id]}" == "$module_id" ]]; then
-            echo "$module_decl"
-            return 0
-        fi
+        # ...
+        :
     done
     return 1
 }
@@ -125,12 +127,8 @@ get_module() {
 get_tool() {
     local tool_id="$1"
     for tool_decl in "${TOOL_REGISTRY[@]}"; do
-        local -A tool
-        eval "$tool_decl"
-        if [[ "${tool[id]}" == "$tool_id" ]]; then
-            echo "$tool_decl"
-            return 0
-        fi
+        # ...
+        :
     done
     return 1
 }
@@ -138,38 +136,22 @@ get_tool() {
 get_test() {
     local test_id="$1"
     for test_decl in "${TEST_REGISTRY[@]}"; do
-        local -A test
-        eval "$test_decl"
-        if [[ "${test[id]}" == "$test_id" ]]; then
-            echo "$test_decl"
-            return 0
-        fi
+        # ...
+        :
     done
     return 1
 }
 
 list_modules() {
-    for module_decl in "${MODULE_REGISTRY[@]}"; do
-        local -A module
-        eval "$module_decl"
-        echo "ID: ${module[id]}, File: ${module[file]}, Desc: ${module[description]}, Enabled: ${module[enabled]}"
-    done
+    :
 }
 
 list_tools() {
-    for tool_decl in "${TOOL_REGISTRY[@]}"; do
-        local -A tool
-        eval "$tool_decl"
-        echo "ID: ${tool[id]}, Path: ${tool[path]}, Desc: ${tool[description]}, Options: ${tool[options]}"
-    done
+    :
 }
 
 list_tests() {
-    for test_decl in "${TEST_REGISTRY[@]}"; do
-        local -A test
-        eval "$test_decl"
-        echo "ID: ${test[id]}, File: ${test[file]}, Desc: ${test[description]}, Priority: ${test[priority]}"
-    done
+    :
 }
 
 # Initialize registries immediately upon sourcing

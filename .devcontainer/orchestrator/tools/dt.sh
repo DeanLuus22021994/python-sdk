@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
 # DevContainer Tools Quick Access
 # Provides easy access to development tools from any location
 
@@ -38,10 +40,8 @@ dt() {
 
 # Export the function for use in shell
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced
     export -f dt
-    echo "DevContainer tools loaded. Use 'dt' command or 'dt list' to see available tools."
+    echo "DevContainer tools loaded. Use 'dt' or 'dt list' to see available tools."
 else
-    # Being executed
     dt "$@"
 fi
