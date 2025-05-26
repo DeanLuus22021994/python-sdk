@@ -2,11 +2,9 @@
 # DevContainer Orchestrator Types
 # Centralized type definitions for bash scripts
 
-# shellcheck disable=SC2034  # Variables are used via nameref by calling functions
-
 # Import constants
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./constants.sh
+# shellcheck disable=SC1091
 source "$SCRIPT_DIR/constants.sh"
 
 # ====== RESULT TYPE DEFINITION ======
@@ -16,6 +14,7 @@ source "$SCRIPT_DIR/constants.sh"
 #   create_result result "success" "Operation completed" 0
 #   echo "${result[status]}"  # Prints "success"
 create_result() {
+    # shellcheck disable=SC2034  # Used by reference in caller
     local -n result_ref="$1"
     local status="$2"
     local message="$3"
@@ -24,30 +23,42 @@ create_result() {
     local timestamp
     timestamp="$(date +%s)"
     
+    # shellcheck disable=SC2034
     result_ref=()
+    # shellcheck disable=SC2034
     result_ref[status]="$status"     # success, error, warning
+    # shellcheck disable=SC2034
     result_ref[message]="$message"   # Human-readable message
+    # shellcheck disable=SC2034
     result_ref[code]="$code"         # Numeric code
+    # shellcheck disable=SC2034
     result_ref[data]="$data"         # Optional data payload
+    # shellcheck disable=SC2034
     result_ref[timestamp]="$timestamp"
 }
 
 # ====== CONFIG TYPE DEFINITION ======
 # Define a standardized config structure
 # Usage:
-#   local config
-#   create_config config "memory_optimization" "true" "boolean" "Enable memory optimizations"
+#   local cpu
+#   create_config cpu "memory_optimization" "true" "boolean" "Enable CPU optimizations"
 create_config() {
+    # shellcheck disable=SC2034  # Used by reference in caller
     local -n config_ref="$1"
     local key="$2"
     local value="$3"
     local type="${4:-string}"  # string, boolean, number, array
     local description="${5:-}"
     
+    # shellcheck disable=SC2034
     config_ref=()
+    # shellcheck disable=SC2034
     config_ref[key]="$key"
+    # shellcheck disable=SC2034
     config_ref[value]="$value"
+    # shellcheck disable=SC2034
     config_ref[type]="$type"
+    # shellcheck disable=SC2034
     config_ref[description]="$description"
 }
 
@@ -57,16 +68,22 @@ create_config() {
 #   local module
 #   create_module module "memory" "memory_optimize.sh" "Optimizes memory settings" "true"
 create_module() {
+    # shellcheck disable=SC2034  # Used by reference in caller
     local -n module_ref="$1"
     local id="$2"
     local file="$3"
     local description="${4:-}"
     local enabled="${5:-true}"
     
+    # shellcheck disable=SC2034
     module_ref=()
+    # shellcheck disable=SC2034
     module_ref[id]="$id"
+    # shellcheck disable=SC2034
     module_ref[file]="$file"
+    # shellcheck disable=SC2034
     module_ref[description]="$description"
+    # shellcheck disable=SC2034
     module_ref[enabled]="$enabled"
 }
 
@@ -76,16 +93,22 @@ create_module() {
 #   local test
 #   create_test test "memory_test" "memory-tests.sh" "Validates memory settings" "medium"
 create_test() {
+    # shellcheck disable=SC2034  # Used by reference in caller
     local -n test_ref="$1"
     local id="$2"
     local file="$3"
     local description="${4:-}"
     local priority="${5:-medium}"  # high, medium, low
     
+    # shellcheck disable=SC2034
     test_ref=()
+    # shellcheck disable=SC2034
     test_ref[id]="$id"
+    # shellcheck disable=SC2034
     test_ref[file]="$file"
+    # shellcheck disable=SC2034
     test_ref[description]="$description"
+    # shellcheck disable=SC2034
     test_ref[priority]="$priority"
 }
 
@@ -95,15 +118,21 @@ create_test() {
 #   local tool
 #   create_tool tool "build_status" "utils/build-status.sh" "Check build status" "all,processes,docker"
 create_tool() {
+    # shellcheck disable=SC2034  # Used by reference in caller
     local -n tool_ref="$1"
     local id="$2"
     local path="$3"
     local description="${4:-}"
     local options="${5:-}"
     
+    # shellcheck disable=SC2034
     tool_ref=()
+    # shellcheck disable=SC2034
     tool_ref[id]="$id"
+    # shellcheck disable=SC2034
     tool_ref[path]="$path"
+    # shellcheck disable=SC2034
     tool_ref[description]="$description"
+    # shellcheck disable=SC2034
     tool_ref[options]="$options"
 }
