@@ -1,6 +1,6 @@
 import logging
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeVar
 from urllib.parse import urljoin, urlparse
 
 import anyio
@@ -15,8 +15,10 @@ from mcp.shared.message import SessionMessage
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T", bound=httpx.AsyncClient)
 
-# Define the McpHttpClientFactory protocol that was missing
+
+# Define the McpHttpClientFactory protocol to match create_mcp_http_client signature
 class McpHttpClientFactory(Protocol):
     """Protocol for factory functions that create HTTP clients."""
 
@@ -25,7 +27,7 @@ class McpHttpClientFactory(Protocol):
         headers: dict[str, Any] | None = None,
         timeout: httpx.Timeout | None = None,
         auth: httpx.Auth | None = None,
-    ) -> AbstractAsyncContextManager[httpx.AsyncClient]: ...
+    ) -> AbstractAsyncContextManager[T]: ...
 
 
 def remove_request_params(url: str) -> str:
@@ -52,6 +54,7 @@ async def sse_client(
         headers: Optional headers to include in requests.
         timeout: HTTP timeout for regular operations.
         sse_read_timeout: Timeout for SSE read operations.
+        httpx_client_factory: Factory for creating HTTP clients.
         auth: Optional HTTPX authentication handler.
     """
     read_stream: MemoryObjectReceiveStream[SessionMessage | Exception]
@@ -70,7 +73,9 @@ async def sse_client(
     async with anyio.create_task_group() as tg:
         try:
             logger.info(f"Connecting to SSE endpoint: {remove_request_params(url)}")
-            async with httpx_client_factory(headers=headers, auth=auth) as client:
+            async with httpx_client_factory(
+                headers=headers, timeout=httpx.Timeout(timeout), auth=auth
+            ) as client:
                 async with aconnect_sse(
                     client,
                     "GET",

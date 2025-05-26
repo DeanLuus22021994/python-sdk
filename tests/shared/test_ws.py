@@ -6,10 +6,6 @@ from collections.abc import AsyncGenerator, Generator
 import anyio
 import pytest
 import uvicorn
-from pydantic import AnyUrl
-from starlette.applications import Starlette
-from starlette.routing import WebSocketRoute
-
 from mcp.client.session import ClientSession
 from mcp.client.websocket import websocket_client
 from mcp.server import Server
@@ -24,6 +20,9 @@ from mcp.types import (
     TextResourceContents,
     Tool,
 )
+from pydantic import AnyUrl
+from starlette.applications import Starlette
+from starlette.routing import WebSocketRoute
 
 SERVER_NAME = "test_server_for_WS"
 
