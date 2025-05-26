@@ -52,12 +52,12 @@ def validate_environment() -> tuple[bool, dict[str, str | bool]]:
         - Dict: Environment details and validation results
     """
     # Check Python version
-    python_valid, python_msg = validate_python_version()
+    python_valid, _ = validate_python_version()
 
     # Check project structure
     structure_valid, missing_paths = check_required_paths()
 
-    env_info = {
+    env_info: dict[str, str | bool] = {
         "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
         "platform": platform.system(),
         "architecture": platform.machine(),

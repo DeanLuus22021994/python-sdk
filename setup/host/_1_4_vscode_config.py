@@ -11,7 +11,7 @@ except ImportError:
         """Get project root directory."""
         return Path(__file__).parent.parent.parent
 
-    def get_vscode_settings() -> dict[str, str | bool]:
+    def get_vscode_settings() -> dict[str, str | bool | dict[str, bool]]:
         """Get default VS Code settings."""
         return {"python.defaultInterpreterPath": "python"}
 
