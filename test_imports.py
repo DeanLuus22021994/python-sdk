@@ -28,7 +28,6 @@ def test_performance_module():
     try:
         from mcp.shared.performance import (
             get_performance_optimizer,
-            enable_performance_mode,
             UVLOOP_AVAILABLE,
             JSON_BACKEND,
             LZ4_AVAILABLE,
@@ -36,7 +35,7 @@ def test_performance_module():
             XXHASH_AVAILABLE,
         )
 
-        print(f"✓ Performance module imported successfully")
+        print("✓ Performance module imported successfully")
         print(f"  - JSON Backend: {JSON_BACKEND}")
         print(f"  - UVLOOP Available: {UVLOOP_AVAILABLE}")
         print(f"  - LZ4 Available: {LZ4_AVAILABLE}")
@@ -89,12 +88,9 @@ def main():
     results.append(test_import("pgvector", "PG Vector"))
     results.append(test_import("orjson", "Optimized JSON"))
     results.append(test_import("lz4", "LZ4 compression"))
-    results.append(test_import("ujson", "Ultra JSON"))
-
-    # Optional dependencies
+    results.append(test_import("ujson", "Ultra JSON"))  # Optional dependencies
     try:
-        import uvloop
-
+        __import__("uvloop")
         results.append(test_import("uvloop", "UV event loop (optional on Windows)"))
     except ImportError:
         print("⚠ uvloop - UV event loop (not available on Windows - expected)")
