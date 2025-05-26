@@ -5,7 +5,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_DIR="$SCRIPT_DIR/env"
+# Point to the actual env directory location
+ENV_DIR="$(cd "$SCRIPT_DIR/../../env" && pwd)"
 
 load_env_files() {
     local env_files=(
@@ -26,6 +27,7 @@ load_env_files() {
         if [[ -f "$file_path" ]]; then
             echo "Loading environment: $env_file"
             set -a  # Export all variables
+            # shellcheck source=/dev/null
             source "$file_path"
             set +a  # Stop exporting
         else

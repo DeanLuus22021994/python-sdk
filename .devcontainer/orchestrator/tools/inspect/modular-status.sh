@@ -41,7 +41,8 @@ show_summary_status() {
     
     # Tools system
     echo "Development Tools:"
-    local tool_count=$(find /workspaces/python-sdk/.devcontainer/tools -name "*.sh" | wc -l)
+    local tool_count
+    tool_count=$(find /workspaces/python-sdk/.devcontainer/tools -name "*.sh" | wc -l)
     echo "  ✓ $tool_count tools available"
 }
 

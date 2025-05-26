@@ -31,7 +31,8 @@ run_tool() {
     for tool in "${TOOL_REGISTRY[@]}"; do
         IFS=':' read -r id category name description usage <<< "$tool"
         if [[ "$id" == "$tool_id" ]]; then
-            local script_name=$(echo "$usage" | awk '{print $1}')
+            local script_name
+            script_name=$(echo "$usage" | awk '{print $1}')
             local script_path="$TOOLS_DIR/$category/$script_name"
             
             if [[ -x "$script_path" ]]; then
