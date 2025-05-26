@@ -5,6 +5,7 @@ Centralized environment variable definitions and validation for the MCP Python S
 
 import sys
 from pathlib import Path
+from typing import Any
 
 # Python version requirements
 MIN_PYTHON_VERSION = (3, 10)
@@ -17,18 +18,26 @@ REQUIRED_PROJECT_PATHS = ["src/mcp", "pyproject.toml", ".vscode"]
 OPTIONAL_PROJECT_PATHS = ["tests", "docs", "examples"]
 
 # VS Code configuration
-VSCODE_SETTINGS: dict[str, str | bool | dict[str, bool]] = {
+VSCODE_SETTINGS: dict[str, Any] = {
     "python.defaultInterpreterPath": "python",
-    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoImportCompletions": True,
+    "files.exclude": {
+        "**/__pycache__": True,
+        "**/*.pyc": True,
+        ".pytest_cache": True,
+        "*.egg-info": True,
+    },
     "python.testing.pytestEnabled": True,
     "python.testing.unittestEnabled": False,
-    "python.formatting.provider": "black",
-    "editor.formatOnSave": True,
-    "editor.codeActionsOnSave": {"source.organizeImports": True},
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": True,
+        "editor.codeActionsOnSave": {"source.organizeImports": "explicit"},
+    },
 }
 
 
-def get_vscode_settings() -> dict[str, str | bool | dict[str, bool]]:
+def get_vscode_settings() -> dict[str, Any]:
     """Get the default VS Code settings."""
     return VSCODE_SETTINGS
 
