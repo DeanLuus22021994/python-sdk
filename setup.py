@@ -4,8 +4,9 @@ MCP Python SDK Setup
 Simple entry point for development environment setup
 
 Usage:
-    python setup_environment.py
+    python setup.py
 """
+
 import os
 import sys
 from pathlib import Path
@@ -18,7 +19,7 @@ sys.path.insert(0, str(project_root))
 setup_init = project_root / "setup" / "__init__.py"
 if not setup_init.exists():
     with open(setup_init, "w") as f:
-        f.write('"""MCP Python SDK Setup Package"""')
+        f.write('"""MCP Python SDK Setup Package"""\n\n__version__ = "1.0.0"')
 
 # Create host/__init__.py if it doesn't exist
 host_init = project_root / "setup" / "host" / "__init__.py"
@@ -39,7 +40,6 @@ if not host_init.exists():
         f.write("]\n")
 
 if __name__ == "__main__":
-    # Use absolute import instead of a relative import
     from setup.main import main
 
     sys.exit(main())

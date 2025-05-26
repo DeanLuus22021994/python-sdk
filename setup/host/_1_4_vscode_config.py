@@ -4,12 +4,42 @@ Ensures VS Code is properly configured for development
 """
 
 import json
+import sys
 from pathlib import Path
+
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+try:
+    from setup.environment import (
+        get_project_root,
+        create_vscode_directory,
+        should_create_settings_json,
+        VSCODE_SETTINGS,
+    )
+except ImportError:
+    # Fallback functions if import fails
+    def get_project_root():
+        return Path(__file__).parent.parent.parent
+
+    def create_vscode_directory():
+        project_root = get_project_root()
+        vscode_path = project_root / ".vscode"
+        vscode_path.mkdir(exist_ok=True)
+        return vscode_path
+
+    def should_create_settings_json():
+        project_root = get_project_root()
+        settings_path = project_root / ".vscode" / "settings.json"
+        return not settings_path.exists()
+
+    VSCODE_SETTINGS = {"python.defaultInterpreterPath": "python"}
 
 
 def validate_vscode_config() -> tuple[bool, str]:
     """Validate VS Code configuration exists and is correct."""
-    project_root = Path(__file__).parent.parent.parent
+    project_root = get_project_root()
     vscode_path = project_root / ".vscode"
     settings_path = vscode_path / "settings.json"
 
@@ -38,15 +68,12 @@ def setup_vscode_config() -> bool:
     print(f"  {message}")
 
     if not validated:
-        project_root = Path(__file__).parent.parent.parent
-        vscode_path = project_root / ".vscode"
-        vscode_path.mkdir(exist_ok=True)
-
+        vscode_path = create_vscode_directory()
         settings_path = vscode_path / "settings.json"
-        if not settings_path.exists():
-            minimal_settings = {"python.defaultInterpreterPath": "python"}
+
+        if should_create_settings_json():
             with open(settings_path, "w", encoding="utf-8") as f:
-                json.dump(minimal_settings, f, indent=2)
-            print("  ✓ Created minimal VS Code settings")
+                json.dump(VSCODE_SETTINGS, f, indent=2)
+            print("  ✓ Created VS Code settings")
 
     return True
