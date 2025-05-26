@@ -29,6 +29,23 @@ try:
 except ImportError:
     DockerSetupManager = None
 
+# Type exports for better IDE support
+from .types import (
+    ContainerConfig,
+    DockerInfo,
+    EnvironmentInfo,
+    LogLevel,
+    PackageManagerInfo,
+    PerformanceSettings,
+    ProjectStructureInfo,
+    PythonVersion,
+    SetupContext,
+    SetupMode,
+    ValidationDetails,
+    ValidationStatus,
+    VSCodeConfig,
+)
+
 __all__ = [
     "__version__",
     "__author__",
@@ -36,4 +53,18 @@ __all__ = [
     "SetupOrchestrator",
     "HostSetupManager",
     "DockerSetupManager",
+    # Type exports
+    "ContainerConfig",
+    "DockerInfo",
+    "EnvironmentInfo",
+    "LogLevel",
+    "PackageManagerInfo",
+    "PerformanceSettings",
+    "ProjectStructureInfo",
+    "PythonVersion",
+    "SetupContext",
+    "SetupMode",
+    "ValidationDetails",
+    "ValidationStatus",
+    "VSCodeConfig",
 ]

@@ -3,9 +3,22 @@ Setup Sequence Management
 Orchestrates the setup process for the MCP Python SDK
 """
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
+
+from .environment import (
+    check_required_paths,
+    create_vscode_directory,
+    create_vscode_extensions_config,
+    get_modern_launch_config,
+    get_modern_tasks_config,
+    get_modern_vscode_settings,
+    should_create_settings_json,
+    validate_python_version,
+)
+from .packages import get_packages_for_platform, normalize_package_name
 
 
 class SetupOrchestrator:
@@ -51,19 +64,6 @@ def run_setup_sequence() -> bool:
     # Add current directory to path to ensure imports work
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
-    # Import from setup packages
-    from setup.environment import (
-        check_required_paths,
-        create_vscode_directory,
-        create_vscode_extensions_config,
-        get_modern_launch_config,
-        get_modern_tasks_config,
-        get_modern_vscode_settings,
-        should_create_settings_json,
-        validate_python_version,
-    )
-    from setup.packages import get_packages_for_platform
-
     success = True
 
     # Step 1: Validate Python version
@@ -91,8 +91,6 @@ def run_setup_sequence() -> bool:
         if should_create_settings_json():
             settings = get_modern_vscode_settings()
             with open(settings_path, "w", encoding="utf-8") as f:
-                import json
-
                 json.dump(settings, f, indent=2)
             print("✓ VS Code configuration created successfully")
             print("  - settings.json (Python development settings)")
@@ -104,8 +102,6 @@ def run_setup_sequence() -> bool:
         if not launch_path.exists():
             launch_config = get_modern_launch_config()
             with open(launch_path, "w", encoding="utf-8") as f:
-                import json
-
                 json.dump(launch_config, f, indent=2)
             print("  - launch.json (Debug configurations)")
 
@@ -113,8 +109,6 @@ def run_setup_sequence() -> bool:
         if not tasks_path.exists():
             tasks_config = get_modern_tasks_config()
             with open(tasks_path, "w", encoding="utf-8") as f:
-                import json
-
                 json.dump(tasks_config, f, indent=2)
             print("  - tasks.json (Build and test tasks)")
 
@@ -122,8 +116,6 @@ def run_setup_sequence() -> bool:
         if not extensions_path.exists():
             extensions_config = create_vscode_extensions_config()
             with open(extensions_path, "w", encoding="utf-8") as f:
-                import json
-
                 json.dump(extensions_config, f, indent=2)
             print("  - extensions.json (Recommended extensions)")
 
@@ -133,8 +125,6 @@ def run_setup_sequence() -> bool:
 
     # Step 4: Verify required packages
     print("\nChecking required packages:")
-    from setup.packages import normalize_package_name
-
     packages = get_packages_for_platform(include_dev=True)
 
     for package in packages:
@@ -151,7 +141,7 @@ def run_setup_sequence() -> bool:
     # Step 5: Configure Docker environment (if available)
     try:
         # Import Docker functions
-        from setup.docker import (
+        from .docker import (
             check_required_images,
             configure_containers,
             configure_volumes,

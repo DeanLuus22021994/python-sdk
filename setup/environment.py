@@ -4,19 +4,36 @@ Centralized environment variable definitions and validation for the MCP Python S
 """
 
 import json
+import os
+import platform
 import sys
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .constants import (
-    MIN_PYTHON_VERSION,
-    OPTIONAL_PROJECT_PATHS,
-    RECOMMENDED_PYTHON_VERSION,
-    REQUIRED_PROJECT_PATHS,
-    PythonVersion,
-)
+from .types import EnvironmentInfo, PythonVersion, ValidationDetails, ValidationStatus
+
+# Define constants
+MIN_PYTHON_VERSION = PythonVersion(3, 9)
+RECOMMENDED_PYTHON_VERSION = PythonVersion(3, 11)
 
 # Project structure requirements
+REQUIRED_PROJECT_PATHS = [
+    "setup",
+    "src",
+    "tests",
+    "pyproject.toml",
+]
+
+OPTIONAL_PROJECT_PATHS = [
+    ".vscode",
+    "docs",
+    "examples",
+    ".github",
+    "scripts",
+]
+
+# VS Code settings
 VSCODE_SETTINGS: dict[str, Any] = {
     "python.defaultInterpreterPath": "python",
     "python.analysis.autoImportCompletions": True,
@@ -60,9 +77,108 @@ VSCODE_SETTINGS: dict[str, Any] = {
 }
 
 
+class EnvironmentManager:
+    """Manager for environment setup and validation."""
+
+    def __init__(self, project_root: Path | None = None) -> None:
+        self.project_root = project_root or get_project_root()
+        self._environment_info: EnvironmentInfo | None = None
+
+    def get_environment_info(self) -> EnvironmentInfo:
+        """Get detailed environment information."""
+        if self._environment_info is None:
+            python_version = PythonVersion(*get_python_version_info())
+
+            # Check virtual environment
+            virtual_env_active = "VIRTUAL_ENV" in os.environ
+            virtual_env_path = os.environ.get("VIRTUAL_ENV", None)
+
+            # Determine virtual env type
+            virtual_env_type = None
+            if virtual_env_active:
+                if "CONDA_PREFIX" in os.environ:
+                    virtual_env_type = "conda"
+                else:
+                    virtual_env_type = "venv"
+
+            system = platform.system()
+            release = platform.release()
+            architecture = platform.machine()
+
+            self._environment_info = EnvironmentInfo(
+                python_version=python_version,
+                python_executable=sys.executable,
+                virtual_env_active=virtual_env_active,
+                virtual_env_type=virtual_env_type,
+                virtual_env_path=virtual_env_path,
+                platform_system=system,
+                platform_release=release,
+                architecture=architecture,
+            )
+
+        return self._environment_info
+
+    def validate_environment(self) -> ValidationDetails:
+        """Validate the current environment."""
+        info = self.get_environment_info()
+        warnings: list[str] = []
+        errors: list[str] = []
+        recommendations: list[str] = []
+
+        # Validate Python version
+        if info.python_version < MIN_PYTHON_VERSION:
+            errors.append(
+                f"Python version {info.python_version} is below minimum required version {MIN_PYTHON_VERSION}"
+            )
+            recommendations.append(
+                f"Upgrade Python to at least version {MIN_PYTHON_VERSION}"
+            )
+        elif info.python_version < RECOMMENDED_PYTHON_VERSION:
+            warnings.append(
+                f"Python version {info.python_version} is below recommended version {RECOMMENDED_PYTHON_VERSION}"
+            )
+            recommendations.append(
+                f"Consider upgrading Python to version {RECOMMENDED_PYTHON_VERSION}"
+            )
+
+        # Validate virtual environment
+        if not info.virtual_env_active:
+            warnings.append("No virtual environment detected")
+            recommendations.append(
+                "Create and activate a virtual environment for better package isolation"
+            )
+
+        # Determine validation status
+        if errors:
+            status = ValidationStatus.ERROR
+            is_valid = False
+        elif warnings:
+            status = ValidationStatus.WARNING
+            is_valid = True
+        else:
+            status = ValidationStatus.VALID
+            is_valid = True
+
+        message = (
+            "Environment validated successfully"
+            if is_valid
+            else "Environment validation failed"
+        )
+
+        return ValidationDetails(
+            is_valid=is_valid,
+            status=status,
+            message=message,
+            warnings=warnings,
+            errors=errors,
+            recommendations=recommendations,
+            metadata=asdict(info),
+        )
+
+
 def get_vscode_settings() -> dict[str, Any]:
     """Get the default VS Code settings."""
-    return VSCODE_SETTINGS
+    return VSCODE_SETTINGS.copy()
 
 
 def get_modern_vscode_settings() -> dict[str, Any]:
@@ -193,7 +309,7 @@ def get_project_root() -> Path:
     """
     # Start from the current file and go up to find the project root
     current_file = Path(__file__)
-    project_root = current_file.parent.parent.parent
+    project_root = current_file.parent.parent
 
     # Verify this is actually the project root by checking for key files
     if (project_root / "pyproject.toml").exists():
@@ -215,7 +331,7 @@ def get_python_version_info() -> tuple[int, int]:
     Returns:
         Tuple of (major, minor) version numbers
     """
-    return sys.version_info[:2]
+    return sys.version_info.major, sys.version_info.minor
 
 
 def validate_python_version() -> tuple[bool, str]:

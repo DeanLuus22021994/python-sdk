@@ -4,16 +4,16 @@ Centralized type definitions to ensure consistency across all setup modules.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
-from enum import Enum
+from dataclasses import dataclass, field
+from enum import Enum, auto
 from pathlib import Path
-from typing import Any, NamedTuple, Protocol
+from typing import Any, NamedTuple, Protocol, TypeAlias, TypedDict
 
 # Core type aliases for compatibility - using modern Python 3.10+ syntax
-PathLike = str | Path
-JsonValue = str | int | float | bool | None | dict[str, Any] | list[Any]
-ValidationResult = tuple[bool, str]
-SetupResult = tuple[bool, dict[str, Any]]
+PathLike: TypeAlias = str | Path
+JsonValue: TypeAlias = str | int | float | bool | None | dict[str, Any] | list[Any]
+ValidationResult: TypeAlias = tuple[bool, str]
+SetupResult: TypeAlias = tuple[bool, dict[str, Any]]
 
 
 class PythonVersion(NamedTuple):
@@ -50,19 +50,25 @@ class SetupMode(Enum):
 class LogLevel(Enum):
     """Logging levels for setup operations."""
 
-    DEBUG = "debug"
-    INFO = "info"
-    WARNING = "warning"
-    ERROR = "error"
+    DEBUG = auto()
+    INFO = auto()
+    WARNING = auto()
+    ERROR = auto()
+
+    def __str__(self) -> str:
+        return self.name.lower()
 
 
 class ValidationStatus(Enum):
     """Validation status enumeration."""
 
-    VALID = "valid"
-    WARNING = "warning"
-    ERROR = "error"
-    UNKNOWN = "unknown"
+    VALID = auto()
+    WARNING = auto()
+    ERROR = auto()
+    UNKNOWN = auto()
+
+    def __str__(self) -> str:
+        return self.name.lower()
 
 
 @dataclass(frozen=True)
@@ -109,10 +115,10 @@ class ValidationDetails:
     is_valid: bool
     status: ValidationStatus
     message: str
-    warnings: list[str]
-    errors: list[str]
-    recommendations: list[str]
-    metadata: dict[str, Any]
+    warnings: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -121,10 +127,10 @@ class ProjectStructureInfo:
 
     root_path: Path
     required_paths_valid: bool
-    missing_required: list[str]
-    optional_paths_status: dict[str, bool]
-    total_size_bytes: int
-    file_count: int
+    missing_required: list[str] = field(default_factory=list)
+    optional_paths_status: dict[str, bool] = field(default_factory=dict)
+    total_size_bytes: int = 0
+    file_count: int = 0
 
 
 @dataclass
@@ -140,15 +146,25 @@ class PackageManagerInfo:
     preferred_manager: str = "pip"
 
 
+class VSCodeExtension(TypedDict):
+    """VS Code extension information."""
+
+    id: str
+    publisher: str
+    name: str
+    description: str
+
+
 @dataclass
 class VSCodeConfig:
     """VS Code configuration settings."""
 
-    settings: dict[str, Any]
-    extensions: list[str]
-    launch_config: dict[str, Any]
-    tasks_config: dict[str, Any]
-    workspace_config: dict[str, Any]
+    settings: dict[str, Any] = field(default_factory=dict)
+    extensions: list[str] = field(default_factory=list)
+    recommended_extensions: list[VSCodeExtension] = field(default_factory=list)
+    launch_config: dict[str, Any] = field(default_factory=dict)
+    tasks_config: dict[str, Any] = field(default_factory=dict)
+    workspace_config: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -159,14 +175,8 @@ class DockerInfo:
     docker_version: tuple[int, int, int] | None = None
     compose_available: bool = False
     compose_version: str | None = None
-    images_available: list[str] | None = None
-    containers_running: list[str] | None = None
-
-    def __post_init__(self) -> None:
-        if self.images_available is None:
-            self.images_available = []
-        if self.containers_running is None:
-            self.containers_running = []
+    images_available: list[str] = field(default_factory=list)
+    containers_running: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -225,10 +235,10 @@ class ConfigManager(Protocol):
 
 
 # Type aliases for complex return types
-EnvironmentValidationResult = tuple[bool, EnvironmentInfo, list[str]]
-ProjectValidationResult = tuple[bool, ProjectStructureInfo, list[str]]
-SetupProgressCallback = Callable[[str, float], None]
-LoggingCallback = Callable[[LogLevel, str], None]
+EnvironmentValidationResult: TypeAlias = tuple[bool, EnvironmentInfo, list[str]]
+ProjectValidationResult: TypeAlias = tuple[bool, ProjectStructureInfo, list[str]]
+SetupProgressCallback: TypeAlias = Callable[[str, float], None]
+LoggingCallback: TypeAlias = Callable[[LogLevel, str], None]
 
 
 # Exception types for setup operations
@@ -265,6 +275,8 @@ class ContainerError(SetupError):
 
 
 # Constants for type annotations - using modern Python 3.10+ syntax
-VSCodeSettingsDict = dict[str, str | int | bool | dict[str, Any] | list[Any]]
-PackageManagerDict = dict[str, bool | str | None]
-EnvironmentDict = dict[str, str | int | bool | PythonVersion | dict[str, Any]]
+VSCodeSettingsDict: TypeAlias = dict[str, str | int | bool | dict[str, Any] | list[Any]]
+PackageManagerDict: TypeAlias = dict[str, bool | str | None]
+EnvironmentDict: TypeAlias = dict[
+    str, str | int | bool | PythonVersion | dict[str, Any]
+]
