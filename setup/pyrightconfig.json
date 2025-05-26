@@ -94,7 +94,6 @@
 
   // Async/Await Validation (Important for MCP)
   "reportInvalidStringEscapeSequence": "error",
-  "reportUnknownMemberType": "warning",
   "reportGeneralTypeIssues": "error",
 
   // Constants and Naming
