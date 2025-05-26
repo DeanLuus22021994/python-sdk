@@ -5,6 +5,33 @@ Orchestrates the setup process for the MCP Python SDK
 
 import sys
 from pathlib import Path
+from typing import Any
+
+
+class SetupOrchestrator:
+    """
+    Main orchestrator for the MCP Python SDK setup process.
+
+    Follows the Single Responsibility Principle by coordinating
+    different setup components without implementing their logic.
+    """
+
+    def __init__(self, verbose: bool = False) -> None:
+        self.verbose = verbose
+        self._setup_results: dict[str, Any] = {}
+
+    def run_complete_setup(self) -> bool:
+        """
+        Execute the complete setup sequence.
+
+        Returns:
+            True if all setup steps completed successfully
+        """
+        return run_setup_sequence()
+
+    def get_setup_results(self) -> dict[str, Any]:
+        """Get detailed results from the setup process."""
+        return self._setup_results.copy()
 
 
 def run_setup_sequence() -> bool:
@@ -28,6 +55,9 @@ def run_setup_sequence() -> bool:
     from setup.environment import (
         check_required_paths,
         create_vscode_directory,
+        create_vscode_extensions_config,
+        get_modern_launch_config,
+        get_modern_tasks_config,
         get_modern_vscode_settings,
         should_create_settings_json,
         validate_python_version,
@@ -72,8 +102,6 @@ def run_setup_sequence() -> bool:
         # Create other VS Code configuration files
         launch_path = vscode_dir / "launch.json"
         if not launch_path.exists():
-            from setup.environment import get_modern_launch_config
-
             launch_config = get_modern_launch_config()
             with open(launch_path, "w", encoding="utf-8") as f:
                 import json
@@ -83,8 +111,6 @@ def run_setup_sequence() -> bool:
 
         tasks_path = vscode_dir / "tasks.json"
         if not tasks_path.exists():
-            from setup.environment import get_modern_tasks_config
-
             tasks_config = get_modern_tasks_config()
             with open(tasks_path, "w", encoding="utf-8") as f:
                 import json
@@ -94,8 +120,6 @@ def run_setup_sequence() -> bool:
 
         extensions_path = vscode_dir / "extensions.json"
         if not extensions_path.exists():
-            from setup.environment import create_vscode_extensions_config
-
             extensions_config = create_vscode_extensions_config()
             with open(extensions_path, "w", encoding="utf-8") as f:
                 import json
@@ -105,7 +129,9 @@ def run_setup_sequence() -> bool:
 
     except Exception as e:
         print(f"✗ Failed to configure VS Code: {str(e)}")
-        success = False  # Step 4: Verify required packages
+        success = False
+
+    # Step 4: Verify required packages
     print("\nChecking required packages:")
     from setup.packages import normalize_package_name
 
@@ -125,7 +151,6 @@ def run_setup_sequence() -> bool:
     # Step 5: Configure Docker environment (if available)
     try:
         # Import Docker functions
-        # Ensure this import is as specific as possible to avoid circular imports
         from setup.docker import (
             check_required_images,
             configure_containers,

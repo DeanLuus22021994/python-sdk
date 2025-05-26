@@ -1,82 +1,110 @@
-"""VS Code configuration for host setup."""
+"""
+Host Setup Package
+Provides host-based development environment setup for MCP Python SDK.
+"""
 
-import json
-from pathlib import Path
-from typing import Any
-
-try:
-    from setup.environment import (
-        create_modern_vscode_settings,
-        create_vscode_directory,
-        get_modern_vscode_settings,
-    )
-except ImportError:
-    # Fallback implementations if imports fail
-    def create_vscode_directory() -> Path:
-        """Create .vscode directory if it doesn't exist."""
-        project_root = Path.cwd()
-        vscode_path = project_root / ".vscode"
-        vscode_path.mkdir(exist_ok=True)
-        return vscode_path
-
-    def get_modern_vscode_settings() -> dict[str, Any]:
-        """Get default VS Code settings."""
-        return {"python.defaultInterpreterPath": "python"}
-
-    def create_modern_vscode_settings() -> bool:
-        """Create modern VS Code settings files."""
-        try:
-            vscode_dir = create_vscode_directory()
-            settings_path = vscode_dir / "settings.json"
-            if not settings_path.exists():
-                settings = get_modern_vscode_settings()
-                with open(settings_path, "w", encoding="utf-8") as f:
-                    json.dump(settings, f, indent=2)
-            return True
-        except Exception:
-            return False
+from .env_validator import get_environment_info, validate_environment
+from .package_manager import check_package_availability, setup_packages
+from .sdk_validator import check_sdk_completeness, validate_sdk
+from .vscode_config import get_current_vscode_settings, setup_vscode_config
 
 
-def setup_vscode_config() -> bool:
-    """Setup VS Code configuration for Python development."""
-    print("⚙️  Setting up VS Code configuration...")
-    try:
-        if create_modern_vscode_settings():
-            print("  ✓ Created VS Code settings")
-            return True
+class HostSetupManager:
+    """
+    Host-based setup manager following Single Responsibility Principle.
+
+    Coordinates host environment setup without Docker dependencies.
+    """
+
+    def __init__(self, verbose: bool = False) -> None:
+        self.verbose = verbose
+        self._setup_results: dict[str, bool] = {}
+
+    def setup(self) -> tuple[bool, dict[str, bool]]:
+        """
+        Perform complete host-based setup.
+
+        Returns:
+            Tuple of (success, setup_results)
+        """
+        print("🏠 Starting host-based setup...")
+
+        # Environment validation
+        env_valid, env_info = validate_environment()
+        self._setup_results["environment"] = env_valid
+        if self.verbose:
+            print(f"Environment validation: {'✓' if env_valid else '✗'}")
+
+        # Package setup
+        packages_success = setup_packages()
+        self._setup_results["packages"] = packages_success
+        if self.verbose:
+            print(f"Package setup: {'✓' if packages_success else '✗'}")
+
+        # VS Code configuration
+        vscode_success = setup_vscode_config()
+        self._setup_results["vscode"] = vscode_success
+        if self.verbose:
+            print(f"VS Code setup: {'✓' if vscode_success else '✗'}")
+
+        # SDK validation
+        sdk_valid = validate_sdk()
+        self._setup_results["sdk"] = sdk_valid
+        if self.verbose:
+            print(f"SDK validation: {'✓' if sdk_valid else '✗'}")
+
+        overall_success = all(self._setup_results.values())
+
+        if overall_success:
+            print("✅ Host setup completed successfully!")
         else:
-            print("  ✗ Failed to create VS Code settings")
-            return False
-    except Exception as e:
-        print(f"  ✗ Error setting up VS Code: {str(e)}")
-        return False
+            print("❌ Host setup completed with some issues.")
+
+        return overall_success, self._setup_results
+
+    def validate(self) -> bool:
+        """
+        Validate current host environment.
+
+        Returns:
+            True if environment is valid for development
+        """
+        env_valid, _ = validate_environment()
+        sdk_completeness = check_sdk_completeness()
+
+        return env_valid and all(sdk_completeness.values())
+
+    def get_status(self) -> dict[str, bool | dict[str, bool]]:
+        """
+        Get current host environment status.
+
+        Returns:
+            Dictionary with environment status information
+        """
+        env_valid, env_info = validate_environment()
+        sdk_status = check_sdk_completeness()
+
+        return {
+            "environment_valid": env_valid,
+            "environment_details": env_info,
+            "sdk_components": sdk_status,
+            "setup_results": self._setup_results,
+        }
 
 
-def get_current_vscode_settings() -> dict[str, Any]:
-    """Get current VS Code settings from settings.json."""
-    try:
-        vscode_dir = create_vscode_directory()
-        settings_path = vscode_dir / "settings.json"
-        if settings_path.exists():
-            with open(settings_path, encoding="utf-8") as f:
-                return json.load(f)
-        return {}
-    except Exception:
-        return {}
-
-
-def update_vscode_settings(new_settings: dict[str, Any]) -> bool:
-    """Update VS Code settings with new values."""
-    try:
-        vscode_dir = create_vscode_directory()
-        settings_path = vscode_dir / "settings.json"
-
-        current_settings = get_current_vscode_settings()
-        # Merge settings
-        merged_settings = {**current_settings, **new_settings}
-
-        with open(settings_path, "w", encoding="utf-8") as f:
-            json.dump(merged_settings, f, indent=2)
-        return True
-    except Exception:
-        return False
+__version__ = "1.0.0"
+__all__ = [
+    # Main manager
+    "HostSetupManager",
+    # Validation functions
+    "validate_environment",
+    "get_environment_info",
+    "validate_sdk",
+    "check_sdk_completeness",
+    # Setup functions
+    "setup_packages",
+    "setup_vscode_config",
+    # Utility functions
+    "check_package_availability",
+    "get_current_vscode_settings",
+]

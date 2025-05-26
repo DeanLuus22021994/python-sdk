@@ -14,18 +14,18 @@ __version__: Final[str] = "2.0.0"
 __author__: Final[str] = "MCP Python SDK Team"
 
 # Core setup modules
-from setup.environment import EnvironmentManager
-from setup.sequence import SetupOrchestrator
+from .environment import EnvironmentManager
+from .sequence import SetupOrchestrator
 
 # Host setup capabilities
 try:
-    from setup.host import HostSetupManager
+    from .host import HostSetupManager
 except ImportError:
     HostSetupManager = None
 
 # Docker setup capabilities
 try:
-    from setup.docker import DockerSetupManager
+    from .docker import DockerSetupManager
 except ImportError:
     DockerSetupManager = None
 

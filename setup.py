@@ -51,7 +51,8 @@ def main() -> NoReturn:
     except ImportError as e:
         print(f"Setup import failed: {e}")
         print(
-            "Ensure all dependencies are installed and the project structure is correct."
+            "Ensure all dependencies are installed and the project "
+            "structure is correct."
         )
         sys.exit(1)
     except Exception as e:
