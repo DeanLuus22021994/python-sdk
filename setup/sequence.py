@@ -7,8 +7,7 @@ def run_setup_sequence() -> bool:
     """
     Run the complete setup sequence for the MCP Python SDK.
 
-    This function orchestrates the entire setup process:
-    1. Validate the Python environment
+    This function orchestrates the entire setup process:    1. Validate the Python environment
     2. Check required project structure
     3. Configure VS Code settings
     4. Ensure dependencies are installed
@@ -18,9 +17,7 @@ def run_setup_sequence() -> bool:
     """
     from setup.environment import (
         check_required_paths,
-        create_vscode_directory,
-        get_vscode_settings,
-        should_create_settings_json,
+        create_modern_vscode_settings,
         validate_python_version,
     )
     from setup.packages import get_packages_for_platform
@@ -41,24 +38,20 @@ def run_setup_sequence() -> bool:
         print("✗ Missing required project paths:")
         for path in missing_paths:
             print(f"  - {path}")
-        success = False
-
-    # Step 3: Configure VS Code settings
+        success = False  # Step 3: Configure VS Code settings
     try:
-        vscode_dir = create_vscode_directory()
-        settings_path = vscode_dir / "settings.json"
-
-        if should_create_settings_json():
-            import json
-
-            print("Creating VS Code settings...")
-            with open(settings_path, "w", encoding="utf-8") as f:
-                json.dump(get_vscode_settings(), f, indent=4)
-            print("✓ VS Code settings created")
+        print("Creating modern VS Code configuration...")
+        if create_modern_vscode_settings():
+            print("✓ VS Code configuration created successfully")
+            print("  - settings.json (Python development settings)")
+            print("  - launch.json (Debug configurations)")
+            print("  - tasks.json (Build and test tasks)")
+            print("  - extensions.json (Recommended extensions)")
         else:
-            print("✓ VS Code settings already configured")
+            print("✗ Failed to create VS Code configuration")
+            success = False
     except Exception as e:
-        print(f"✗ Failed to configure VS Code settings: {str(e)}")
+        print(f"✗ Failed to configure VS Code: {str(e)}")
         success = False
 
     # Step 4: Verify required packages
