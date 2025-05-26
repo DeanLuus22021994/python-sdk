@@ -17,7 +17,7 @@ REQUIRED_PROJECT_PATHS = ["src/mcp", "pyproject.toml", ".vscode"]
 OPTIONAL_PROJECT_PATHS = ["tests", "docs", "examples"]
 
 # VS Code configuration
-VSCODE_SETTINGS = {
+VSCODE_SETTINGS: dict[str, str | bool | dict[str, bool]] = {
     "python.defaultInterpreterPath": "python",
     "python.analysis.typeCheckingMode": "basic",
     "python.testing.pytestEnabled": True,
@@ -28,7 +28,7 @@ VSCODE_SETTINGS = {
 }
 
 
-def get_vscode_settings() -> dict[str, str | bool]:
+def get_vscode_settings() -> dict[str, str | bool | dict[str, bool]]:
     """Get the default VS Code settings."""
     return VSCODE_SETTINGS
 
