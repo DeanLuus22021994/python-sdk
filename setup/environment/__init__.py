@@ -144,7 +144,9 @@ class EnvironmentManager:
         full_status = self.get_status()
 
         # Extract and convert to basic types for backward compatibility
-        # Convert the optional_paths_available to string for type compatibility
+        # Convert the optional_paths_available count properly
+        optional_paths_count = full_status.get("optional_paths_available", 0)
+
         summary: dict[str, str | int | bool] = {
             "python_version": str(
                 full_status.get("python", {}).get("version", "unknown")
@@ -156,10 +158,8 @@ class EnvironmentManager:
             "project_structure_valid": bool(
                 full_status.get("project_structure_valid", False)
             ),
-            # Convert to string to match the declared return type str | int | bool
-            "optional_paths_available": str(
-                full_status.get("optional_paths_available", 0)
-            ),
+            # Keep as int instead of converting to string
+            "optional_paths_available": int(optional_paths_count),
             "cache_initialized": bool(full_status.get("cache_initialized", False)),
         }
 

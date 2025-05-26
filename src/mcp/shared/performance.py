@@ -196,14 +196,16 @@ class PerformanceOptimizer:
         try:
             # Get current event loop for modern asyncio (Python 3.10+)
             loop = asyncio.get_running_loop()
-            task = loop.create_task(coro)  # type: ignore[arg-type]
+            # Explicit type annotation to fix typing issues
+            task: asyncio.Task[T] = loop.create_task(coro)  # type: ignore[arg-type]
             # Set task name for better debugging - cast to handle type inference issues
             task_id = id(cast(object, task))
             task.set_name(f"mcp_task_{task_id}")
             return task
         except RuntimeError:
             # Fallback for older Python versions or edge cases
-            return asyncio.ensure_future(coro)  # type: ignore[arg-type]
+            # Use explicit typing for ensure_future as well
+            return asyncio.ensure_future(coro)  # type: ignore[arg-type,return-value]
 
     def run_gc_cycle(self, generation: int = 2) -> None:
         """Manual garbage collection for performance-critical sections."""
