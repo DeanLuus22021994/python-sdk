@@ -8,7 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
+
+if TYPE_CHECKING:
+    from .enums import LogLevel
+    from .environment import EnvironmentInfo, ProjectStructureInfo, PythonVersion
 
 __all__ = [
     "PathLike",
@@ -37,18 +41,18 @@ ValidationResult: TypeAlias = tuple[bool, str]
 SetupResult: TypeAlias = tuple[bool, dict[str, Any]]
 """Type alias for setup operation results - (success, details)."""
 
-# Complex operation result types (using string forward references)
-EnvironmentValidationResult: TypeAlias = "tuple[bool, EnvironmentInfo, list[str]]"
+# Complex operation result types
+EnvironmentValidationResult: TypeAlias = tuple[bool, EnvironmentInfo, list[str]]
 """Type alias for environment validation results - (valid, info, errors)."""
 
-ProjectValidationResult: TypeAlias = "tuple[bool, ProjectStructureInfo, list[str]]"
+ProjectValidationResult: TypeAlias = tuple[bool, ProjectStructureInfo, list[str]]
 """Type alias for project validation results - (valid, info, errors)."""
 
 # Callback types for setup operations
 SetupProgressCallback: TypeAlias = Callable[[str, float], None]
 """Type alias for progress callback functions - (message, progress_percent)."""
 
-LoggingCallback: TypeAlias = "Callable[[LogLevel, str], None]"
+LoggingCallback: TypeAlias = Callable[[LogLevel, str], None]
 """Type alias for logging callback functions - (level, message)."""
 
 # Complex configuration dictionary types
@@ -58,7 +62,7 @@ VSCodeSettingsDict: TypeAlias = dict[str, str | int | bool | dict[str, Any] | li
 PackageManagerDict: TypeAlias = dict[str, bool | str | None]
 """Type alias for package manager information dictionaries."""
 
-EnvironmentDict: TypeAlias = (
-    "dict[str, str | int | bool | PythonVersion | dict[str, Any]]"
-)
+EnvironmentDict: TypeAlias = dict[
+    str, str | int | bool | PythonVersion | dict[str, Any]
+]
 """Type alias for environment information dictionaries."""

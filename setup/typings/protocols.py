@@ -25,7 +25,9 @@ class Validator(Protocol):
 
     Defines the interface that all validation components must implement
     to ensure consistent validation behavior across the setup system.
-    """    def validate(self) -> "ValidationDetails":
+    """
+
+    def validate(self) -> ValidationDetails:
         """
         Perform validation and return detailed results.
 
@@ -58,17 +60,7 @@ class SetupManager(Protocol):
         Perform setup and return results.
 
         Returns:
-            Tuple of (success: bool, details: dict) indicating setup outcome
-            and providing detailed information about the setup process.
-        """
-        ...
-
-    def validate(self) -> ValidationDetails:
-        """
-        Validate current state before or after setup.
-
-        Returns:
-            ValidationDetails containing current validation status.
+            SetupResult tuple containing success status and operation details.
         """
         ...
 
@@ -81,54 +73,58 @@ class SetupManager(Protocol):
         """
         ...
 
-
-class ConfigManager(Protocol):
-    """
-    Protocol for configuration managers.
-
-    Defines the interface for components that handle configuration
-    loading, saving, and validation across the setup system.
-    """
-
-    def load_config(self) -> dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
-        Load configuration from file or defaults.
+        Get current setup status and configuration.
 
         Returns:
-            Dictionary containing configuration settings.
+            Dictionary containing current setup state and configuration.
         """
         ...
 
-    def save_config(self, config: dict[str, Any]) -> bool:
+
+class ConfigManager(Protocol):
+    """
+    Protocol for configuration management.
+
+    Defines the interface for components that handle configuration
+    loading, validation, and persistence.
+    """
+
+    def load_config(self, path: str) -> dict[str, Any]:
+        """
+        Load configuration from file.
+
+        Args:
+            path: Path to configuration file.
+
+        Returns:
+            Dictionary containing configuration data.
+        """
+        ...
+
+    def save_config(self, config: dict[str, Any], path: str) -> bool:
         """
         Save configuration to file.
 
         Args:
-            config: Configuration dictionary to save.
+            config: Configuration data to save.
+            path: Path where to save configuration.
 
         Returns:
-            True if configuration was saved successfully, False otherwise.
+            True if save was successful, False otherwise.
         """
         ...
 
     def validate_config(self, config: dict[str, Any]) -> ValidationDetails:
         """
-        Validate configuration structure and values.
+        Validate configuration data.
 
         Args:
-            config: Configuration dictionary to validate.
+            config: Configuration data to validate.
 
         Returns:
             ValidationDetails containing validation results.
-        """
-        ...
-
-    def get_default_config(self) -> dict[str, Any]:
-        """
-        Get default configuration values.
-
-        Returns:
-            Dictionary containing default configuration settings.
         """
         ...
 
@@ -138,45 +134,33 @@ class EnvironmentProvider(Protocol):
     Protocol for environment information providers.
 
     Defines the interface for components that gather and provide
-    information about the development environment.
+    environment information for setup operations.
     """
 
-    def get_python_info(self) -> dict[str, Any]:
+    def get_environment_info(self) -> EnvironmentInfo:
         """
-        Get Python environment information.
+        Gather comprehensive environment information.
 
         Returns:
-            Dictionary containing Python version, executable path,
-            virtual environment status, and other relevant information.
+            EnvironmentInfo containing system and environment details.
         """
         ...
 
-    def get_system_info(self) -> dict[str, Any]:
+    def validate_environment(self) -> ValidationDetails:
         """
-        Get system information.
+        Validate current environment for setup requirements.
 
         Returns:
-            Dictionary containing operating system, architecture,
-            and platform-specific information.
+            ValidationDetails containing environment validation results.
         """
         ...
 
-    def get_package_manager_info(self) -> dict[str, Any]:
+    def get_python_info(self) -> PythonVersion:
         """
-        Get package manager availability and versions.
+        Get Python version information.
 
         Returns:
-            Dictionary containing information about available package
-            managers (pip, conda, uv, poetry) and their versions.
-        """
-        ...
-
-    def refresh_environment(self) -> None:
-        """
-        Refresh cached environment information.
-
-        Forces re-detection of environment characteristics,
-        useful when the environment has been modified.
+            PythonVersion containing Python version details.
         """
         ...
 
@@ -189,48 +173,38 @@ class ProjectStructureValidator(Protocol):
     project directory structure and file organization.
     """
 
-    def validate_structure(self) -> ValidationDetails:
+    def validate_structure(self, root_path: str) -> ValidationDetails:
         """
         Validate project directory structure.
+
+        Args:
+            root_path: Root directory of the project to validate.
 
         Returns:
             ValidationDetails containing structure validation results.
         """
         ...
 
-    def check_required_files(self) -> dict[str, bool]:
+    def get_structure_info(self, root_path: str) -> ProjectStructureInfo:
         """
-        Check presence of required project files.
+        Analyze and return project structure information.
+
+        Args:
+            root_path: Root directory of the project to analyze.
 
         Returns:
-            Dictionary mapping file paths to their existence status.
+            ProjectStructureInfo containing detailed structure analysis.
         """
         ...
 
-    def check_optional_files(self) -> dict[str, bool]:
+    def suggest_improvements(self, root_path: str) -> list[str]:
         """
-        Check presence of optional project files.
+        Suggest improvements for project structure.
+
+        Args:
+            root_path: Root directory of the project to analyze.
 
         Returns:
-            Dictionary mapping optional file paths to their existence status.
-        """
-        ...
-
-    def get_project_metrics(self) -> dict[str, int | float]:
-        """
-        Get project size and complexity metrics.
-
-        Returns:
-            Dictionary containing metrics like file count, directory count,
-            total size, and code complexity indicators.
-        """
-        ...
-
-    def suggest_improvements(self) -> list[str]:
-        """
-        Suggest project structure improvements.
-
-        Returns:
-            List of recommendations for improving project organization.
+            List of improvement suggestions.
         """
         ...

@@ -127,8 +127,9 @@ class ContainerConfig:
         if "python:" in self.base_image:
             version_part = self.base_image.split("python:")[1].split("-")[0]
             return version_part
-        return "unknown" @ property
+        return "unknown"
 
+    @property
     def is_slim_image(self) -> bool:
         """Check if using a slim image variant."""
         return "slim" in self.base_image
