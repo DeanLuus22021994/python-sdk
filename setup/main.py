@@ -3,11 +3,7 @@ Setup Module 2.1: Main Orchestration
 Coordinates the entire setup process
 """
 
-# Import modules from host (sequence set 1.x)
-from setup.host._1_1_env_validator import validate_environment
-from setup.host._1_2_package_manager import setup_packages
-from setup.host._1_3_sdk_validator import validate_sdk
-from setup.host._1_4_vscode_config import setup_vscode_config
+from .sequence import run_setup_sequence
 
 
 def print_header() -> None:
@@ -36,29 +32,9 @@ def main() -> int:
     """Main setup orchestrator."""
     print_header()
     try:
-        # Step 1: Validate environment
-        if not validate_environment():
-            print_footer(False)
-            return 1
-
-        # Step 2: Setup VS Code configuration
-        if not setup_vscode_config():
-            print_footer(False)
-            return 1
-
-        # Step 3: Install and verify packages
-        if not setup_packages():
-            print_footer(False)
-            return 1
-
-        # Step 4: Validate SDK
-        if not validate_sdk():
-            print_footer(False)
-            return 1
-
-        print_footer(True)
-        return 0
-
+        success = run_setup_sequence()
+        print_footer(success)
+        return 0 if success else 1
     except KeyboardInterrupt:
         print("\n\n⚠️  Setup interrupted by user")
         return 130
