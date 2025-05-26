@@ -39,8 +39,9 @@ def install_package(package: str) -> tuple[bool, str]:
 
 def verify_import(package: str) -> tuple[bool, str]:
     """Verify a package can be imported."""
+    module_name = package.replace("-", "_")
     try:
-        __import__(package.replace("-", "_"))
+        __import__(module_name)
         return True, f"✓ {package} imports successfully"
     except ImportError as e:
         return False, f"✗ {package} import failed: {str(e)}"
@@ -59,7 +60,7 @@ def setup_packages() -> bool:
         if not installed:
             success = False
 
-    # Platform-specific packages
+    # Install platform-specific packages
     for package, supported_platforms in PLATFORM_PACKAGES.items():
         if current_platform in supported_platforms:
             installed, msg = install_package(package)

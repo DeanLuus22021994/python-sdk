@@ -6,21 +6,21 @@ Coordinates the entire setup process
 import sys
 from pathlib import Path
 
-# Import from our reorganized modules
-from .1_1_env_validator import validate_environment
-from .1_2_package_manager import setup_packages
-from .1_3_sdk_validator import validate_sdk
-from .1_4_vscode_config import setup_vscode_config
+# These modules (1.x) form part of the primary sequence.
+from .host._1_1_env_validator import validate_environment
+from .host._1_2_package_manager import setup_packages
+from .host._1_3_sdk_validator import validate_sdk
+from .host._1_4_vscode_config import setup_vscode_config
 
 
-def print_header():
+def print_header() -> None:
     print("\n" + "=" * 60)
     print("🐍 MCP Python SDK Setup")
     print("Preparing development environment...")
     print("=" * 60)
 
 
-def print_footer(success: bool):
+def print_footer(success: bool) -> None:
     print("\n" + "=" * 60)
     if success:
         print("✅ Setup completed successfully!")
@@ -38,7 +38,6 @@ def print_footer(success: bool):
 def main() -> int:
     """Main setup orchestrator."""
     print_header()
-
     try:
         # Step 1: Validate environment
         if not validate_environment():
@@ -62,6 +61,7 @@ def main() -> int:
 
         print_footer(True)
         return 0
+
     except KeyboardInterrupt:
         print("\n\n⚠️  Setup interrupted by user")
         return 130

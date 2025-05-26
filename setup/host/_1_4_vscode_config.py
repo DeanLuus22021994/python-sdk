@@ -21,12 +21,10 @@ def validate_vscode_config() -> tuple[bool, str]:
     try:
         with open(settings_path, encoding="utf-8") as f:
             settings = json.load(f)
-
         if "python.defaultInterpreterPath" in settings:
             return True, "✓ VS Code configuration validated"
         else:
             return True, "✓ Basic .vscode setup detected"
-
     except json.JSONDecodeError:
         return False, "✗ Invalid JSON in settings.json"
     except Exception as e:
