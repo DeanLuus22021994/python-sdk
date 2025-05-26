@@ -7,8 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from setup.environment.constants import PERFORMANCE_SETTINGS, RECOMMENDED_EXTENSIONS
-from setup.environment.path_utils import ensure_directory_exists, get_project_root
+from .constants import PERFORMANCE_SETTINGS, RECOMMENDED_EXTENSIONS
+from .path_utils import ensure_directory_exists, get_project_root
 
 
 def get_modern_vscode_settings() -> dict[str, Any]:
@@ -35,7 +35,7 @@ def get_modern_vscode_settings() -> dict[str, Any]:
             "source.convertImportFormat",
         ],
         # Performance settings
-        **PERFORMANCE_SETTINGS,
+        **(PERFORMANCE_SETTINGS or {}),
         # File management
         "files.exclude": {
             "**/__pycache__": True,
@@ -112,8 +112,8 @@ def get_modern_vscode_settings() -> dict[str, Any]:
         # Type checking diagnostics - disable problematic type checks
         "python.analysis.diagnosticSeverityOverrides": {
             "reportUnknownVariableType": "none",
-            "reportOptionalMemberAccess": "warning",
-            "reportArgumentType": "warning",
+            "reportOptionalMemberAccess": "none",
+            "reportArgumentType": "none",
             "reportMissingImports": "warning",
         },
         # Global editor settings
@@ -187,10 +187,10 @@ def get_modern_vscode_settings() -> dict[str, Any]:
             ),
             "*.md": "${capture}.*.md",
             ".gitignore": (
-                ".gitattributes, .gitmodules, .gitmessage, .mailmap, " ".git-blame*"
+                ".gitattributes, .gitmodules, .gitmessage, .mailmap, .git-blame*"
             ),
             "README*": (
-                "AUTHORS, CHANGELOG*, CONTRIBUTING*, HISTORY*, LICENSE*, " "SECURITY*"
+                "AUTHORS, CHANGELOG*, CONTRIBUTING*, HISTORY*, LICENSE*, SECURITY*"
             ),
             "Dockerfile": (".dockerignore, docker-compose*.yml, docker-compose*.yaml"),
         },

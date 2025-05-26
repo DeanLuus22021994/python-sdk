@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from setup.environment.constants import MIN_PYTHON_VERSION, RECOMMENDED_PYTHON_VERSION
-from setup.environment.path_utils import get_project_root
+from .constants import MIN_PYTHON_VERSION, RECOMMENDED_PYTHON_VERSION
+from .path_utils import get_project_root
 
 
 def get_python_version_info() -> tuple[int, int]:
@@ -82,7 +82,7 @@ def check_virtual_environment() -> tuple[bool, str]:
     return False, "system"
 
 
-def get_python_path_info() -> dict[str, Any]:
+def get_python_path_info() -> dict[str, str | bool | None]:
     """
     Get Python path information for debugging.
 
