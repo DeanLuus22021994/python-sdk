@@ -324,22 +324,26 @@ class DockerConfig:
 
     def get_compose_config(self) -> dict[str, Any]:
         """Generate Docker Compose configuration."""
-        config = {
-            "build": {
-                "context": self.build_context,
-                "dockerfile": self.dockerfile_path,
-            },
+        # Create build configuration with proper typing
+        build_config: dict[str, Any] = {
+            "context": self.build_context,
+            "dockerfile": self.dockerfile_path,
+        }
+
+        if self.target_stage:
+            build_config["target"] = self.target_stage
+
+        if self.build_args:
+            build_config["args"] = self.build_args
+
+        # Create main configuration
+        config: dict[str, Any] = {
+            "build": build_config,
             "ports": [f"{port}:{port}" for port in self.exposed_ports],
             "environment": self.environment_variables,
             "volumes": self.volumes,
             "restart": self.restart_policy,
         }
-
-        if self.target_stage:
-            config["build"]["target"] = self.target_stage
-
-        if self.build_args:
-            config["build"]["args"] = self.build_args
 
         if self.networks:
             config["networks"] = self.networks
