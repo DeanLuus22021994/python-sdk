@@ -28,9 +28,8 @@ monitor_memory() {
     echo "Memory usage by process:"
     ps aux --sort=-%mem | head -10
     echo
-    
     echo "Memory usage details:"
-    cat /proc/meminfo | grep -E "(MemTotal|MemFree|MemAvailable|Buffers|Cached|SwapTotal|SwapFree)"
+    grep -E "(MemTotal|MemFree|MemAvailable|Buffers|Cached|SwapTotal|SwapFree)" /proc/meminfo
 }
 
 monitor_gpu() {
@@ -59,17 +58,17 @@ monitor_disk() {
     else
         # Fallback to /proc/diskstats
         echo "Disk stats from /proc/diskstats:"
-        cat /proc/diskstats | head -10
+        head -10 /proc/diskstats
     fi
 }
 
 monitor_network() {
     echo "=== Network Monitoring ==="
     echo "Network interface statistics:"
-    cat /proc/net/dev | head -2
-    cat /proc/net/dev | grep -E "(eth|wlan|ens|enp)" | head -5
+    echo "Network interface statistics:"
+    head -2 /proc/net/dev
+    grep -E "(eth|wlan|ens|enp)" /proc/net/dev | head -5
     echo
-    
     echo "Active network connections:"
     ss -tuln | head -10
 }
