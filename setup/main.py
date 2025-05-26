@@ -3,8 +3,8 @@ Setup Module 2.1: Main Orchestration
 Coordinates the entire setup process
 """
 
-# Use relative import for intra-package references
-from . import sequence
+# Use absolute import instead of relative import
+from setup import sequence
 
 
 def print_header() -> None:

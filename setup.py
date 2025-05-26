@@ -39,7 +39,7 @@ if not host_init.exists():
         f.write("]\n")
 
 if __name__ == "__main__":
-    # Use a direct import instead of a package import
-    import setup.main
+    # Use absolute import instead of a relative import
+    from setup.main import main
 
-    sys.exit(setup.main.main())
+    sys.exit(main())

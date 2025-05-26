@@ -3,8 +3,8 @@ Setup Module 05: Additional Setup Sequence
 Provides future-proofing and extra steps for advanced setup if needed
 """
 
-# Use relative import for intra-package references
-from .host import (
+# Use absolute import instead of relative import
+from setup.host import (
     setup_packages,
     setup_vscode_config,
     validate_environment,
