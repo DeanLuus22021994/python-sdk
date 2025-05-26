@@ -1,4 +1,3 @@
-# filepath: c:\Projects\python-sdk\setup\vscode\extensions.py
 """
 VS Code extensions configuration manager.
 
@@ -239,7 +238,7 @@ class VSCodeExtensionsManager:
                 # Check for invalid extension IDs
                 for ext in recs:
                     if not isinstance(ext, str) or "." not in ext:
-                        warnings.append(f"Invalid extension ID format: {ext}")
+                        warnings.append(f"Potentially invalid extension ID: {ext}")
 
         # Check for conflicting extensions
         unwanted = set(self.get_unwanted_extensions())
@@ -260,10 +259,7 @@ class VSCodeExtensionsManager:
             "charliermarsh.ruff",
         ]
 
-        missing_core = []
-        for core_ext in core_extensions:
-            if core_ext not in current_recs:
-                missing_core.append(core_ext)
+        missing_core = [ext for ext in core_extensions if ext not in current_recs]
 
         if missing_core:
             warnings.append(f"Missing core extensions: {', '.join(missing_core)}")
@@ -324,27 +320,27 @@ class VSCodeExtensionsManager:
                 # Merge recommendations lists
                 if "recommendations" in updates:
                     current_recs = set(current.get("recommendations", []))
-                    new_recs = set(updates["recommendations"])
-                    current["recommendations"] = list(current_recs.union(new_recs))
+                    new_recs = updates["recommendations"]
+                    merged_recs = list(current_recs.union(new_recs))
+                    current["recommendations"] = merged_recs
 
                 # Merge unwanted recommendations
                 if "unwantedRecommendations" in updates:
                     current_unwanted = set(current.get("unwantedRecommendations", []))
-                    new_unwanted = set(updates["unwantedRecommendations"])
-                    current["unwantedRecommendations"] = list(
-                        current_unwanted.union(new_unwanted)
-                    )
+                    new_unwanted = updates["unwantedRecommendations"]
+                    merged_unwanted = list(current_unwanted.union(new_unwanted))
+                    current["unwantedRecommendations"] = merged_unwanted
 
-                config = current
+                config_to_write = current
             else:
-                config = updates
+                config_to_write = updates
 
             # Ensure .vscode directory exists
             self.vscode_dir.mkdir(exist_ok=True)
 
             # Write updated configuration
             with open(self.extensions_path, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=2)
+                json.dump(config_to_write, f, indent=2)
 
             return True
         except Exception:

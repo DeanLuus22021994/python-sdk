@@ -1,4 +1,3 @@
-# filepath: c:\Projects\python-sdk\setup\vscode\launch.py
 """
 VS Code launch configuration manager.
 
@@ -210,7 +209,6 @@ class VSCodeLaunchManager:
             # Initialize configurations if not present
             if "configurations" not in current:
                 current["configurations"] = []
-                current["version"] = "0.2.0"
 
             configurations = current["configurations"]
 
@@ -220,9 +218,6 @@ class VSCodeLaunchManager:
 
             if config_name not in existing_names:
                 configurations.append(config)
-
-                # Ensure .vscode directory exists
-                self.vscode_dir.mkdir(exist_ok=True)
 
                 # Write updated configuration
                 with open(self.launch_path, "w", encoding="utf-8") as f:
@@ -295,44 +290,29 @@ class VSCodeLaunchManager:
         # Check version
         version = config.get("version")
         if version != "0.2.0":
-            warnings.append(
-                f"Launch config version should be '0.2.0', found: {version}"
-            )
+            warnings.append(f"Unexpected version: {version}, expected 0.2.0")
 
         # Check configurations
         configurations = config.get("configurations", [])
         if not configurations:
             warnings.append("No debug configurations found")
+            recommendations.append("Add basic Python debug configurations")
         elif not isinstance(configurations, list):
             errors.append("Configurations must be a list")
         else:
-            # Validate individual configurations
+            # Validate each configuration has required fields
             for i, cfg in enumerate(configurations):
                 if not isinstance(cfg, dict):
-                    errors.append(f"Configuration {i} must be a dictionary")
+                    errors.append(f"Configuration {i} is not a dictionary")
                     continue
 
-                # Check required fields
                 required_fields = ["name", "type", "request"]
-                for field in required_fields:
-                    if field not in cfg:
-                        errors.append(
-                            f"Configuration '{cfg.get('name', i)}' missing required field: {field}"
-                        )
-
-                # Check for Python-specific requirements
-                if cfg.get("type") == "debugpy":
-                    if "console" not in cfg:
-                        warnings.append(
-                            f"Configuration '{cfg.get('name')}' should specify console type"
-                        )
-
-                    # Check for PYTHONPATH in environment
-                    env = cfg.get("env", {})
-                    if "PYTHONPATH" not in env:
-                        recommendations.append(
-                            f"Consider adding PYTHONPATH to '{cfg.get('name')}' configuration"
-                        )
+                missing = [field for field in required_fields if field not in cfg]
+                if missing:
+                    errors.append(
+                        f"Configuration '{cfg.get('name', f'at index {i}')}' "
+                        f"is missing required fields: {', '.join(missing)}"
+                    )
 
         # Check for essential configurations
         config_names = [cfg.get("name", "") for cfg in configurations]
@@ -341,10 +321,9 @@ class VSCodeLaunchManager:
             "Python: All Tests",
         ]
 
-        missing_essential = []
-        for essential in essential_configs:
-            if essential not in config_names:
-                missing_essential.append(essential)
+        missing_essential = [
+            conf for conf in essential_configs if conf not in config_names
+        ]
 
         if missing_essential:
             warnings.append(
@@ -401,43 +380,36 @@ class VSCodeLaunchManager:
             if merge:
                 current = self.get_current_launch()
 
-                # Merge configurations lists
+                # Merge configurations
                 if "configurations" in updates:
-                    current_configs = current.get("configurations", [])
-                    new_configs = updates["configurations"]
+                    current_configs = {
+                        cfg.get("name"): cfg
+                        for cfg in current.get("configurations", [])
+                        if "name" in cfg
+                    }
 
-                    # Merge by name, preferring new configurations
-                    merged_configs = []
-                    existing_names = set()
+                    # Add or update configurations
+                    for cfg in updates["configurations"]:
+                        name = cfg.get("name")
+                        if name:
+                            current_configs[name] = cfg
 
-                    # Add new configurations first
-                    for new_config in new_configs:
-                        name = new_config.get("name", "")
-                        merged_configs.append(new_config)
-                        existing_names.add(name)
+                    current["configurations"] = list(current_configs.values())
 
-                    # Add existing configurations that don't conflict
-                    for existing_config in current_configs:
-                        name = existing_config.get("name", "")
-                        if name not in existing_names:
-                            merged_configs.append(existing_config)
-
-                    current["configurations"] = merged_configs
-
-                # Update version if provided
+                # Set version if provided
                 if "version" in updates:
                     current["version"] = updates["version"]
 
-                config = current
+                config_to_write = current
             else:
-                config = updates
+                config_to_write = updates
 
             # Ensure .vscode directory exists
             self.vscode_dir.mkdir(exist_ok=True)
 
             # Write updated configuration
             with open(self.launch_path, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=2)
+                json.dump(config_to_write, f, indent=2)
 
             return True
         except Exception:

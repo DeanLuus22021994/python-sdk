@@ -1,4 +1,3 @@
-# filepath: c:\Projects\python-sdk\setup\vscode\settings.py
 """
 VS Code settings configuration manager.
 
