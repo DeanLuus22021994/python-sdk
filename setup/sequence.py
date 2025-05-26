@@ -3,6 +3,101 @@ import sys
 from pathlib import Path
 
 
+def run_setup_sequence() -> bool:
+    """
+    Run the complete setup sequence for the MCP Python SDK.
+
+    This function orchestrates the entire setup process:
+    1. Validate the Python environment
+    2. Check required project structure
+    3. Configure VS Code settings
+    4. Ensure dependencies are installed
+
+    Returns:
+        bool: True if setup completed successfully, False otherwise
+    """
+    from setup.environment import (
+        check_required_paths,
+        create_vscode_directory,
+        get_vscode_settings,
+        should_create_settings_json,
+        validate_python_version,
+    )
+    from setup.packages import get_packages_for_platform
+
+    success = True
+
+    # Step 1: Validate Python version
+    python_valid, python_message = validate_python_version()
+    print(f"Checking Python version: {python_message}")
+    if not python_valid:
+        return False
+
+    # Step 2: Check project structure
+    paths_valid, missing_paths = check_required_paths()
+    if paths_valid:
+        print("✓ Project structure is valid")
+    else:
+        print("✗ Missing required project paths:")
+        for path in missing_paths:
+            print(f"  - {path}")
+        success = False
+
+    # Step 3: Configure VS Code settings
+    try:
+        vscode_dir = create_vscode_directory()
+        settings_path = vscode_dir / "settings.json"
+
+        if should_create_settings_json():
+            import json
+
+            print("Creating VS Code settings...")
+            with open(settings_path, "w", encoding="utf-8") as f:
+                json.dump(get_vscode_settings(), f, indent=4)
+            print("✓ VS Code settings created")
+        else:
+            print("✓ VS Code settings already configured")
+    except Exception as e:
+        print(f"✗ Failed to configure VS Code settings: {str(e)}")
+        success = False
+
+    # Step 4: Verify required packages
+    print("\nChecking required packages:")
+    packages = get_packages_for_platform(include_dev=True)
+
+    for package in packages:
+        try:
+            # Simple check using importlib to see if package can be imported
+            module_name = package.replace(
+                "-", "_"
+            )  # Convert package name to module name
+            __import__(module_name)
+            print(f"✓ {package} is installed")
+        except ImportError:
+            print(f"✗ {package} is not installed or cannot be imported")
+            print(f"  Install with: pip install {package}")
+            success = False
+
+    # Step 5: Sort imports if needed
+    print("\nChecking code formatting...")
+    try:
+        project_root = Path(__file__).parent.parent
+        if check_isort_installed():
+            print("Sorting imports in project files...")
+            sort_result = sort_imports_in_directory(project_root, verbose=False)
+            if sort_result:
+                print("✓ Code formatting is correct")
+            else:
+                print("✗ Code formatting issues found")
+                success = False
+        else:
+            print("ℹ isort is not installed, skipping import sorting")
+    except Exception as e:
+        print(f"✗ Error during code formatting check: {str(e)}")
+
+    return success
+
+
 def check_isort_installed() -> bool:
     """Check if isort is installed and available."""
     try:
