@@ -66,6 +66,125 @@ def get_vscode_settings() -> dict[str, Any]:
     return VSCODE_SETTINGS
 
 
+def get_modern_vscode_settings() -> dict[str, Any]:
+    """Get modern VS Code settings optimized for MCP Python SDK development."""
+    return {
+        **VSCODE_SETTINGS,
+        "python.terminal.activateEnvironment": True,
+        "python.terminal.activateEnvInCurrentTerminal": True,
+        "editor.minimap.enabled": False,
+        "editor.wordWrap": "on",
+        "editor.lineNumbers": "on",
+        "terminal.integrated.defaultProfile.windows": "PowerShell",
+        "git.autofetch": True,
+        "git.enableSmartCommit": True,
+        "files.autoSave": "afterDelay",
+        "files.autoSaveDelay": 1000,
+    }
+
+
+def get_modern_launch_config() -> dict[str, Any]:
+    """Get modern launch configuration for debugging."""
+    return {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Python: Current File",
+                "type": "python",
+                "request": "launch",
+                "program": "${file}",
+                "console": "integratedTerminal",
+                "justMyCode": True,
+            },
+            {
+                "name": "Python: Run Tests",
+                "type": "python",
+                "request": "launch",
+                "module": "pytest",
+                "args": ["tests/", "-v"],
+                "console": "integratedTerminal",
+                "justMyCode": False,
+            },
+            {
+                "name": "Python: Setup Script",
+                "type": "python",
+                "request": "launch",
+                "program": "${workspaceFolder}/setup.py",
+                "console": "integratedTerminal",
+                "justMyCode": True,
+            },
+        ],
+    }
+
+
+def get_modern_tasks_config() -> dict[str, Any]:
+    """Get modern tasks configuration for build and test automation."""
+    return {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Install Dependencies",
+                "type": "shell",
+                "command": "uv",
+                "args": ["sync"],
+                "group": "build",
+                "presentation": {"echo": True, "reveal": "always", "panel": "new"},
+                "problemMatcher": [],
+            },
+            {
+                "label": "Run Tests",
+                "type": "shell",
+                "command": "uv",
+                "args": ["run", "pytest", "tests/", "-v"],
+                "group": {"kind": "test", "isDefault": True},
+                "presentation": {"echo": True, "reveal": "always", "panel": "new"},
+                "problemMatcher": [],
+            },
+            {
+                "label": "Format Code",
+                "type": "shell",
+                "command": "uv",
+                "args": ["run", "black", "src/", "tests/", "setup/"],
+                "group": "build",
+                "presentation": {"echo": True, "reveal": "always", "panel": "new"},
+                "problemMatcher": [],
+            },
+            {
+                "label": "Lint Code",
+                "type": "shell",
+                "command": "uv",
+                "args": ["run", "ruff", "check", "src/", "tests/", "setup/"],
+                "group": "build",
+                "presentation": {"echo": True, "reveal": "always", "panel": "new"},
+                "problemMatcher": [],
+            },
+        ],
+    }
+
+
+def create_vscode_extensions_config() -> dict[str, Any]:
+    """Get recommended VS Code extensions configuration."""
+    return {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.black-formatter",
+            "ms-python.mypy-type-checker",
+            "charliermarsh.ruff",
+            "ms-vscode.vscode-json",
+            "redhat.vscode-yaml",
+            "ms-python.pytest",
+            "ms-vscode.test-adapter-converter",
+            "eamodio.gitlens",
+            "ms-vscode.vscode-docker",
+            "ms-vscode.powershell",
+        ],
+        "unwantedRecommendations": [
+            "ms-python.pylint",
+            "ms-python.flake8",
+        ],
+    }
+
+
 def get_project_root() -> Path:
     """
     Get the project root directory.
