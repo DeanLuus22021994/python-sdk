@@ -59,7 +59,6 @@ services:
     networks:
       - mcp-network
 
-  # Load balancer and service mesh
   traefik:
     image: traefik:v3.0
     deploy:
@@ -80,7 +79,6 @@ networks:
     attachable: true
 
 volumes:
-  # Persistent binary volumes for instant subsequent builds
   mcp-cache-volume:
     driver: local
   python-cache-volume:

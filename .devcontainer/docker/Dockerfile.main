@@ -1,15 +1,13 @@
 # syntax=docker/dockerfile:1.4
-# MCP Python SDK - Optimized Multi-Stage Dockerfile  
+# MCP Python SDK - Optimized Multi-Stage Dockerfile
 # Built on python:slim with maximum performance optimizations
 # Uses global build arguments with GLOBAL_ prefix
 
-# Global build arguments for optimization
 ARG GLOBAL_BUILDKIT_INLINE_CACHE=${GLOBAL_BUILDKIT_INLINE_CACHE:-1}
 ARG GLOBAL_DOCKER_BUILDKIT=${GLOBAL_DOCKER_BUILDKIT:-1}
 ARG GLOBAL_PYTHONOPTIMIZE=${GLOBAL_PYTHONOPTIMIZE:-2}
 ARG GLOBAL_PYTHONHASHSEED=${GLOBAL_PYTHONHASHSEED:-0}
 
-# Global Python package version arguments
 ARG GLOBAL_UV_VERSION=${GLOBAL_UV_VERSION:-0.5.0}
 ARG GLOBAL_FASTAPI_VERSION=${GLOBAL_FASTAPI_VERSION:-0.115.0}
 ARG GLOBAL_UVICORN_VERSION=${GLOBAL_UVICORN_VERSION:-0.32.0}
@@ -27,14 +25,11 @@ ARG GLOBAL_NUMBA_VERSION=${GLOBAL_NUMBA_VERSION:-0.60.0}
 ARG GLOBAL_PSUTIL_VERSION=${GLOBAL_PSUTIL_VERSION:-6.1.0}
 ARG GLOBAL_JEMALLOC_VERSION=${GLOBAL_JEMALLOC_VERSION:-2.0.0}
 
-# Global path and cache arguments
 ARG GLOBAL_PYTHONPATH=${GLOBAL_PYTHONPATH:-/workspaces/python-sdk/src}
 ARG GLOBAL_NUMBA_CACHE_DIR=${GLOBAL_NUMBA_CACHE_DIR:-/opt/mcp-cache/numba}
 ARG GLOBAL_UV_CACHE_DIR=${GLOBAL_UV_CACHE_DIR:-/opt/mcp-cache/uv}
 
-# Stage 1: Base Python Environment
 FROM python:3.12-slim AS python-base
-
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -57,13 +52,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 ENV PATH="/root/.cargo/bin:$PATH"
 
-# Build stages
 FROM python-base AS dev-tools
 COPY docker/components/dev-tools.Dockerfile /tmp/
 RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
     cat /tmp/dev-tools.Dockerfile | sed '1,3d' | bash
 
-FROM dev-tools AS gpu-support  
+FROM dev-tools AS gpu-support
 COPY docker/components/gpu-support.Dockerfile /tmp/
 RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
     cat /tmp/gpu-support.Dockerfile | sed '1,3d' | bash
@@ -83,10 +77,8 @@ COPY docker/components/runtime.Dockerfile /tmp/
 RUN --mount=type=cache,target=/tmp/.buildx-cache,sharing=locked \
     cat /tmp/runtime.Dockerfile | sed '1,3d' | bash
 
-# Final optimizations
 USER mcp
 WORKDIR /workspaces/python-sdk
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python -c "import sys; sys.exit(0)"

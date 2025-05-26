@@ -108,69 +108,11 @@ x-global-env: &global-env
   GLOBAL_UV_CACHE_DIR: "/opt/mcp-cache/uv"
   GLOBAL_UV_PYTHON: "3.12"
   GLOBAL_POSTGRES_DATA_PATH: "/opt/postgres-data"
-  
-  # Redis Configuration
-  GLOBAL_REDIS_PORT: "6379"
-  GLOBAL_REDIS_MAXMEMORY: "4gb"
-  
-  # Build Configuration
-  GLOBAL_BUILDKIT_INLINE_CACHE: "1"
-  GLOBAL_DOCKER_BUILDKIT: "1"
-  
-  # Security Settings
-  GLOBAL_PRIVILEGED_MODE: "true"
-  GLOBAL_SECURITY_OPT: "seccomp:unconfined"
-  GLOBAL_APPARMOR_PROFILE: "apparmor:unconfined"
-  
-  # System Optimization
-  GLOBAL_ULIMIT_MEMLOCK_SOFT: "-1"
-  GLOBAL_ULIMIT_MEMLOCK_HARD: "-1"
-  GLOBAL_ULIMIT_STACK_SOFT: "67108864"
-  GLOBAL_ULIMIT_STACK_HARD: "67108864"
-  GLOBAL_ULIMIT_NOFILE_SOFT: "1048576"
-  GLOBAL_ULIMIT_NOFILE_HARD: "1048576"
-  
-  # Sysctls for Performance
-  GLOBAL_SYSCTL_SOMAXCONN: "32768"
-  GLOBAL_SYSCTL_TCP_MAX_SYN_BACKLOG: "32768"
-  GLOBAL_SYSCTL_NETDEV_MAX_BACKLOG: "32768"
-  GLOBAL_SYSCTL_VM_SWAPPINESS: "1"
-  GLOBAL_SYSCTL_VM_DIRTY_RATIO: "80"
-  GLOBAL_SYSCTL_VM_DIRTY_BACKGROUND_RATIO: "5"
-  GLOBAL_SYSCTL_VM_VFS_CACHE_PRESSURE: "50"
-  
-  # Python Development Package Versions
-  GLOBAL_UV_VERSION: "0.5.0"
-  GLOBAL_FASTAPI_VERSION: "0.115.0"
-  GLOBAL_UVICORN_VERSION: "0.32.0"
-  GLOBAL_HTTPX_VERSION: "0.28.0"
-  GLOBAL_PYDANTIC_VERSION: "2.10.0"
-  GLOBAL_ANYIO_VERSION: "4.6.0"
-  GLOBAL_PYTEST_VERSION: "8.3.0"
-  GLOBAL_PYTEST_ASYNCIO_VERSION: "0.24.0"
-  GLOBAL_BLACK_VERSION: "24.10.0"
-  GLOBAL_RUFF_VERSION: "0.8.0"
-  
-  # Performance Optimization Package Versions
-  GLOBAL_UVLOOP_VERSION: "0.21.0"
-  GLOBAL_ORJSON_VERSION: "3.10.0"
-  GLOBAL_CYTHON_VERSION: "3.0.11"
-  GLOBAL_NUMBA_VERSION: "0.60.0"
-  GLOBAL_PSUTIL_VERSION: "6.1.0"
-  GLOBAL_JEMALLOC_VERSION: "2.0.0"
-  
-  # Python Package Installation Options
-  GLOBAL_PIP_NO_CACHE_DIR: "false"
-  GLOBAL_PIP_DISABLE_PIP_VERSION_CHECK: "true"
-  GLOBAL_PIP_ROOT_USER_ACTION: "ignore"
-  GLOBAL_UV_CACHE_DIR: "/opt/mcp-cache/uv"
-  GLOBAL_UV_PYTHON: "3.12"
 
 # =============================================================================
 # DOCKER COMPOSE CONFIGURATIONS
 # =============================================================================
 
-# Network Configuration
 networks:
   default:
     name: mcp-network
@@ -186,9 +128,7 @@ networks:
         - subnet: "172.20.0.0/16"
           gateway: "172.20.0.1"
 
-# Volume Configurations
 volumes:
-  # Python Performance Caches (tmpfs for speed)
   python-cache-volume:
     driver: local
     driver_opts:
@@ -217,7 +157,6 @@ volumes:
       device: tmpfs
       o: "size=4G,uid=1000,gid=1000,mode=0755"
   
-  # Persistent Storage
   postgres-data:
     driver: local
     driver_opts:
@@ -277,17 +216,16 @@ x-unlimited-resources: &unlimited-resources
   deploy:
     resources:
       limits:
-        cpus: "0"      # 0 = unlimited
-        memory: "0"    # 0 = unlimited
+        cpus: "0"
+        memory: "0"
       reservations:
-        cpus: "4"      # Minimum 4 CPUs
-        memory: "8G"   # Minimum 8GB RAM
+        cpus: "4"
+        memory: "8G"
 
 # =============================================================================
 # SERVICE CONFIGURATIONS
 # =============================================================================
 
-# App Service Template
 x-app-service: &app-service
   <<: *performance-config
   <<: *gpu-config
@@ -314,7 +252,6 @@ x-app-service: &app-service
     - "/dev/shm:size=16G,mode=1777"
     - "/var/tmp:size=8G,mode=1777"
 
-# PostgreSQL Service Template
 x-postgres-service: &postgres-service
   <<: *performance-config
   <<: *unlimited-resources
@@ -351,7 +288,6 @@ x-postgres-service: &postgres-service
     -c fsync=off
     -c full_page_writes=off
 
-# Redis Service Template
 x-redis-service: &redis-service
   <<: *performance-config
   <<: *unlimited-resources
@@ -361,7 +297,7 @@ x-redis-service: &redis-service
     - "/tmp:size=1G,mode=1777"
   command: >
     redis-server
-    --maxmemory 4gb
+    --maxmemory ${GLOBAL_REDIS_MAXMEMORY:-4gb}
     --maxmemory-policy allkeys-lru
     --save ""
     --appendonly no

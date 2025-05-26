@@ -3,7 +3,6 @@
 # Uses global configuration variables with GLOBAL_ prefix
 
 services:
-  # Main MCP Application
   mcp-app:
     image: ${DEV_CONTAINER_NAME:-mcp-python-sdk-dev}:latest
     deploy:
@@ -42,7 +41,6 @@ services:
     networks:
       - mcp-network
 
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     deploy:
@@ -68,7 +66,6 @@ services:
     networks:
       - mcp-network
 
-  # Redis Cache
   redis:
     image: redis:7-alpine
     deploy:

@@ -1,4 +1,4 @@
-# Redis Cache Service Configuration  
+# Redis Cache Service Configuration
 # High-performance Redis for Docker Swarm
 # Uses global configuration variables with GLOBAL_ prefix
 

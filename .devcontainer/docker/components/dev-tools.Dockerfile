@@ -3,13 +3,11 @@
 # Uses global build arguments with GLOBAL_ prefix
 FROM python-base AS dev-tools
 
-# Global build arguments
 ARG GLOBAL_BUILDKIT_INLINE_CACHE=${GLOBAL_BUILDKIT_INLINE_CACHE:-1}
 ARG GLOBAL_DOCKER_BUILDKIT=${GLOBAL_DOCKER_BUILDKIT:-1}
 
 USER root
 
-# Install essential development tools with caching
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -25,7 +23,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Performance optimization tools
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -38,7 +35,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Set up ccache for faster compilation
 ENV CCACHE_DIR=/opt/mcp-cache/ccache
 ENV PATH="/usr/lib/ccache:$PATH"
 

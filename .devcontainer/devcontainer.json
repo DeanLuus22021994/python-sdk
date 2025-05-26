@@ -1,5 +1,4 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/postgres
+// For format details, see https://aka.ms/devcontainer.json
 {
 	"name": "High-Performance Python 3 & PostgreSQL - Modular",
 	"dockerComposeFile": "docker-compose.modular.yml",
@@ -34,14 +33,9 @@
 			"version": "latest"
 		}
 	},
-	// GPU passthrough requirements
 	"hostRequirements": {
 		"gpu": "optional"
 	},
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	// "features": {},
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// This can be used to network with other containers or the host.
 	"forwardPorts": [
 		5000,
 		5432,
@@ -49,9 +43,7 @@
 		8080,
 		9000
 	],
-	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": "bash .devcontainer/post-rebuild.sh",
-	// Configure tool-specific properties for maximum performance
 	"customizations": {
 		"vscode": {
 			"settings": {
@@ -81,9 +73,7 @@
 			]
 		}
 	},
-	// Connect as root for full system access and performance optimization
 	"remoteUser": "root",
-	// Environment variables for performance optimization with binary caching
 	"remoteEnv": {
 		"PYTHONOPTIMIZE": "2",
 		"PYTHONDONTWRITEBYTECODE": "0",
@@ -104,7 +94,6 @@
 		"UV_COMPILE_BYTECODE": "1",
 		"PIP_COMPILE": "1"
 	},
-	// Mount options for maximum performance with persistent binary volumes
 	"mounts": [
 		"source=/tmp,target=/tmp,type=tmpfs,tmpfs-size=8G",
 		"source=/dev/shm,target=/dev/shm,type=bind,bind-propagation=shared",

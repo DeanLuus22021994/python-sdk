@@ -3,7 +3,6 @@
 # Uses global build arguments with GLOBAL_ prefix
 FROM network-optimized AS runtime
 
-# Global build arguments
 ARG GLOBAL_PYTHONOPTIMIZE=${GLOBAL_PYTHONOPTIMIZE:-2}
 ARG GLOBAL_PYTHONHASHSEED=${GLOBAL_PYTHONHASHSEED:-0}
 ARG GLOBAL_BUILDKIT_INLINE_CACHE=${GLOBAL_BUILDKIT_INLINE_CACHE:-1}
@@ -18,11 +17,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     uv pip install --system --no-cache-dir -r /tmp/requirements-dev.txt && \
     rm /tmp/requirements-dev.txt
 
-# Set up performance monitoring with global configuration
+# Set up performance monitoring
 RUN mkdir -p /var/log/performance && \
     chown mcp:mcp /var/log/performance
 
-# Final optimizations with Python optimization level
 ENV PYTHONOPTIMIZE=${GLOBAL_PYTHONOPTIMIZE}
 ENV PYTHONHASHSEED=${GLOBAL_PYTHONHASHSEED}
 
@@ -32,6 +30,5 @@ RUN ldconfig && \
 
 USER mcp
 
-# Health check with global configuration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python -c "import sys; sys.exit(0)"
