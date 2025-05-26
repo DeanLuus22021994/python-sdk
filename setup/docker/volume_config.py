@@ -4,10 +4,9 @@ Docker Volume Configuration Manager
 Handles Docker volume setup and management for the MCP Python SDK.
 """
 
-import json
-from pathlib import Path
-from typing import Any, Dict, List
 from functools import cached_property
+from pathlib import Path
+from typing import Any
 
 
 class DockerVolumeManager:
@@ -32,7 +31,7 @@ class DockerVolumeManager:
         """Get the project root directory."""
         return self.project_root
 
-    def create_volume_config(self) -> Dict[str, Any]:
+    def create_volume_config(self) -> dict[str, Any]:
         """
         Create comprehensive Docker volume configuration.
 
@@ -111,7 +110,7 @@ class DockerVolumeManager:
         except Exception:
             return False
 
-    def get_volume_status(self) -> Dict[str, Any]:
+    def get_volume_status(self) -> dict[str, Any]:
         """
         Get current volume configuration status.
 
@@ -131,10 +130,7 @@ class DockerVolumeManager:
             }
 
         except Exception as e:
-            return {
-                "error": str(e),
-                "status": "error"
-            }
+            return {"error": str(e), "status": "error"}
 
     def write_volume_config(self, output_path: Path | None = None) -> bool:
         """

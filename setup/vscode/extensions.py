@@ -63,13 +63,13 @@ class VSCodeExtensionsManager:
 
     def get_python_extensions(self) -> list[str]:
         """Get Python-specific extensions for this workspace.
-        
+
         Returns:
             List of Python-related extension identifiers
         """
         return [
             "ms-python.python",
-            "ms-python.vscode-pylance", 
+            "ms-python.vscode-pylance",
             "ms-python.debugpy",
             "ms-python.black-formatter",
             "ms-python.isort",
