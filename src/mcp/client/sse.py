@@ -1,6 +1,6 @@
 import logging
-from contextlib import asynccontextmanager
-from typing import Any
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import Any, Protocol
 from urllib.parse import urljoin, urlparse
 
 import anyio
@@ -10,10 +10,22 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from httpx_sse import aconnect_sse
 
 import mcp.types as types
-from mcp.shared._httpx_utils import McpHttpClientFactory, create_mcp_http_client
+from mcp.shared._httpx_utils import create_mcp_http_client
 from mcp.shared.message import SessionMessage
 
 logger = logging.getLogger(__name__)
+
+
+# Define the McpHttpClientFactory protocol that was missing
+class McpHttpClientFactory(Protocol):
+    """Protocol for factory functions that create HTTP clients."""
+
+    def __call__(
+        self,
+        headers: dict[str, Any] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+    ) -> AbstractAsyncContextManager[httpx.AsyncClient]: ...
 
 
 def remove_request_params(url: str) -> str:

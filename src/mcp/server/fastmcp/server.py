@@ -138,8 +138,9 @@ class FastMCP:
         self,
         name: str | None = None,
         instructions: str | None = None,
-        auth_server_provider: OAuthAuthorizationServerProvider[Any, Any, Any]
-        | None = None,
+        auth_server_provider: (
+            OAuthAuthorizationServerProvider[Any, Any, Any] | None
+        ) = None,
         event_store: EventStore | None = None,
         *,
         tools: list[Tool] | None = None,
