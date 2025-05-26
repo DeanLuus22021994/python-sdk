@@ -6,8 +6,10 @@
 
 # ====== PATH CONSTANTS ======
 # Base paths
-DEVCONTAINER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readonly DEVCONTAINER_DIR
+if [[ -z "${DEVCONTAINER_DIR:-}" ]]; then
+    DEVCONTAINER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    readonly DEVCONTAINER_DIR
+fi
 readonly CONFIG_DIR="$DEVCONTAINER_DIR/config"
 readonly ORCHESTRATOR_DIR="$DEVCONTAINER_DIR/orchestrator"
 readonly VALIDATION_DIR="$DEVCONTAINER_DIR/validation"
