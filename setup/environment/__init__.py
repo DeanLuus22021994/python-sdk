@@ -3,23 +3,24 @@ Environment Configuration Package
 Decomposed environment configuration for the MCP Python SDK setup
 """
 
-from .constants import (
+# Import from absolute paths to avoid circular imports
+from setup.environment.constants import (
     MIN_PYTHON_VERSION,
     OPTIONAL_PROJECT_PATHS,
     RECOMMENDED_PYTHON_VERSION,
     REQUIRED_PROJECT_PATHS,
 )
-from .path_utils import (
+from setup.environment.path_utils import (
     check_required_paths,
     get_optional_paths_status,
     get_project_root,
 )
-from .python_validator import (
+from setup.environment.python_validator import (
     get_environment_info,
     get_python_version_info,
     validate_python_version,
 )
-from .vscode_config import (
+from setup.environment.vscode_config import (
     create_modern_vscode_settings,
     create_vscode_directory,
     create_vscode_extensions_config,

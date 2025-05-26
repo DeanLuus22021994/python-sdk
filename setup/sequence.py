@@ -7,7 +7,8 @@ def run_setup_sequence() -> bool:
     """
     Run the complete setup sequence for the MCP Python SDK.
 
-    This function orchestrates the entire setup process:    1. Validate the Python environment
+    This function orchestrates the entire setup process:
+    1. Validate the Python environment
     2. Check required project structure
     3. Configure VS Code settings
     4. Ensure dependencies are installed
@@ -15,6 +16,10 @@ def run_setup_sequence() -> bool:
     Returns:
         bool: True if setup completed successfully, False otherwise
     """
+    # Add current directory to path to ensure imports work
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    # Now import from setup.environment
     from setup.environment import (
         check_required_paths,
         create_modern_vscode_settings,
@@ -38,7 +43,9 @@ def run_setup_sequence() -> bool:
         print("✗ Missing required project paths:")
         for path in missing_paths:
             print(f"  - {path}")
-        success = False  # Step 3: Configure VS Code settings
+        success = False
+
+    # Step 3: Configure VS Code settings
     try:
         print("Creating modern VS Code configuration...")
         if create_modern_vscode_settings():

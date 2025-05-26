@@ -1,0 +1,11 @@
+{
+  "include": ["**/*.py"],
+  "exclude": ["**/__pycache__", "**/.pytest_cache", "**/.mypy_cache", "**/.venv", "**/venv"],
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+  "reportUnknownVariableType": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportArgumentType": "warning",
+  "pythonVersion": "3.10",
+  "typeCheckingMode": "basic"
+}

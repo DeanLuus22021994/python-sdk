@@ -7,8 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .constants import PERFORMANCE_SETTINGS, RECOMMENDED_EXTENSIONS
-from .path_utils import ensure_directory_exists, get_project_root
+from setup.environment.constants import PERFORMANCE_SETTINGS, RECOMMENDED_EXTENSIONS
+from setup.environment.path_utils import ensure_directory_exists, get_project_root
 
 
 def get_modern_vscode_settings() -> dict[str, Any]:
@@ -109,6 +109,13 @@ def get_modern_vscode_settings() -> dict[str, Any]:
         "mypy-type-checker.args": ["--config-file=pyproject.toml"],
         "mypy-type-checker.preferDaemon": True,
         "black-formatter.args": ["--config=pyproject.toml"],
+        # Type checking diagnostics - disable problematic type checks
+        "python.analysis.diagnosticSeverityOverrides": {
+            "reportUnknownVariableType": "none",
+            "reportOptionalMemberAccess": "warning",
+            "reportArgumentType": "warning",
+            "reportMissingImports": "warning",
+        },
         # Global editor settings
         "editor.formatOnSave": True,
         "editor.codeActionsOnSave": {

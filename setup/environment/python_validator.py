@@ -5,9 +5,10 @@ Python version and environment validation utilities
 
 import sys
 from pathlib import Path
+from typing import Any
 
-from .constants import MIN_PYTHON_VERSION, RECOMMENDED_PYTHON_VERSION
-from .path_utils import get_project_root
+from setup.environment.constants import MIN_PYTHON_VERSION, RECOMMENDED_PYTHON_VERSION
+from setup.environment.path_utils import get_project_root
 
 
 def get_python_version_info() -> tuple[int, int]:
@@ -44,7 +45,7 @@ def validate_python_version() -> tuple[bool, str]:
         return False, status
 
 
-def get_environment_info() -> dict[str, str]:
+def get_environment_info() -> dict[str, Any]:
     """
     Get relevant environment information.
 
@@ -81,7 +82,7 @@ def check_virtual_environment() -> tuple[bool, str]:
     return False, "system"
 
 
-def get_python_path_info() -> dict[str, str]:
+def get_python_path_info() -> dict[str, Any]:
     """
     Get Python path information for debugging.
 
@@ -118,9 +119,9 @@ def validate_python_environment() -> tuple[bool, list[str]]:
     # Check if in virtual environment (recommended)
     venv_active, venv_type = check_virtual_environment()
     if not venv_active:
-        issues.append(
-            "⚠️  Not running in a virtual environment (recommended)"
-        )  # Check if pip is available
+        issues.append("⚠️  Not running in a virtual environment (recommended)")
+
+    # Check if pip is available
     try:
         import importlib.util
 

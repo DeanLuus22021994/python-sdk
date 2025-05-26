@@ -5,7 +5,7 @@ Path-related utilities for project structure validation
 
 from pathlib import Path
 
-from .constants import OPTIONAL_PROJECT_PATHS, REQUIRED_PROJECT_PATHS
+from setup.environment.constants import OPTIONAL_PROJECT_PATHS, REQUIRED_PROJECT_PATHS
 
 
 def get_project_root() -> Path:
