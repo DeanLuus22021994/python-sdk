@@ -20,6 +20,7 @@ setup_python_environment() {
     if ! command -v uv &> /dev/null; then
         echo "Installing uv package manager..."
         curl -LsSf https://astral.sh/uv/install.sh | sh
+        # shellcheck source=/dev/null
         source ~/.cargo/env
     fi
     
@@ -40,7 +41,7 @@ setup_docker_environment() {
     # Initialize Docker Swarm if not already initialized
     if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q active; then
         echo "Initializing Docker Swarm..."
-        docker swarm init --advertise-addr $(hostname -I | awk '{print $1}')
+        docker swarm init --advertise-addr "$(hostname -I | awk '{print $1}')"
     fi
     
     # Create external volumes

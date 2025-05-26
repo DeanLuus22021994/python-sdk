@@ -24,8 +24,10 @@ optimize_cpu_scaling() {
 
 optimize_irq_affinity() {
     echo "Optimizing IRQ affinity for better CPU distribution..."
-    local cpu_count=$(nproc)
-    local cpu_mask=$((2**cpu_count - 1))
+    local cpu_count
+    cpu_count=$(nproc)
+    local cpu_mask
+    cpu_mask=$((2**cpu_count - 1))
     
     for irq in /proc/irq/*/smp_affinity; do
         if [[ -f "$irq" ]]; then

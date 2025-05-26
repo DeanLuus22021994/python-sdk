@@ -51,8 +51,10 @@ list_available_modules() {
     
     if [[ -d "$modules_dir" ]]; then
         find "$modules_dir" -name "*.sh" -executable | while read -r module; do
-            local name=$(basename "$module" .sh)
-            local desc=$(grep "^# .*Module$" "$module" | head -1 | sed 's/^# //' || echo "No description")
+            local name
+            name=$(basename "$module" .sh)
+            local desc
+            desc=$(grep "^# .*Module$" "$module" | head -1 | sed 's/^# //' || echo "No description")
             printf "  %-15s %s\n" "$name" "$desc"
         done
     else

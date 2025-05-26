@@ -15,31 +15,30 @@ execute_modules_parallel() {
     
     info "Executing modules in parallel (max jobs: ${MAX_PARALLEL_JOBS:-4})"
     
-    local pids_array=()
-    local results_array=()
+    # Use global arrays to avoid nameref conflicts
+    declare -ag PARALLEL_PIDS=()
+    declare -ag PARALLEL_RESULTS=()
     
     for module in "${modules[@]}"; do
         # Wait if we've reached max parallel jobs
-        while [[ ${#pids_array[@]} -ge ${MAX_PARALLEL_JOBS:-4} ]]; do
-            wait_for_job_completion_core pids_array results_array
+        while [[ ${#PARALLEL_PIDS[@]} -ge ${MAX_PARALLEL_JOBS:-4} ]]; do
+            wait_for_job_completion_core
         done
         
         # Start module in background
-        start_module_job_core "$modules_dir" "$module" pids_array results_array
+        start_module_job_core "$modules_dir" "$module"
     done
     
     # Wait for all remaining jobs
-    wait_for_all_jobs_core pids_array results_array
+    wait_for_all_jobs_core
     
     # Report results
-    report_parallel_results_core results_array
+    report_parallel_results_core
 }
 
 start_module_job_core() {
     local modules_dir="$1"
     local module="$2"
-    local -n pids_array_ref="$3"
-    local -n results_array_ref="$4"
     
     debug "Starting background job for module: $module"
     
@@ -51,54 +50,46 @@ start_module_job_core() {
         fi
     ) &
     
-    pids_array_ref+=($!)
-    results_array_ref+=("/tmp/orchestrator_result_${module}_$$")
+    PARALLEL_PIDS+=($!)
+    PARALLEL_RESULTS+=("/tmp/orchestrator_result_${module}_$$")
 }
 
 wait_for_job_completion_core() {
-    local -n pids_array_ref="$1"
-    local -n results_array_ref="$2"
-    
     # Wait for any job to complete
-    wait -n "${pids_array_ref[@]}" 2>/dev/null || true
+    wait -n "${PARALLEL_PIDS[@]}" 2>/dev/null || true
     
     # Remove completed jobs from arrays
     local new_pids=()
     local new_results=()
     
-    for i in "${!pids_array_ref[@]}"; do
-        if kill -0 "${pids_array_ref[$i]}" 2>/dev/null; then
-            new_pids+=("${pids_array_ref[$i]}")
-            new_results+=("${results_array_ref[$i]}")
+    for i in "${!PARALLEL_PIDS[@]}"; do
+        if kill -0 "${PARALLEL_PIDS[$i]}" 2>/dev/null; then
+            new_pids+=("${PARALLEL_PIDS[$i]}")
+            new_results+=("${PARALLEL_RESULTS[$i]}")
         fi
     done
     
-    pids_array_ref=("${new_pids[@]}")
-    results_array_ref=("${new_results[@]}")
+    PARALLEL_PIDS=("${new_pids[@]}")
+    PARALLEL_RESULTS=("${new_results[@]}")
 }
 
 wait_for_all_jobs_core() {
-    local -n pids_array_ref="$1"
-    local -n results_array_ref="$2"
-    
     info "Waiting for all background jobs to complete"
     
-    for pid in "${pids_array_ref[@]}"; do
+    for pid in "${PARALLEL_PIDS[@]}"; do
         wait "$pid" || true
     done
     
-    pids_array_ref=()
+    PARALLEL_PIDS=()
 }
 
 report_parallel_results_core() {
-    local -n results_array_ref="$1"
-    
     info "Parallel execution results:"
     
     local success_count=0
     local failed_count=0
     
-    for result_file in "${results_array_ref[@]}"; do
+    for result_file in "${PARALLEL_RESULTS[@]}"; do
         if [[ -f "$result_file" ]]; then
             local result
             result=$(cat "$result_file")
