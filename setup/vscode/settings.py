@@ -218,31 +218,38 @@ class VSCodeSettingsManager:
 
         warnings = []
         errors = []
-        recommendations = []
-
-        # Check for required settings
+        recommendations = []  # Check for required settings using list comprehension
         required_python_settings = [
             "python.defaultInterpreterPath",
             "python.testing.pytestEnabled",
         ]
 
-        for setting in required_python_settings:
-            if setting not in settings:
-                warnings.append(f"Missing recommended setting: {setting}")
+        missing_settings = [
+            setting for setting in required_python_settings if setting not in settings
+        ]
+        warnings.extend(
+            [f"Missing recommended setting: {setting}" for setting in missing_settings]
+        )
 
-        # Check for deprecated settings
+        # Check for deprecated settings using list comprehension
         deprecated_settings = [
             "python.linting.pylintEnabled",
             "python.linting.flake8Enabled",
             "python.formatting.provider",
         ]
 
-        for setting in deprecated_settings:
-            if setting in settings:
-                warnings.append(f"Deprecated setting found: {setting}")
-                recommendations.append(
-                    f"Consider removing {setting} and using modern alternatives"
-                )
+        found_deprecated = [
+            setting for setting in deprecated_settings if setting in settings
+        ]
+        warnings.extend(
+            [f"Deprecated setting found: {setting}" for setting in found_deprecated]
+        )
+        recommendations.extend(
+            [
+                f"Consider removing {setting} and using modern alternatives"
+                for setting in found_deprecated
+            ]
+        )
 
         # Validate JSON structure
         try:
