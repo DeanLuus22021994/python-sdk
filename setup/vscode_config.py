@@ -14,12 +14,11 @@ def validate_vscode_config() -> tuple[bool, str]:
     
     if not vscode_path.exists():
         return False, "✗ .vscode directory not found"
-    
-    if not settings_path.exists():
+      if not settings_path.exists():
         return False, "✗ VS Code settings.json not found"
     
     try:
-        with open(settings_path, 'r', encoding='utf-8') as f:
+        with open(settings_path, encoding='utf-8') as f:
             settings = json.load(f)
         
         # Check for Python interpreter setting
