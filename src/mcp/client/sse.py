@@ -1,6 +1,6 @@
 import logging
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from typing import Any, Protocol, TypeVar
+from contextlib import asynccontextmanager
+from typing import Any, Protocol
 from urllib.parse import urljoin, urlparse
 
 import anyio
@@ -15,8 +15,6 @@ from mcp.shared.message import SessionMessage
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T", bound=httpx.AsyncClient)
-
 
 # Define the McpHttpClientFactory protocol to match create_mcp_http_client signature
 class McpHttpClientFactory(Protocol):
@@ -24,10 +22,10 @@ class McpHttpClientFactory(Protocol):
 
     def __call__(
         self,
-        headers: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
         timeout: httpx.Timeout | None = None,
         auth: httpx.Auth | None = None,
-    ) -> AbstractAsyncContextManager[T]: ...
+    ) -> httpx.AsyncClient: ...
 
 
 def remove_request_params(url: str) -> str:
@@ -76,6 +74,7 @@ async def sse_client(
             async with httpx_client_factory(
                 headers=headers, timeout=httpx.Timeout(timeout), auth=auth
             ) as client:
+                client: httpx.AsyncClient
                 async with aconnect_sse(
                     client,
                     "GET",
