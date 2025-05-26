@@ -4,29 +4,64 @@
 
 set -euo pipefail
 
+SCRIPT_DIR=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR=""
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Import core dependencies
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/constants.sh"
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/types.sh"
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/utils.sh"
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/registry.sh"
-# shellcheck source=/dev/null
-source "$ROOT_DIR/config/load-env.sh"
-load_env_files
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/utils/logging.sh"
+# Safely source the required files
+# shellcheck source=constants.sh
+if [[ -r "$SCRIPT_DIR/constants.sh" ]]; then
+    source "$SCRIPT_DIR/constants.sh"
+else
+    echo "Error: cannot find or read $SCRIPT_DIR/constants.sh"
+    exit 1
+fi
+
+# shellcheck source=types.sh
+if [[ -r "$SCRIPT_DIR/types.sh" ]]; then
+    source "$SCRIPT_DIR/types.sh"
+else
+    echo "Error: cannot find or read $SCRIPT_DIR/types.sh"
+    exit 1
+fi
+
+# shellcheck source=utils.sh
+if [[ -r "$SCRIPT_DIR/utils.sh" ]]; then
+    source "$SCRIPT_DIR/utils.sh"
+else
+    echo "Error: cannot find or read $SCRIPT_DIR/utils.sh"
+    exit 1
+fi
+
+# shellcheck source=registry.sh
+if [[ -r "$SCRIPT_DIR/registry.sh" ]]; then
+    source "$SCRIPT_DIR/registry.sh"
+else
+    echo "Error: cannot find or read $SCRIPT_DIR/registry.sh"
+    exit 1
+fi
+
+# shellcheck source=../config/load-env.sh
+if [[ -r "$ROOT_DIR/config/load-env.sh" ]]; then
+    source "$ROOT_DIR/config/load-env.sh"
+    # Ensure any load_env_files function is called if defined
+    if declare -F load_env_files > /dev/null; then
+        load_env_files
+    fi
+fi
+
+# Logging script is optional but recommended
+# shellcheck source=utils/logging.sh
+if [[ -r "$SCRIPT_DIR/utils/logging.sh" ]]; then
+    source "$SCRIPT_DIR/utils/logging.sh"
+fi
 
 # Configuration
-declare -g ORCHESTRATOR_VERSION="2.1.0"
-declare -g ORCHESTRATOR_PARALLEL="${ORCHESTRATOR_PARALLEL:-false}"
-declare -g ORCHESTRATOR_DRY_RUN="${ORCHESTRATOR_DRY_RUN:-false}"
-declare -g ORCHESTRATOR_FORCE="${ORCHESTRATOR_FORCE:-false}"
+export ORCHESTRATOR_VERSION="2.1.0"
+export ORCHESTRATOR_PARALLEL="${ORCHESTRATOR_PARALLEL:-false}"
+export ORCHESTRATOR_DRY_RUN="${ORCHESTRATOR_DRY_RUN:-false}"
+export ORCHESTRATOR_FORCE="${ORCHESTRATOR_FORCE:-false}"
 
 show_usage() {
     cat << EOF
@@ -45,7 +80,7 @@ OPTIONS:
 
 MODULES:
     cpu                 CPU optimization module
-    memory              Memory optimization module  
+    memory              Memory optimization module
     io                  I/O optimization module
     binary              Binary precompilation module
     all                 Execute all modules (default)
@@ -61,15 +96,18 @@ EOF
 list_available_modules() {
     info "Available orchestrator modules:"
     local modules_dir="$SCRIPT_DIR/modules"
-    
     if [[ -d "$modules_dir" ]]; then
-        find "$modules_dir" -name "*.sh" -executable | while read -r module; do
+        while IFS= read -r -d '' module; do
             local name
-            name=$(basename "$module" .sh)
+            name="$(basename "$module" .sh)"
             local desc
-            desc=$(grep "^# .*Module$" "$module" | head -1 | sed 's/^# //' || echo "No description")
+            desc="$(grep "^# .*Module\$" "$module" | head -1 || true)"
+            desc="${desc/#"# "/}"
+            if [[ -z "$desc" ]]; then
+                desc="No description"
+            fi
             printf "  %-15s %s\n" "$name" "$desc"
-        done
+        done < <(find "$modules_dir" -type f -executable -name "*.sh" -print0)
     else
         warn "Modules directory not found: $modules_dir"
     fi
@@ -77,14 +115,12 @@ list_available_modules() {
 
 execute_orchestration() {
     local modules=("$@")
-    
-    # Default to all modules if none specified
-    if [[ ${#modules[@]} -eq 0 ]] || [[ "${modules[0]}" == "all" ]]; then
+    if [[ "${#modules[@]}" -eq 0 ]] || [[ "${modules[0]}" == "all" ]]; then
         modules=(cpu memory io binary)
     fi
-    
+
     info "Executing modules: ${modules[*]}"
-    
+
     if [[ "$ORCHESTRATOR_DRY_RUN" == "true" ]]; then
         info "DRY RUN MODE - Would execute:"
         for module in "${modules[@]}"; do
@@ -92,16 +128,20 @@ execute_orchestration() {
         done
         return 0
     fi
-    
-    # Execute the core orchestrator
-    ORCHESTRATOR_PARALLEL="$ORCHESTRATOR_PARALLEL" \
-    "$SCRIPT_DIR/core/main.sh" "${modules[@]}"
+
+    # If there's a core orchestrator script, run it
+    if [[ -r "$SCRIPT_DIR/core/main.sh" ]]; then
+        ORCHESTRATOR_PARALLEL="$ORCHESTRATOR_PARALLEL" \
+        "$SCRIPT_DIR/core/main.sh" "${modules[@]}"
+    else
+        error "Core orchestrator script not found: $SCRIPT_DIR/core/main.sh"
+        return 1
+    fi
 }
 
 main() {
     local modules=()
-    
-    # Parse command line arguments
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --parallel|-p)
@@ -134,8 +174,7 @@ main() {
                 ;;
         esac
     done
-    
-    # Execute orchestration
+
     execute_orchestration "${modules[@]}"
 }
 
