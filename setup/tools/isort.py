@@ -24,31 +24,47 @@ def sort_imports_in_directory(directory_path):
         return True
 
     success = True
+    files_modified = 0
+
+    print(f"Found {len(python_files)} Python files to process...")
 
     for py_file in python_files:
         try:
-            # Run isort on each file
-            result = subprocess.run(
-                [sys.executable, "-m", "isort", str(py_file)],
+            # First check if file needs sorting (dry run)
+            check_result = subprocess.run(
+                [sys.executable, "-m", "isort", "--check-only", "--diff", str(py_file)],
                 capture_output=True,
                 text=True,
                 check=False,
             )
 
-            if result.returncode == 0:
-                # Check if file was modified by looking at output
-                if "Fixing" in result.stderr or result.stderr.strip():
-                    print(f"Fixing {py_file}")
-                # isort doesn't always output "Fixing" message, so we might
-                # not see output for unchanged files
-            else:
-                print(f"Error processing {py_file}: {result.stderr}")
-                success = False
+            # If check shows differences, run the actual sort
+            if check_result.returncode != 0:
+                print(f"Fixing {py_file}")
+                sort_result = subprocess.run(
+                    [sys.executable, "-m", "isort", str(py_file)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
 
+                if sort_result.returncode == 0:
+                    files_modified += 1
+                else:
+                    print(f"Error processing {py_file}: {sort_result.stderr}")
+                    success = False
+            # If no differences, file is already sorted (silent)
+
+        except FileNotFoundError:
+            print(
+                "Error: isort is not installed. Please install with: pip install isort"
+            )
+            return False
         except Exception as e:
             print(f"Error processing {py_file}: {str(e)}")
             success = False
 
+    print(f"Modified {files_modified} files")
     return success
 
 
