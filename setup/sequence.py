@@ -126,6 +126,8 @@ def run_setup_sequence() -> bool:
 
     # Step 5: Configure Docker environment (if available)
     try:
+        # Import Docker functions
+        # Ensure this import is as specific as possible to avoid circular imports
         from setup.docker import (
             check_required_images,
             configure_containers,
@@ -153,6 +155,8 @@ def run_setup_sequence() -> bool:
                 pull_success, pull_errors = pull_required_images()
                 if not pull_success:
                     print("⚠ Some Docker images could not be pulled")
+                    for error in pull_errors:
+                        print(f"  - {error}")
                     success = False
             else:
                 print("✓ All required Docker images are available")
@@ -186,9 +190,7 @@ def run_setup_sequence() -> bool:
             # Don't fail the setup if Docker is not available
 
     except ImportError:
-        print(
-            "\n⚠ Docker setup module not available. Docker configuration will be skipped."
-        )
+        print("\n⚠ Docker setup module not available. Docker configuration skipped.")
     except Exception as e:
         print(f"\n⚠ Error during Docker setup: {str(e)}")
         # Don't fail the setup if Docker setup fails
