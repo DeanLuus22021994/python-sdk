@@ -68,7 +68,8 @@ analyze_performance_metrics() {
 }
 
 generate_performance_report() {
-    local report_file="/tmp/performance-report-$(date +%Y%m%d-%H%M%S).txt"
+    local report_file
+    report_file="/tmp/performance-report-$(date +%Y%m%d-%H%M%S).txt"
     
     echo "Generating performance report: $report_file"
     

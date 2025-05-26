@@ -45,6 +45,7 @@ success "Docker Compose file found"
 info "Validating global configuration variables..."
 
 # Count GLOBAL_ prefixed variables
+GLOBAL_VAR_COUNT=""
 GLOBAL_VAR_COUNT=$(grep -c "^GLOBAL_" "$GLOBAL_CONFIG" || echo "0")
 info "Found $GLOBAL_VAR_COUNT global configuration variables"
 
@@ -60,7 +61,8 @@ info "Checking configuration categories..."
 check_category() {
     local category=$1
     local pattern=$2
-    local count=$(grep -c "$pattern" "$GLOBAL_CONFIG" || echo "0")
+    local count
+    count=$(grep -c "$pattern" "$GLOBAL_CONFIG" || echo "0")
     if [[ $count -gt 0 ]]; then
         success "$category: $count variables"
     else

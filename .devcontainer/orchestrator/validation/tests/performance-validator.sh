@@ -30,7 +30,6 @@ validate_cpu_optimizations() {
     
     # Check CPU frequency scaling
     echo "Checking CPU frequency scaling..."
-    local max_freq_set=false
     for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do
         if [[ -f "$cpu" ]]; then
             local current_max
@@ -42,7 +41,6 @@ validate_cpu_optimizations() {
                 ((issues++))
             else
                 echo "✓ CPU running at maximum frequency"
-                max_freq_set=true
                 break
             fi
         fi

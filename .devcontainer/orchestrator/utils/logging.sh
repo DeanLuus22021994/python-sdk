@@ -2,6 +2,8 @@
 # Logging Utilities - Centralized logging functions
 # Provides consistent logging across all orchestrator components
 
+# shellcheck disable=SC2034  # Variables are used by sourcing scripts
+
 # Color codes for output
 declare -g RED='\033[0;31m'
 declare -g GREEN='\033[0;32m'
@@ -18,7 +20,8 @@ declare -g LOG_FILE="${LOG_FILE:-/var/log/orchestrator.log}"
 log() {
     local level="${1:-INFO}"
     local message="$2"
-    local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date +'%Y-%m-%d %H:%M:%S')
     
     case "$level" in
         "ERROR")
