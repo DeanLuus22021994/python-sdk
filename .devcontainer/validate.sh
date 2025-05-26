@@ -1,27 +1,17 @@
 #!/bin/bash
-# Top-level Validation Entry Point
-# Delegates to the unified validation system
+# Validation Entry Point
+# Delegates to the orchestrator validation system
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Import centralized logging
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/orchestrator/utils/logging.sh" || {
-  # Basic logging functions if orchestrator logging is not available
-  RED='\033[0;31m'
-  BLUE='\033[0;34m'
-  NC='\033[0m'
-  
-  info() {
-    echo -e "${BLUE}INFO: $1${NC}"
-  }
+# Call the orchestrator validation system
+echo "🔄 Delegating to orchestrator validation system..."
+"$SCRIPT_DIR/orchestrator/validation/core/main.sh" "$@"
 
-  error() {
-    echo -e "${RED}ERROR: $1${NC}" >&2
-  }
-}
+# Exit - the following code is kept for reference only
+exit 0
 
 # Delegate to the unified validation system
 info "🔄 Delegating to unified validation system..."

@@ -1,22 +1,21 @@
 #!/bin/bash
-# MCP Python SDK - Modular Master Orchestrator
-# Coordinates all performance optimization modules with maximum efficiency
+# Master Orchestrator Entry Point
+# Delegates to the orchestrator system
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Import core dependencies
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/orchestrator/constants.sh"
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/orchestrator/types.sh"
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/orchestrator/utils.sh"
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/orchestrator/registry.sh"
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/config/load-env.sh"
+# Call the orchestrator main script
+echo "🔄 Delegating to orchestrator system..."
+"$SCRIPT_DIR/orchestrator/main.sh" "$@"
+
+# Exit - the following code is kept for reference only
+exit 0
+
+# Original header below
+# MCP Python SDK - Modular Master Orchestrator
+# Coordinates all performance optimization modules with maximum efficiency
 load_env_files
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/orchestrator/utils/logging.sh"
