@@ -57,12 +57,37 @@ def sort_imports_in_directory(directory_path, dry_run=False, verbose=False):
         print("DRY RUN MODE: No files will be modified")
     print()
 
+    # Build common isort arguments - ensure we use project configuration
+    # and configure correctly for Ruff compatibility
+    isort_args = [
+        "--profile",
+        "black",  # Use black profile for compatibility with Ruff
+        "--use-parentheses",  # Use parentheses for imports
+        "--combine-as",  # Combine as imports
+        "--force-sort-within-sections",  # Force sort within sections
+        "--ensure-newline-before-comments",  # Ensure newline before comments
+    ]
+
+    # Look for pyproject.toml in project root
+    project_root = directory
+    while project_root != project_root.parent:
+        if (project_root / "pyproject.toml").exists():
+            # Found pyproject.toml, use it for configuration
+            isort_args.append("--settings-path")
+            isort_args.append(str(project_root))
+            break
+        project_root = project_root.parent
+
     for py_file in python_files:
         files_checked += 1
         try:
             # Always check if file needs sorting first
+            check_cmd = [sys.executable, "-m", "isort", "--check-only", "--diff"]
+            check_cmd.extend(isort_args)
+            check_cmd.append(str(py_file))
+
             check_result = subprocess.run(
-                [sys.executable, "-m", "isort", "--check-only", "--diff", str(py_file)],
+                check_cmd,
                 capture_output=True,
                 text=True,
                 check=False,
@@ -81,8 +106,12 @@ def sort_imports_in_directory(directory_path, dry_run=False, verbose=False):
 
                 if not dry_run:
                     # Run the actual sort
+                    sort_cmd = [sys.executable, "-m", "isort"]
+                    sort_cmd.extend(isort_args)
+                    sort_cmd.append(str(py_file))
+
                     sort_result = subprocess.run(
-                        [sys.executable, "-m", "isort", str(py_file)],
+                        sort_cmd,
                         capture_output=True,
                         text=True,
                         check=False,
@@ -152,22 +181,30 @@ Examples:
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show detailed output"
     )
+    parser.add_argument(
+        "--fix-all",
+        action="store_true",
+        help="Process the entire project directory instead of just setup/",
+    )
 
     args = parser.parse_args()
 
-    # Default to the setup directory relative to this script
+    # Determine which directory to process
     if args.directory:
-        setup_dir = Path(args.directory)
+        target_dir = Path(args.directory)
+    elif args.fix_all:
+        # Go up from tools/ to setup/ to project root
+        target_dir = Path(__file__).parent.parent.parent
     else:
-        script_dir = Path(__file__).parent.parent  # Go up from tools/ to setup/
-        setup_dir = script_dir
+        # Default to the setup directory relative to this script
+        target_dir = Path(__file__).parent.parent  # Go up from tools/ to setup/
 
-    print(f"Sorting imports in: {setup_dir}")
+    print(f"Sorting imports in: {target_dir}")
     print(f"Mode: {'DRY RUN' if args.dry_run else 'MODIFY FILES'}")
     print()
 
     success = sort_imports_in_directory(
-        setup_dir, dry_run=args.dry_run, verbose=args.verbose
+        target_dir, dry_run=args.dry_run, verbose=args.verbose
     )
 
     if success:
