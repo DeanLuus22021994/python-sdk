@@ -1,45 +1,63 @@
 #!/usr/bin/env python3
 """
 MCP Python SDK Setup
-Simple entry point for development environment setup
+Modern, idempotent development environment setup with containerization support.
 
 Usage:
-    python setup.py
+    python setup.py [--docker] [--verbose]
+
+Features:
+    - Host-based development setup
+    - Docker containerization support
+    - Idempotent operations
+    - Performance optimizations
+    - Clean architecture following SOLID principles
 """
 
-import os
 import sys
 from pathlib import Path
+from typing import NoReturn
 
-# Add the project root to the path so imports work correctly
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
+# Ensure project root is in path for proper imports
+PROJECT_ROOT = Path(__file__).parent.resolve()
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# Create __init__.py if it doesn't exist to make setup a proper package
-setup_init = project_root / "setup" / "__init__.py"
-if not setup_init.exists():
-    with open(setup_init, "w") as f:
-        f.write('"""MCP Python SDK Setup Package"""\n\n__version__ = "1.0.0"')
 
-# Create host/__init__.py if it doesn't exist
-host_init = project_root / "setup" / "host" / "__init__.py"
-if not os.path.exists(host_init.parent):
-    os.makedirs(host_init.parent, exist_ok=True)
-if not host_init.exists():
-    with open(host_init, "w") as f:
-        f.write('"""MCP Python SDK Setup Host Package"""\n\n')
-        f.write("from ._1_1_env_validator import validate_environment\n")
-        f.write("from ._1_2_package_manager import setup_packages\n")
-        f.write("from ._1_3_sdk_validator import validate_sdk\n")
-        f.write("from ._1_4_vscode_config import setup_vscode_config\n\n")
-        f.write("__all__ = [\n")
-        f.write('    "validate_environment",\n')
-        f.write('    "setup_packages",\n')
-        f.write('    "validate_sdk",\n')
-        f.write('    "setup_vscode_config",\n')
-        f.write("]\n")
+def ensure_package_structure() -> None:
+    """Ensure all package directories have proper __init__.py files."""
+    package_dirs = [
+        PROJECT_ROOT / "setup",
+        PROJECT_ROOT / "setup" / "environment",
+        PROJECT_ROOT / "setup" / "host",
+        PROJECT_ROOT / "setup" / "docker",
+    ]
+
+    for package_dir in package_dirs:
+        package_dir.mkdir(parents=True, exist_ok=True)
+        init_file = package_dir / "__init__.py"
+        if not init_file.exists():
+            init_file.touch()
+
+
+def main() -> NoReturn:
+    """Entry point for setup process."""
+    ensure_package_structure()
+
+    try:
+        from setup.main import main as setup_main
+
+        sys.exit(setup_main())
+    except ImportError as e:
+        print(f"Setup import failed: {e}")
+        print(
+            "Ensure all dependencies are installed and the project structure is correct."
+        )
+        sys.exit(1)
+    except Exception as e:
+        print(f"Setup failed with unexpected error: {e}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    from setup.main import main
-
-    sys.exit(main())
+    main()

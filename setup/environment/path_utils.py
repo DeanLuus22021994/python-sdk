@@ -1,35 +1,48 @@
 """
 Path Utilities
-Path-related utilities for project structure validation
+Modern path-related utilities for project structure validation with performance
+optimization.
 """
 
+import functools
+import os
+import threading
 from pathlib import Path
+from typing import Any
 
 from .constants import OPTIONAL_PROJECT_PATHS, REQUIRED_PROJECT_PATHS
 
+# Thread-safe caching for expensive path operations
+_path_cache: dict[str, Any] = {}
+_cache_lock = threading.RLock()
 
+
+@functools.lru_cache(maxsize=128)
 def get_project_root() -> Path:
     """
-    Get the project root directory.
+    Get the project root directory with caching for performance.
 
     Returns:
-        Path to the project root directory
+        Path: Absolute path to the project root
+
+    Raises:
+        RuntimeError: If project root cannot be determined
     """
-    # Start from the current file and go up to find the project root
-    current_file = Path(__file__)
-    project_root = current_file.parent.parent.parent
+    current = Path(__file__).resolve()
 
-    # Verify this is actually the project root by checking for key files
-    if (project_root / "pyproject.toml").exists():
-        return project_root
+    # Look for project markers going up the directory tree
+    markers = ("pyproject.toml", "setup.py", ".git")
 
-    # If not found, try going up one more level
-    project_root = project_root.parent
-    if (project_root / "pyproject.toml").exists():
-        return project_root
+    for parent in [current] + list(current.parents):
+        if any((parent / marker).exists() for marker in markers):
+            return parent
 
-    # Fallback to current working directory
-    return Path.cwd()
+    # Fallback: assume we're in setup/environment, so go up 2 levels
+    fallback = current.parent.parent
+    if fallback.name == "python-sdk" or (fallback / "src").exists():
+        return fallback
+
+    raise RuntimeError(f"Cannot determine project root from {current}")
 
 
 def check_required_paths() -> tuple[bool, list[str]]:
@@ -39,23 +52,52 @@ def check_required_paths() -> tuple[bool, list[str]]:
     Returns:
         Tuple of (all_exist, missing_paths)
     """
-    project_root = get_project_root()
-    missing_paths = [
-        path for path in REQUIRED_PROJECT_PATHS if not (project_root / path).exists()
-    ]
+    cache_key = "required_paths_check"
 
-    return len(missing_paths) == 0, missing_paths
+    with _cache_lock:
+        if cache_key in _path_cache:
+            return _path_cache[cache_key]
+
+    project_root = get_project_root()
+    missing_paths: list[str] = []
+
+    for required_path in REQUIRED_PROJECT_PATHS:
+        path = project_root / required_path
+        if not path.exists():
+            missing_paths.append(required_path)
+
+    result = (len(missing_paths) == 0, missing_paths)
+
+    with _cache_lock:
+        _path_cache[cache_key] = result
+
+    return result
 
 
 def get_optional_paths_status() -> dict[str, bool]:
     """
-    Get the status of optional project paths.
+    Get the existence status of optional project paths.
 
     Returns:
-        Dictionary mapping path to existence status
+        Dict mapping path names to their existence status
     """
+    cache_key = "optional_paths_status"
+
+    with _cache_lock:
+        if cache_key in _path_cache:
+            return _path_cache[cache_key]
+
     project_root = get_project_root()
-    return {path: (project_root / path).exists() for path in OPTIONAL_PROJECT_PATHS}
+    status = {}
+
+    for optional_path in OPTIONAL_PROJECT_PATHS:
+        path = project_root / optional_path
+        status[optional_path] = path.exists()
+
+    with _cache_lock:
+        _path_cache[cache_key] = status
+
+    return status
 
 
 def ensure_directory_exists(directory_path: Path) -> Path:
@@ -63,13 +105,70 @@ def ensure_directory_exists(directory_path: Path) -> Path:
     Ensure a directory exists, creating it if necessary.
 
     Args:
-        directory_path: Path to the directory to ensure exists
+        directory_path: Path to the directory
 
     Returns:
-        Path to the directory
+        Path: The directory path (for chaining)
+
+    Raises:
+        OSError: If directory cannot be created
     """
-    directory_path.mkdir(parents=True, exist_ok=True)
-    return directory_path
+    try:
+        directory_path.mkdir(parents=True, exist_ok=True)
+        return directory_path
+    except OSError as e:
+        raise OSError(f"Failed to create directory {directory_path}: {e}") from e
+
+
+def clear_path_cache() -> None:
+    """Clear the path cache for testing or when project structure changes."""
+    with _cache_lock:
+        _path_cache.clear()
+
+    # Clear the LRU cache as well
+    get_project_root.cache_clear()
+
+
+def get_directory_size(directory_path: Path) -> int:
+    """
+    Get the total size of a directory in bytes.
+
+    Args:
+        directory_path: Path to the directory
+
+    Returns:
+        Total size in bytes
+    """
+    total_size = 0
+
+    if not directory_path.exists() or not directory_path.is_dir():
+        return total_size
+
+    try:
+        for dirpath, dirnames, filenames in os.walk(directory_path):
+            for filename in filenames:
+                filepath = Path(dirpath) / filename
+                try:
+                    total_size += filepath.stat().st_size
+                except (OSError, FileNotFoundError):
+                    # Skip files we can't access
+                    continue
+    except (OSError, PermissionError):
+        # Return partial size if we can't access everything
+        pass
+
+    return total_size
+
+
+def is_project_structure_valid() -> bool:
+    """
+    Quick validation of project structure.
+
+    Returns:
+        True if the project structure appears valid
+    """
+    all_exist, _ = check_required_paths()
+    return all_exist
 
 
 def get_relative_path(full_path: Path, base_path: Path | None = None) -> str:
