@@ -63,7 +63,8 @@ def create_volume(volume_name: str) -> tuple[bool, str | None]:
         if check_volume_exists(volume_name):
             return True, None
 
-        result = subprocess.run(
+        # Execute docker volume create but don't store unused result
+        subprocess.run(
             ["docker", "volume", "create", volume_name],
             capture_output=True,
             text=True,

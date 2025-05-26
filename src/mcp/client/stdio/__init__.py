@@ -99,14 +99,18 @@ async def stdio_client(server: StdioServerParameters, errlog: TextIO = sys.stder
     Client transport for stdio: this will connect to a server by spawning a
     process and communicating with it over stdin/stdout.
     """
-    read_stream: MemoryObjectReceiveStream[SessionMessage | Exception]
     read_stream_writer: MemoryObjectSendStream[SessionMessage | Exception]
+    read_stream: MemoryObjectReceiveStream[SessionMessage | Exception]
 
     write_stream: MemoryObjectSendStream[SessionMessage]
     write_stream_reader: MemoryObjectReceiveStream[SessionMessage]
 
-    read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
-    write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
+    read_stream_writer, read_stream = anyio.create_memory_object_stream[
+        SessionMessage | Exception
+    ](0)
+    write_stream, write_stream_reader = anyio.create_memory_object_stream[
+        SessionMessage
+    ](0)
 
     command = _get_executable_command(server.command)
 

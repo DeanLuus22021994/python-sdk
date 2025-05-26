@@ -143,9 +143,11 @@ def func_metadata(
             annotation = Annotated[
                 None,
                 Field(
-                    default=param.default
-                    if param.default is not inspect.Parameter.empty
-                    else PydanticUndefined
+                    default=(
+                        param.default
+                        if param.default is not inspect.Parameter.empty
+                        else PydanticUndefined
+                    )
                 ),
             ]
 
@@ -160,9 +162,11 @@ def func_metadata(
 
         field_info = FieldInfo.from_annotated_attribute(
             _get_typed_annotation(annotation, globalns),
-            param.default
-            if param.default is not inspect.Parameter.empty
-            else PydanticUndefined,
+            (
+                param.default
+                if param.default is not inspect.Parameter.empty
+                else PydanticUndefined
+            ),
         )
         dynamic_pydantic_model_params[param.name] = (field_info.annotation, field_info)
         continue
@@ -172,7 +176,8 @@ def func_metadata(
         **dynamic_pydantic_model_params,
         __base__=ArgModelBase,
     )
-    resp = FuncMetadata(arg_model=arguments_model)
+    # Explicitly cast to return type
+    resp: FuncMetadata = FuncMetadata(arg_model=arguments_model)
     return resp
 
 

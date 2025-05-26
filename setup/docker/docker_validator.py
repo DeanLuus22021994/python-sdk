@@ -189,13 +189,15 @@ def get_docker_runtime_info() -> dict[str, str | list[str]]:
         info["storage_driver"] = docker_info.get("Driver", "unknown")
         info["root_dir"] = docker_info.get("DockerRootDir", "unknown")
 
-        # Extract plugins
-        plugins_list: list[str] = []  # Create a temporary list for plugins
+        # Extract plugins using list comprehension to avoid append on union type
         if "Plugins" in docker_info:
-            for plugin_type, plugins in docker_info["Plugins"].items():
-                for plugin in plugins:
-                    plugins_list.append(f"{plugin_type}: {plugin}")
-        info["plugins"] = plugins_list  # Assign the complete list to info["plugins"]
+            # Create a new list with all the plugin entries
+            plugin_entries = [
+                f"{plugin_type}: {plugin}"
+                for plugin_type, plugins in docker_info["Plugins"].items()
+                for plugin in plugins
+            ]
+            info["plugins"] = plugin_entries
 
     except Exception:
         # If we can't get detailed info, fall back to basic version

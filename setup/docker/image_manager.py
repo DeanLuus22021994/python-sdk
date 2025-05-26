@@ -72,7 +72,8 @@ def pull_required_images() -> tuple[bool, list[str]]:
     for image in required_images:
         try:
             print(f"Pulling {image}...")
-            result = subprocess.run(
+            # Execute docker pull but don't store unused result
+            subprocess.run(
                 ["docker", "pull", image],
                 capture_output=True,
                 text=True,
@@ -110,7 +111,8 @@ def build_development_image(tag: str = "mcp-dev:latest") -> tuple[bool, str | No
 
     try:
         print(f"Building development image {tag}...")
-        result = subprocess.run(
+        # Execute docker build but don't store unused result
+        subprocess.run(
             [
                 "docker",
                 "build",
@@ -141,7 +143,8 @@ def cleanup_unused_images() -> bool:
     """
     try:
         print("Cleaning up unused Docker images...")
-        result = subprocess.run(
+        # Execute docker image prune but don't store unused result
+        subprocess.run(
             ["docker", "image", "prune", "-f"],
             capture_output=True,
             text=True,

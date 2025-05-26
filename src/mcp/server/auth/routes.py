@@ -33,8 +33,8 @@ def validate_issuer_url(url: AnyHttpUrl):
     # RFC 8414 requires HTTPS, but we allow localhost HTTP for testing
     if (
         url.scheme != "https"
-        and url.host != "localhost"
-        and not url.host.startswith("127.0.0.1")
+        and url.host is not None
+        and not (url.host == "localhost" or url.host.startswith("127.0.0.1"))
     ):
         raise ValueError("Issuer URL must be HTTPS")
 
@@ -148,6 +148,10 @@ def create_auth_routes(
 
 
 def modify_url_path(url: AnyHttpUrl, path_mapper: Callable[[str], str]) -> AnyHttpUrl:
+    # Ensure host is not None before building URL
+    if url.host is None:
+        raise ValueError("URL host cannot be None")
+
     return AnyHttpUrl.build(
         scheme=url.scheme,
         username=url.username,
