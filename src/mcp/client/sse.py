@@ -1,6 +1,7 @@
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, Protocol
+from typing import Protocol
 from urllib.parse import urljoin, urlparse
 
 import anyio
@@ -16,7 +17,6 @@ from mcp.shared.message import SessionMessage
 logger = logging.getLogger(__name__)
 
 
-# Define the McpHttpClientFactory protocol to match create_mcp_http_client signature
 class McpHttpClientFactory(Protocol):
     """Protocol for factory functions that create HTTP clients."""
 
@@ -25,7 +25,9 @@ class McpHttpClientFactory(Protocol):
         headers: dict[str, str] | None = None,
         timeout: httpx.Timeout | None = None,
         auth: httpx.Auth | None = None,
-    ) -> httpx.AsyncClient: ...
+    ) -> httpx.AsyncClient:
+        """Create an HTTP client with the specified configuration."""
+        ...
 
 
 def remove_request_params(url: str) -> str:
@@ -35,12 +37,18 @@ def remove_request_params(url: str) -> str:
 @asynccontextmanager
 async def sse_client(
     url: str,
-    headers: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
     timeout: float = 5,
     sse_read_timeout: float = 60 * 5,
     httpx_client_factory: McpHttpClientFactory = create_mcp_http_client,
     auth: httpx.Auth | None = None,
-):
+) -> AsyncGenerator[
+    tuple[
+        MemoryObjectReceiveStream[SessionMessage | Exception],
+        MemoryObjectSendStream[SessionMessage],
+    ],
+    None,
+]:
     """
     Client transport for SSE.
 
@@ -54,6 +62,9 @@ async def sse_client(
         sse_read_timeout: Timeout for SSE read operations.
         httpx_client_factory: Factory for creating HTTP clients.
         auth: Optional HTTPX authentication handler.
+
+    Yields:
+        A tuple of (read_stream, write_stream) for bi-directional communication.
     """
     read_stream: MemoryObjectReceiveStream[SessionMessage | Exception]
     read_stream_writer: MemoryObjectSendStream[SessionMessage | Exception]
@@ -71,10 +82,13 @@ async def sse_client(
     async with anyio.create_task_group() as tg:
         try:
             logger.info(f"Connecting to SSE endpoint: {remove_request_params(url)}")
-            async with httpx_client_factory(
+
+            # Create HTTP client using the factory
+            http_client: httpx.AsyncClient = httpx_client_factory(
                 headers=headers, timeout=httpx.Timeout(timeout), auth=auth
-            ) as client:
-                client: httpx.AsyncClient
+            )
+
+            async with http_client as client:
                 async with aconnect_sse(
                     client,
                     "GET",
@@ -86,7 +100,8 @@ async def sse_client(
 
                     async def sse_reader(
                         task_status: TaskStatus[str] = anyio.TASK_STATUS_IGNORED,
-                    ):
+                    ) -> None:
+                        """Read SSE events and process them."""
                         try:
                             async for sse in event_source.aiter_sse():
                                 logger.debug(f"Received SSE event: {sse.event}")
@@ -115,11 +130,12 @@ async def sse_client(
 
                                     case "message":
                                         try:
-                                            message = types.JSONRPCMessage.model_validate_json(  # noqa: E501
+                                            message = types.JSONRPCMessage.model_validate_json(
                                                 sse.data
                                             )
                                             logger.debug(
-                                                f"Received server message: {message}"
+                                                f"Received server message: "
+                                                f"{message}"
                                             )
                                         except Exception as exc:
                                             logger.error(
@@ -130,6 +146,7 @@ async def sse_client(
 
                                         session_message = SessionMessage(message)
                                         await read_stream_writer.send(session_message)
+
                                     case _:
                                         logger.warning(
                                             f"Unknown SSE event: {sse.event}"
@@ -140,14 +157,15 @@ async def sse_client(
                         finally:
                             await read_stream_writer.aclose()
 
-                    async def post_writer(endpoint_url: str):
+                    async def post_writer(endpoint_url: str) -> None:
+                        """Write messages to the endpoint via HTTP POST."""
                         try:
                             async with write_stream_reader:
                                 async for session_message in write_stream_reader:
                                     logger.debug(
                                         f"Sending client message: {session_message}"
                                     )
-                                    response = await client.post(
+                                    response: httpx.Response = await client.post(
                                         endpoint_url,
                                         json=session_message.message.model_dump(
                                             by_alias=True,
