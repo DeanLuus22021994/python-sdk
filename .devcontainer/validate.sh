@@ -1,25 +1,14 @@
 #!/bin/bash
-# Consolidated System Validation Script
-# Provides unified validation functionality with different modes
+# Top-level Validation Entry Point
+# Redirects to the unified validation system
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Basic logging functions if orchestrator logging is not available
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Define basic logging functions in case the imported ones fail
-info() {
-    echo -e "${BLUE}INFO: $1${NC}"
-}
-
-warn() {
-    echo -e "${YELLOW}WARN: $1${NC}"
-}
+# Redirect to the unified validation system
+echo "🔄 Redirecting to unified validation system..."
+exec "$SCRIPT_DIR/validation/core/main.sh" "$@"
 
 error() {
     echo -e "${RED}ERROR: $1${NC}" >&2
