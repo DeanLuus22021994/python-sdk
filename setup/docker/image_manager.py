@@ -13,6 +13,50 @@ except ImportError:
         return Path(__file__).parent.parent.parent
 
 
+class DockerImageManager:
+    """Manages Docker image operations."""
+
+    def __init__(self) -> None:
+        """Initialize image manager."""
+        pass
+
+    def pull_required_images(self) -> tuple[bool, list[str]]:
+        """
+        Pull required Docker images.
+
+        Returns:
+            Tuple of (success, error_messages)
+        """
+        required_images = get_required_images()
+        errors = []
+
+        for image in required_images:
+            try:
+                print(f"Pulling {image}...")
+                subprocess.run(
+                    ["docker", "pull", image],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                print(f"✓ Successfully pulled {image}")
+            except Exception as e:
+                error_msg = f"✗ Failed to pull {image}: {str(e)}"
+                print(error_msg)
+                errors.append(error_msg)
+
+        return len(errors) == 0, errors
+
+    def check_required_images(self) -> dict[str, bool]:
+        """
+        Check if required Docker images are available locally.
+
+        Returns:
+            Dictionary mapping image names to availability status
+        """
+        return check_required_images()
+
+
 def get_required_images() -> list[str]:
     """
     Get list of required Docker images for MCP development.

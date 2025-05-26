@@ -1,254 +1,140 @@
-"""
-Docker Setup Manager
-Comprehensive Docker environment setup and management for the MCP Python SDK.
-"""
+"""Docker volume configuration and management utilities."""
 
 from pathlib import Path
 from typing import Any
 
-from ..types import ValidationDetails, ValidationStatus
-from .container_config import DockerContainerManager
-from .docker_validator import validate_docker_environment
-from .image_manager import DockerImageManager
-from .volume_config import DockerVolumeManager
+try:
+    from setup.environment import get_project_root
+except ImportError:
+    from pathlib import Path
+
+    def get_project_root() -> Path:
+        """Get the project root directory."""
+        return Path(__file__).parent.parent.parent
 
 
-class DockerSetupManager:
-    """
-    Comprehensive Docker setup and management for the MCP Python SDK.
+class DockerVolumeManager:
+    """Manages Docker volume configuration and operations."""
 
-    Coordinates Docker container, volume, and image management for both
-    development and production environments.
-    """
-
-    def __init__(self, workspace_root: Path, verbose: bool = False) -> None:
+    def __init__(self, project_root: Path) -> None:
         """
-        Initialize Docker setup manager.
+        Initialize volume manager.
 
         Args:
-            workspace_root: Root directory of the workspace
-            verbose: Enable verbose logging
+            project_root: Root directory of the project
         """
-        self.workspace_root = Path(workspace_root).resolve()
-        self.verbose = verbose
+        self.project_root = Path(project_root).resolve()
 
-        # Initialize component managers
-        self.container_manager = DockerContainerManager(self.workspace_root)
-        self.volume_manager = DockerVolumeManager(self.workspace_root)
-        self.image_manager = DockerImageManager()
-
-    def setup_docker_environment(self, config: dict[str, Any] | None = None) -> bool:
+    def get_volume_config(self) -> dict[str, Any]:
         """
-        Set up complete Docker development environment.
-
-        Args:
-            config: Optional configuration overrides
+        Get Docker volume configuration.
 
         Returns:
-            True if setup completed successfully
+            Dictionary with volume configurations
+        """
+        return {
+            "mcp-postgres-data": {
+                "driver": "local",
+            },
+            "mcp-python-cache": {
+                "driver": "local",
+            },
+        }
+
+    def create_volume_directories(self) -> bool:
+        """
+        Create necessary volume directories and validate configuration.
+
+        Returns:
+            True if volumes are properly configured
         """
         try:
-            success = True
-            config = config or {}
+            # Create local data directories if needed
+            data_dir = self.project_root / "data"
+            data_dir.mkdir(exist_ok=True)
 
-            if self.verbose:
-                print("Setting up Docker environment...")
+            # Create cache directory
+            cache_dir = self.project_root / ".cache"
+            cache_dir.mkdir(exist_ok=True)
 
-            # Validate Docker installation
-            docker_valid, docker_info = validate_docker_environment()
-            if not docker_valid:
-                print(f"Docker validation failed: {docker_info}")
-                return False
-
-            # Configure volumes
-            volumes_success = self.volume_manager.create_volume_directories()
-            if not volumes_success:
-                print("Failed to configure Docker volumes")
-                success = False
-
-            # Pull required images
-            images_success = self.image_manager.pull_required_images()
-            if not images_success:
-                print("Failed to pull required Docker images")
-                success = False
-
-            # Configure containers
-            containers_success = self.container_manager.create_container_config()
-            if not containers_success:
-                print("Failed to configure Docker containers")
-                success = False
-
-            return success
-
+            return True
         except Exception as e:
-            if self.verbose:
-                print(f"Docker setup failed: {e}")
+            print(f"Failed to create volume directories: {e}")
             return False
 
-    def validate_docker_setup(self) -> ValidationDetails:
+    def validate_volume_config(self) -> bool:
         """
-        Validate Docker environment setup.
+        Validate Docker volume configuration.
 
         Returns:
-            ValidationDetails with comprehensive validation results
+            True if volume configuration is valid
         """
         try:
-            warnings: list[str] = []
-            errors: list[str] = []
-            recommendations: list[str] = []
+            volume_config = self.get_volume_config()
+            return bool(volume_config and len(volume_config) > 0)
+        except Exception:
+            return False
 
-            # Validate Docker environment
-            docker_valid, docker_info = validate_docker_environment()
-            if not docker_valid:
-                errors.append(f"Docker environment invalid: {docker_info}")
-
-            # Validate volumes
-            volumes_valid = self.volume_manager.validate_volume_config()
-            if not volumes_valid:
-                warnings.append("Docker volume configuration invalid")
-
-            # Check required images
-            images_available = self.image_manager.check_required_images()
-            if not images_available:
-                recommendations.append("Consider pulling required Docker images")
-
-            # Determine overall status
-            if errors:
-                status = ValidationStatus.ERROR
-                is_valid = False
-                message = "Docker validation failed"
-            elif warnings:
-                status = ValidationStatus.WARNING
-                is_valid = True
-                message = "Docker validation passed with warnings"
-            else:
-                status = ValidationStatus.VALID
-                is_valid = True
-                message = "Docker environment is valid"
-
-            return ValidationDetails(
-                is_valid=is_valid,
-                status=status,
-                message=message,
-                warnings=warnings,
-                errors=errors,
-                recommendations=recommendations,
-                metadata={
-                    "workspace_root": str(self.workspace_root),
-                    "docker_info": docker_info,
-                },
-            )
-
-        except Exception as e:
-            return ValidationDetails(
-                is_valid=False,
-                status=ValidationStatus.ERROR,
-                message=f"Docker validation failed: {e}",
-                errors=[str(e)],
-            )
-
-    def get_docker_status(self) -> dict[str, Any]:
+    def get_volume_status(self) -> dict[str, Any]:
         """
-        Get comprehensive Docker environment status.
+        Get status of Docker volumes.
 
         Returns:
-            Dictionary with detailed Docker status information
+            Dictionary with volume status information
         """
         try:
-            docker_valid, docker_info = validate_docker_environment()
-            volume_status = self.volume_manager.get_volume_status()
-
+            volumes = self.get_volume_config()
             return {
-                "docker_valid": docker_valid,
-                "docker_info": docker_info,
-                "volume_status": volume_status,
-                "workspace_root": str(self.workspace_root),
+                "volumes_configured": len(volumes),
+                "volume_names": list(volumes.keys()),
+                "project_root": str(self.project_root),
             }
-
         except Exception as e:
             return {"error": str(e), "status": "error"}
 
 
-# Mock manager classes for imports
-class DockerContainerManager:
-    """Mock Docker container manager."""
+def get_volume_config() -> dict[str, Any]:
+    """
+    Get Docker volume configuration.
 
-    def __init__(self, workspace_root: Path) -> None:
-        self.workspace_root = workspace_root
-
-    def create_container_config(self) -> bool:
-        """Create container configuration."""
-        return True
-
-
-class DockerImageManager:
-    """Mock Docker image manager."""
-
-    def pull_required_images(self) -> bool:
-        """Pull required images."""
-        return True
-
-    def check_required_images(self) -> bool:
-        """Check if required images are available."""
-        return True
-
-
-# Utility functions for backward compatibility
-def validate_docker_environment_compat() -> tuple[bool, str]:
-    """Validate Docker environment - compatibility function."""
-    valid, info = validate_docker_environment()
-    if isinstance(info, dict):
-        return valid, str(info.get("daemon_message", "Docker check complete"))
-    return valid, str(info)
+    Returns:
+        Dictionary with volume configurations for Docker Compose
+    """
+    return {
+        "mcp-postgres-data": {
+            "driver": "local",
+        },
+        "mcp-python-cache": {
+            "driver": "local",
+        },
+    }
 
 
 def configure_volumes() -> bool:
-    """Configure Docker volumes."""
-    try:
-        from ..environment.path_utils import get_project_root
+    """
+    Configure Docker volumes for MCP development.
 
+    Returns:
+        True if configuration was successful, False otherwise
+    """
+    try:
         project_root = get_project_root()
         volume_manager = DockerVolumeManager(project_root)
         return volume_manager.create_volume_directories()
-    except Exception:
+    except Exception as e:
+        print(f"✗ Failed to configure Docker volumes: {str(e)}")
         return False
 
 
-def configure_containers() -> bool:
-    """Configure Docker containers."""
+def validate_volume_config() -> bool:
+    """
+    Validate Docker volume configuration.
+
+    Returns:
+        True if volume configuration is valid
+    """
     try:
-        from ..environment.path_utils import get_project_root
-
-        project_root = get_project_root()
-        container_manager = DockerContainerManager(project_root)
-        return container_manager.create_container_config()
+        volume_config = get_volume_config()
+        return bool(volume_config and len(volume_config) > 0)
     except Exception:
         return False
-
-
-def check_required_images() -> bool:
-    """Check if required Docker images are available."""
-    try:
-        image_manager = DockerImageManager()
-        return image_manager.check_required_images()
-    except Exception:
-        return False
-
-
-def pull_required_images() -> bool:
-    """Pull required Docker images."""
-    try:
-        image_manager = DockerImageManager()
-        return image_manager.pull_required_images()
-    except Exception:
-        return False
-
-
-__all__ = [
-    "DockerSetupManager",
-    "validate_docker_environment",
-    "configure_volumes",
-    "configure_containers",
-    "check_required_images",
-    "pull_required_images",
-]

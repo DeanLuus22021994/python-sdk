@@ -3,9 +3,6 @@ Docker Setup Manager
 Comprehensive Docker environment setup and management for the MCP Python SDK.
 """
 
-import json
-import platform
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -70,7 +67,7 @@ class DockerSetupManager:
                 success = False
 
             # Pull required images
-            images_success = self.image_manager.pull_required_images()
+            images_success, _ = self.image_manager.pull_required_images()
             if not images_success:
                 print("Failed to pull required Docker images")
                 success = False
@@ -172,30 +169,6 @@ class DockerSetupManager:
             return {"error": str(e), "status": "error"}
 
 
-# Mock manager classes for imports
-class DockerContainerManager:
-    """Mock Docker container manager."""
-
-    def __init__(self, workspace_root: Path) -> None:
-        self.workspace_root = workspace_root
-
-    def create_container_config(self) -> bool:
-        """Create container configuration."""
-        return True
-
-
-class DockerImageManager:
-    """Mock Docker image manager."""
-
-    def pull_required_images(self) -> bool:
-        """Pull required images."""
-        return True
-
-    def check_required_images(self) -> bool:
-        """Check if required images are available."""
-        return True
-
-
 # Utility functions for backward compatibility
 def validate_docker_environment_compat() -> tuple[bool, str]:
     """Validate Docker environment - compatibility function."""
@@ -232,8 +205,10 @@ def configure_containers() -> bool:
 def check_required_images() -> bool:
     """Check if required Docker images are available."""
     try:
-        image_manager = DockerImageManager()
-        return image_manager.check_required_images()
+        from .image_manager import check_required_images as _check_images
+
+        images_status = _check_images()
+        return all(images_status.values())
     except Exception:
         return False
 
@@ -241,8 +216,10 @@ def check_required_images() -> bool:
 def pull_required_images() -> bool:
     """Pull required Docker images."""
     try:
-        image_manager = DockerImageManager()
-        return image_manager.pull_required_images()
+        from .image_manager import pull_required_images as _pull_images
+
+        success, _ = _pull_images()
+        return success
     except Exception:
         return False
 

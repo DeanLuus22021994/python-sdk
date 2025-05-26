@@ -123,6 +123,23 @@ def get_container_config() -> dict[str, Any]:
     }
 
 
+def get_volume_config() -> dict[str, Any]:
+    """
+    Get Docker volume configuration for development.
+
+    Returns:
+        Dictionary with volume configurations
+    """
+    return {
+        "mcp-postgres-data": {
+            "driver": "local",
+        },
+        "mcp-python-cache": {
+            "driver": "local",
+        },
+    }
+
+
 def create_docker_compose_file(output_path: Path | None = None) -> Path:
     """
     Create a docker-compose.yml file for local development.
@@ -137,10 +154,6 @@ def create_docker_compose_file(output_path: Path | None = None) -> Path:
         output_path = get_project_root() / "docker-compose.yml"
 
     container_config = get_container_config()
-
-    # Import volume config
-    from .volume_config import get_volume_config
-
     volume_config = get_volume_config()
 
     compose_config = {
