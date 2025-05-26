@@ -6,7 +6,7 @@ This directory contains the development container configuration for the MCP Pyth
 
 The `.devcontainer` structure is modularized for clarity, performance, and maintainability:
 
-```
+```structure
 .devcontainer/
 ├── config/                # Configuration files
 │   ├── env/               # Environment variables by category
@@ -62,6 +62,7 @@ The `.devcontainer` structure is modularized for clarity, performance, and maint
 ## Performance Optimizations
 
 ### Core Features
+
 - Python optimization level 2 for faster bytecode execution
 - jemalloc memory allocator for reduced memory usage
 - Full binary precompilation of dependency packages
@@ -69,6 +70,7 @@ The `.devcontainer` structure is modularized for clarity, performance, and maint
 - GPU acceleration with NVIDIA CUDA support (when available)
 
 ### Environment Optimizations
+
 - Python performance: bytecode optimization, worker tuning, uvloop
 - Memory: jemalloc with optimized malloc settings
 - I/O: Optimized schedulers and buffer sizes
@@ -78,6 +80,7 @@ The `.devcontainer` structure is modularized for clarity, performance, and maint
 ## Quick Start
 
 ### Development Tools
+
 ```bash
 # Load developer tools
 source ./tools/dt.sh
@@ -93,6 +96,7 @@ dt modular  # Modular status checker
 ```
 
 ### Performance & System Management
+
 ```bash
 # Apply optimizations
 ./scripts/performance/cpu-performance.sh
@@ -111,6 +115,7 @@ dt modular  # Modular status checker
 ```
 
 ### Orchestration
+
 ```bash
 # Run all optimizations
 ./master-orchestrator.modular.sh
@@ -126,25 +131,25 @@ dt modular  # Modular status checker
 
 The environment variables are organized in modular files by category for better maintainability:
 
-| Category | File | Purpose |
-|----------|------|---------|
-| Python | python.env | Python optimization settings |
-| Memory | memory.env | Memory optimization settings |
-| CPU | cpu.env | CPU and threading optimization |
-| Storage | storage.env | Cache and storage configuration |
-| Docker | docker.env | Container resource settings |
-| GPU | gpu.env | GPU passthrough configuration |
-| System | system.env | System-wide settings |
+| Category | File        | Purpose                         |
+| -------- | ----------- | ------------------------------- |
+| Python   | python.env  | Python optimization settings    |
+| Memory   | memory.env  | Memory optimization settings    |
+| CPU      | cpu.env     | CPU and threading optimization  |
+| Storage  | storage.env | Cache and storage configuration |
+| Docker   | docker.env  | Container resource settings     |
+| GPU      | gpu.env     | GPU passthrough configuration   |
+| System   | system.env  | System-wide settings            |
 
 Key variables that affect performance:
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| PYTHONOPTIMIZE | Python optimization level | 2 |
-| PYTHONSTARTUP | Custom Python startup file | python-startup.py |
-| LD_PRELOAD | Load jemalloc by default | libjemalloc.so.2 |
-| MALLOC_CONF | Memory allocator configuration | background_thread:true |
-| GLOBAL_PYTHON_CACHE_SIZE | Python cache volume size | 8G |
+| Variable                 | Purpose                        | Default                |
+| ------------------------ | ------------------------------ | ---------------------- |
+| PYTHONOPTIMIZE           | Python optimization level      | 2                      |
+| PYTHONSTARTUP            | Custom Python startup file     | python-startup.py      |
+| LD_PRELOAD               | Load jemalloc by default       | libjemalloc.so.2       |
+| MALLOC_CONF              | Memory allocator configuration | background_thread:true |
+| GLOBAL_PYTHON_CACHE_SIZE | Python cache volume size       | 8G                     |
 
 ## Docker Configuration
 
@@ -159,21 +164,27 @@ The Docker setup uses a global configuration system with `GLOBAL_` prefixed vari
 ## Troubleshooting
 
 If you encounter issues:
+
 1. Check that Docker daemon is running
 2. Ensure proper permissions for script execution (`chmod +x`)
 3. Verify environment variable loading with `env | grep PYTHON`
 4. Check logs with `./scripts/utils/log-analyzer.sh`
 
-# Run with parallel processing
+## Run with parallel processing
+
+```bash
 ORCHESTRATOR_PARALLEL=true ./master-orchestrator.modular.sh
 
 # Run specific modules
+
 ./orchestrator/core/main.sh cpu memory
+
 ```
 
 ## 📊 File Size Compliance
 
 All files strictly follow the ≤150 lines requirement:
+
 - **Orchestrator core**: 40-111 lines per module
 - **Development tools**: ≤20 lines each for rapid execution
 - **Validation tests**: 69-99 lines per test suite
@@ -182,6 +193,7 @@ All files strictly follow the ≤150 lines requirement:
 ## 🔧 Modular Environment Configuration
 
 Environment variables are organized into 10 SRP-compliant modules:
+
 - `python.env` - Python optimization settings
 - `memory.env` - Memory optimization settings
 - `cpu.env` - CPU and threading optimization
@@ -196,11 +208,13 @@ Environment variables are organized into 10 SRP-compliant modules:
 ## 🚀 Performance Benchmarks
 
 ### Build Performance
+
 - **Instant subsequent builds** through persistent binary volumes
 - **Parallel compilation** with full CPU utilization
 - **Optimized dependency management** with precompiled wheels
 
 ### Runtime Performance
+
 - **Maximum memory utilization** with optimized allocation
 - **GPU acceleration** for supported workloads
 - **Network optimization** with custom TCP settings
@@ -209,11 +223,13 @@ Environment variables are organized into 10 SRP-compliant modules:
 ## 🔍 System Validation
 
 Run comprehensive system validation:
+
 ```bash
 ./final-validation.sh
 ```
 
 This validates:
+
 - ✅ File size compliance (≤150 lines)
 - ✅ Modular structure integrity
 - ✅ Orchestrator functionality
@@ -223,16 +239,19 @@ This validates:
 ## 📚 Development Workflow
 
 ### 1. Code Development
+
 - Use modular architecture with SRP compliance
 - Keep all files ≤150 lines
 - Follow DRY principles
 
 ### 2. Performance Optimization
+
 - Run orchestrator modules for system optimization
 - Use development tools for monitoring
 - Validate with performance tests
 
 ### 3. Deployment
+
 - Deploy using Docker Swarm for production
 - Monitor using integrated tools
 - Scale automatically based on load
@@ -240,6 +259,7 @@ This validates:
 ## 🎯 Success Metrics
 
 The system achieves:
+
 - **✅ 100% SRP/DRY compliance** - All modules follow single responsibility
 - **✅ Maximum performance** - Full CPU/RAM/GPU utilization
 - **✅ Instant builds** - Persistent binary volumes eliminate rebuild time
@@ -249,6 +269,7 @@ The system achieves:
 ## 🏆 System Status: COMPLETE
 
 All requirements fulfilled:
+
 - ✅ Dramatic performance enhancement with full precompilation
 - ✅ Privileged host privileges and SSD NVMe optimization
 - ✅ Full CPU/RAM utilization with parallel processing
