@@ -128,14 +128,16 @@ class EnvironmentManager:
         # Validate Python version
         if info.python_version < MIN_PYTHON_VERSION:
             errors.append(
-                f"Python version {info.python_version} is below minimum required version {MIN_PYTHON_VERSION}"
+                f"Python version {info.python_version} is below minimum required "
+                f"version {MIN_PYTHON_VERSION}"
             )
             recommendations.append(
                 f"Upgrade Python to at least version {MIN_PYTHON_VERSION}"
             )
         elif info.python_version < RECOMMENDED_PYTHON_VERSION:
             warnings.append(
-                f"Python version {info.python_version} is below recommended version {RECOMMENDED_PYTHON_VERSION}"
+                f"Python version {info.python_version} is below recommended "
+                f"version {RECOMMENDED_PYTHON_VERSION}"
             )
             recommendations.append(
                 f"Consider upgrading Python to version {RECOMMENDED_PYTHON_VERSION}"
@@ -347,10 +349,11 @@ def validate_python_version() -> tuple[bool, str]:
         if current >= RECOMMENDED_PYTHON_VERSION:
             return True, f"Python {current} meets all requirements"
         else:
-            return (
-                True,
-                f"Python {current} meets minimum requirements (recommended: {RECOMMENDED_PYTHON_VERSION})",
+            msg = (
+                f"Python {current} meets minimum requirements "
+                f"(recommended: {RECOMMENDED_PYTHON_VERSION})"
             )
+            return True, msg
     else:
         return False, f"Python {current} is too old (minimum: {MIN_PYTHON_VERSION})"
 

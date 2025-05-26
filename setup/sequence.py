@@ -11,7 +11,6 @@ from typing import Any
 from .environment import (
     check_required_paths,
     create_vscode_directory,
-    create_vscode_extensions_config,
     get_modern_launch_config,
     get_modern_tasks_config,
     get_modern_vscode_settings,
@@ -114,6 +113,9 @@ def run_setup_sequence() -> bool:
 
         extensions_path = vscode_dir / "extensions.json"
         if not extensions_path.exists():
+            # Import this function directly here to avoid circular imports
+            from .environment import create_vscode_extensions_config
+
             extensions_config = create_vscode_extensions_config()
             with open(extensions_path, "w", encoding="utf-8") as f:
                 json.dump(extensions_config, f, indent=2)
