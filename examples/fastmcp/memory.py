@@ -16,16 +16,15 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Self
 
-import asyncpg
+import asyncpg  # type: ignore
 import numpy as np
+from mcp.server.fastmcp import FastMCP
 from openai import AsyncOpenAI
-from pgvector.asyncpg import register_vector  # Import register_vector
+from pgvector.asyncpg import register_vector  # type: ignore
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-
-from mcp.server.fastmcp import FastMCP
 
 MAX_DEPTH = 5
 SIMILARITY_THRESHOLD = 0.7
@@ -64,16 +63,16 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
 async def do_ai[T](
     user_prompt: str,
     system_prompt: str,
-    result_type: type[T] | Annotated,
+    output_type: type[T],
     deps=None,
 ) -> T:
     agent = Agent(
         DEFAULT_LLM_MODEL,
         system_prompt=system_prompt,
-        result_type=result_type,
+        output_type=output_type,
     )
     result = await agent.run(user_prompt, deps=deps)
-    return result.data
+    return result.output
 
 
 @dataclass
