@@ -96,8 +96,12 @@ class SseServerTransport:
         write_stream: MemoryObjectSendStream[SessionMessage]
         write_stream_reader: MemoryObjectReceiveStream[SessionMessage]
 
-        read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
-        write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
+        read_stream_writer, read_stream = anyio.create_memory_object_stream[
+            SessionMessage | Exception
+        ](0)
+        write_stream, write_stream_reader = anyio.create_memory_object_stream[
+            SessionMessage
+        ](0)
 
         session_id = uuid4()
         self._read_stream_writers[session_id] = read_stream_writer
@@ -191,7 +195,9 @@ class SseServerTransport:
             return await response(scope, receive, send)
 
         body = await request.body()
-        logger.debug(f"Received JSON: {body}")
+        logger.debug(
+            f"Received JSON: {body!r}"
+        )  # Fixed: Using !r to format bytes properly
 
         try:
             message = types.JSONRPCMessage.model_validate_json(body)

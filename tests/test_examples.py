@@ -94,11 +94,10 @@ async def test_desktop(monkeypatch):
         assert isinstance(content, TextResourceContents)
         assert isinstance(content.text, str)
         if sys.platform == "win32":
-            file_1 = "/fake/path/file1.txt".replace("/", "\\\\")  # might be a bug
-            file_2 = "/fake/path/file2.txt".replace("/", "\\\\")  # might be a bug
+            file_1 = "/fake/path/file1.txt".replace("/", "\\\\")
+            file_2 = "/fake/path/file2.txt".replace("/", "\\\\")
             assert file_1 in content.text
             assert file_2 in content.text
-            # might be a bug, but the test is passing
         else:
             assert "/fake/path/file1.txt" in content.text
             assert "/fake/path/file2.txt" in content.text
