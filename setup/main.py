@@ -18,6 +18,7 @@ except ImportError:
 
 
 def print_header() -> None:
+    """Print setup header information."""
     print("\n" + "=" * 60)
     print("🐍 MCP Python SDK Setup")
     print("Preparing development environment...")
@@ -25,12 +26,13 @@ def print_header() -> None:
 
 
 def print_footer(success: bool) -> None:
+    """Print setup completion footer."""
     print("\n" + "=" * 60)
     if success:
         print("✅ Setup completed successfully!")
         print("Your MCP Python SDK development environment is ready.")
         print("\nNext steps:")
-        print("1. Open VS Code Insiders")
+        print("1. Open VS Code")
         print("2. Open this project folder")
         print("3. Start developing!")
     else:
@@ -52,3 +54,7 @@ def main() -> int:
     except Exception as e:
         print(f"\n\n💥 Unexpected error: {str(e)}")
         return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

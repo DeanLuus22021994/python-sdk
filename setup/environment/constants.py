@@ -18,7 +18,6 @@ RECOMMENDED_EXTENSIONS = [
     "ms-python.python",
     "ms-python.vscode-pylance",
     "ms-python.black-formatter",
-    "ms-python.isort",
     "ms-python.mypy-type-checker",
     "charliermarsh.ruff",
     "ms-python.debugpy",

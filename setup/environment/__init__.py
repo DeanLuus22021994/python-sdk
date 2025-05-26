@@ -12,12 +12,15 @@ from .constants import (
 )
 from .path_utils import (
     check_required_paths,
+    ensure_directory_exists,
     get_optional_paths_status,
     get_project_root,
 )
 from .python_validator import (
+    check_virtual_environment,
     get_environment_info,
     get_python_version_info,
+    validate_python_environment,
     validate_python_version,
 )
 from .vscode_config import (
@@ -26,6 +29,7 @@ from .vscode_config import (
     create_vscode_extensions_config,
     get_modern_launch_config,
     get_modern_tasks_config,
+    get_modern_vscode_settings,
     get_vscode_settings,
     should_create_settings_json,
 )
@@ -41,12 +45,16 @@ __all__ = [
     "get_project_root",
     "check_required_paths",
     "get_optional_paths_status",
+    "ensure_directory_exists",
     # Python validation
     "get_python_version_info",
     "validate_python_version",
     "get_environment_info",
+    "check_virtual_environment",
+    "validate_python_environment",
     # VS Code configuration
     "get_vscode_settings",
+    "get_modern_vscode_settings",
     "create_vscode_directory",
     "should_create_settings_json",
     "create_modern_vscode_settings",

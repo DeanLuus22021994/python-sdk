@@ -29,8 +29,8 @@ DEV_PACKAGES: list[str] = [
     "pytest",
     "pytest-asyncio",
     "black",
-    "isort",
     "mypy",
+    "ruff",
 ]
 
 

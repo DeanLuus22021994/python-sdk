@@ -16,7 +16,7 @@ except ImportError:
     def validate_python_version() -> tuple[bool, str]:
         """Check if current Python version is compatible."""
         current = sys.version_info[:2]
-        min_version = (3, 8)
+        min_version = (3, 10)
         if current >= min_version:
             msg = f"✓ Python {current[0]}.{current[1]} (meets minimum)"
             return True, msg
