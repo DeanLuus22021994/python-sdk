@@ -8,7 +8,7 @@ container configuration, and other setup parameters.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import Any, ClassVar
 
 __all__ = [
     "PerformanceSettings",
@@ -127,14 +127,13 @@ class ContainerConfig:
         if "python:" in self.base_image:
             version_part = self.base_image.split("python:")[1].split("-")[0]
             return version_part
-        return "unknown"
+        return "unknown" @ property
 
-    @property
     def is_slim_image(self) -> bool:
         """Check if using a slim image variant."""
         return "slim" in self.base_image
 
-    def get_docker_compose_config(self) -> dict[str, str | int]:
+    def get_docker_compose_config(self) -> dict[str, Any]:
         """Generate Docker Compose configuration."""
         return {
             "image": self.base_image,

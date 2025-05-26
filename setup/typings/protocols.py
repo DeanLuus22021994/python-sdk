@@ -10,9 +10,6 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from .core import SetupResult
-from .environment import ValidationDetails
-
 __all__ = [
     "Validator",
     "SetupManager",
@@ -28,9 +25,7 @@ class Validator(Protocol):
 
     Defines the interface that all validation components must implement
     to ensure consistent validation behavior across the setup system.
-    """
-
-    def validate(self) -> ValidationDetails:
+    """    def validate(self) -> "ValidationDetails":
         """
         Perform validation and return detailed results.
 

@@ -9,10 +9,39 @@ and system information.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum, auto
 from pathlib import Path
 from typing import NamedTuple
 
-from .enums import ValidationStatus
+
+class ValidationStatus(Enum):
+    """Status of validation operations."""
+
+    VALID = auto()
+    """Validation passed successfully."""
+
+    WARNING = auto()
+    """Validation passed with warnings."""
+
+    ERROR = auto()
+    """Validation failed with errors."""
+
+    PENDING = auto()
+    """Validation is in progress."""
+
+    def __str__(self) -> str:
+        return self.name.lower()
+
+    @property
+    def is_successful(self) -> bool:
+        """Check if validation was successful (valid or warning)."""
+        return self in (ValidationStatus.VALID, ValidationStatus.WARNING)
+
+    @property
+    def is_failure(self) -> bool:
+        """Check if validation failed."""
+        return self == ValidationStatus.ERROR
+
 
 __all__ = [
     "PythonVersion",
