@@ -3,21 +3,20 @@ Environment Configuration
 Centralized environment variable definitions and validation for the MCP Python SDK setup
 """
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
 
-# Python version requirements
-MIN_PYTHON_VERSION = (3, 10)
-RECOMMENDED_PYTHON_VERSION = (3, 11)
+from .constants import (
+    MIN_PYTHON_VERSION,
+    OPTIONAL_PROJECT_PATHS,
+    RECOMMENDED_PYTHON_VERSION,
+    REQUIRED_PROJECT_PATHS,
+    PythonVersion,
+)
 
 # Project structure requirements
-REQUIRED_PROJECT_PATHS = ["src/mcp", "pyproject.toml", ".vscode"]
-
-# Optional project paths
-OPTIONAL_PROJECT_PATHS = ["tests", "docs", "examples"]
-
-# VS Code configuration
 VSCODE_SETTINGS: dict[str, Any] = {
     "python.defaultInterpreterPath": "python",
     "python.analysis.autoImportCompletions": True,
@@ -194,7 +193,7 @@ def get_project_root() -> Path:
     """
     # Start from the current file and go up to find the project root
     current_file = Path(__file__)
-    project_root = current_file.parent.parent
+    project_root = current_file.parent.parent.parent
 
     # Verify this is actually the project root by checking for key files
     if (project_root / "pyproject.toml").exists():
@@ -226,21 +225,18 @@ def validate_python_version() -> tuple[bool, str]:
     Returns:
         Tuple of (is_valid, message)
     """
-    current = get_python_version_info()
+    current = PythonVersion(*get_python_version_info())
 
     if current >= MIN_PYTHON_VERSION:
         if current >= RECOMMENDED_PYTHON_VERSION:
-            status = "✓ Python {}.{} (recommended version)".format(*current)
+            return True, f"Python {current} meets all requirements"
         else:
-            status = "✓ Python {}.{} (meets minimum {}.{})".format(
-                *current, *MIN_PYTHON_VERSION
+            return (
+                True,
+                f"Python {current} meets minimum requirements (recommended: {RECOMMENDED_PYTHON_VERSION})",
             )
-        return True, status
     else:
-        status = "✗ Python {}.{} (requires {}.{}+)".format(
-            *current, *MIN_PYTHON_VERSION
-        )
-        return False, status
+        return False, f"Python {current} is too old (minimum: {MIN_PYTHON_VERSION})"
 
 
 def get_environment_info() -> dict[str, str]:
@@ -305,8 +301,6 @@ def should_create_settings_json() -> bool:
     Returns:
         True if settings.json doesn't exist or is invalid
     """
-    import json
-
     project_root = get_project_root()
     settings_path = project_root / ".vscode" / "settings.json"
 
@@ -316,6 +310,46 @@ def should_create_settings_json() -> bool:
     try:
         with open(settings_path, encoding="utf-8") as f:
             json.load(f)
-        return False  # Valid JSON exists
+        return False  # File exists and is valid JSON
     except (json.JSONDecodeError, Exception):
-        return True  # Invalid or unreadable JSON
+        return True  # File exists but is invalid
+
+
+def create_modern_vscode_settings() -> bool:
+    """
+    Create modern VS Code settings files.
+
+    Returns:
+        True if settings were created successfully, False otherwise
+    """
+    try:
+        vscode_dir = create_vscode_directory()
+        settings_path = vscode_dir / "settings.json"
+
+        if should_create_settings_json():
+            settings = get_modern_vscode_settings()
+            with open(settings_path, "w", encoding="utf-8") as f:
+                json.dump(settings, f, indent=2)
+
+        # Create other configuration files
+        launch_path = vscode_dir / "launch.json"
+        if not launch_path.exists():
+            launch_config = get_modern_launch_config()
+            with open(launch_path, "w", encoding="utf-8") as f:
+                json.dump(launch_config, f, indent=2)
+
+        tasks_path = vscode_dir / "tasks.json"
+        if not tasks_path.exists():
+            tasks_config = get_modern_tasks_config()
+            with open(tasks_path, "w", encoding="utf-8") as f:
+                json.dump(tasks_config, f, indent=2)
+
+        extensions_path = vscode_dir / "extensions.json"
+        if not extensions_path.exists():
+            extensions_config = create_vscode_extensions_config()
+            with open(extensions_path, "w", encoding="utf-8") as f:
+                json.dump(extensions_config, f, indent=2)
+
+        return True
+    except Exception:
+        return False
