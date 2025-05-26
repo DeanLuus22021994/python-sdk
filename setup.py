@@ -9,7 +9,7 @@ Usage:
 import sys
 from pathlib import Path
 
-# Add the setup module to path
+# Add the setup folder to the path for absolute imports
 setup_path = Path(__file__).parent / "setup"
 sys.path.insert(0, str(setup_path.parent))
 

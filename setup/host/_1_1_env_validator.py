@@ -12,9 +12,15 @@ def validate_python_version() -> tuple[bool, str]:
     min_version = (3, 10)
     current = sys.version_info[:2]
     if current >= min_version:
-        msg = f"✓ Python {current[0]}.{current[1]} (meets {min_version[0]}.{min_version[1]})"
+        msg = (
+            f"✓ Python {current[0]}.{current[1]} (meets "
+            f"{min_version[0]}.{min_version[1]})"
+        )
         return True, msg
-    msg = f"✗ Python {current[0]}.{current[1]} (requires {min_version[0]}.{min_version[1]}+)"
+    msg = (
+        f"✗ Python {current[0]}.{current[1]} (requires "
+        f"{min_version[0]}.{min_version[1]}+)"
+    )
     return False, msg
 
 

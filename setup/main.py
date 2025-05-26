@@ -3,14 +3,11 @@ Setup Module 2.1: Main Orchestration
 Coordinates the entire setup process
 """
 
-import sys
-from pathlib import Path
-
-# These modules (1.x) form part of the primary sequence.
-from .host._1_1_env_validator import validate_environment
-from .host._1_2_package_manager import setup_packages
-from .host._1_3_sdk_validator import validate_sdk
-from .host._1_4_vscode_config import setup_vscode_config
+# Import modules from host (sequence set 1.x)
+from setup.host._1_1_env_validator import validate_environment
+from setup.host._1_2_package_manager import setup_packages
+from setup.host._1_3_sdk_validator import validate_sdk
+from setup.host._1_4_vscode_config import setup_vscode_config
 
 
 def print_header() -> None:

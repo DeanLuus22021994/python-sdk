@@ -40,10 +40,7 @@ def validate_performance_module() -> tuple[bool, str]:
 def validate_sdk() -> bool:
     """Main SDK validation flow."""
     print("🔧 Validating MCP SDK...")
-    checks = [
-        validate_mcp_structure(),
-        validate_performance_module()
-    ]
+    checks = [validate_mcp_structure(), validate_performance_module()]
     success = True
     for passed, message in checks:
         print(f"  {message}")
