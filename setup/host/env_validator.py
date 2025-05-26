@@ -212,21 +212,14 @@ class HostEnvironmentValidator:
     def _check_disk_space(self) -> bool:
         """Check available disk space with platform compatibility."""
         try:
-            if platform.system() == "Windows":
-                # Use shutil.disk_usage for Windows compatibility
-                import shutil
+            # Modern cross-platform approach using shutil
+            import shutil
 
-                _, _, free = shutil.disk_usage(self.workspace_root)
-                return free > 1024 * 1024 * 1024  # 1GB
-            else:
-                # Use os.statvfs for Unix-like systems with hasattr check
-                if hasattr(os, "statvfs"):
-                    stat = os.statvfs(self.workspace_root)
-                    free_bytes = stat.f_frsize * stat.f_bavail
-                    return free_bytes > 1024 * 1024 * 1024
-            return True  # Can't check, assume OK
+            total, used, free = shutil.disk_usage(self.workspace_root)
+            return free > 1024 * 1024 * 1024  # 1GB minimum
+
         except Exception:
-            return True
+            return True  # Can't check, assume OK
 
     def _check_memory_requirements(self) -> bool:
         """Check memory requirements with optional psutil."""
