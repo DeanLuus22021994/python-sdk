@@ -143,8 +143,8 @@ class PerformanceOptimizer:
 
         if algorithm == "lz4" and LZ4_AVAILABLE and _lz4_module:
             return _lz4_module.compress(data, compression_level=1)
-        elif algorithm == "zstd" and ZSTD_AVAILABLE:
-            cctx = zstd.ZstdCompressor(level=1)  # Fast compression
+        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd_module:
+            cctx = _zstd_module.ZstdCompressor(level=1)  # Fast compression
             return cctx.compress(data)
 
         return data
