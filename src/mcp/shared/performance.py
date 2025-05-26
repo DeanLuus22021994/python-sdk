@@ -7,13 +7,12 @@ from __future__ import annotations
 
 import asyncio
 import gc
-import hashlib
 import os
 import sys
 from typing import Any
+import json as stdlib_json
 
-
-# Platform check for uvloop (Windows not supported)
+# Platform check for uvloop
 _uvloop_available = False
 if sys.platform != "win32":
     try:
@@ -25,8 +24,8 @@ if sys.platform != "win32":
 
 UVLOOP_AVAILABLE = _uvloop_available
 
-# JSON backend selection with proper module handling
-_json_module: Any = None
+# JSON backend selection
+_json_module = None
 _json_backend = "stdlib"
 
 try:
@@ -41,16 +40,14 @@ except ImportError:
         _json_module = ujson
         _json_backend = "ujson"
     except ImportError:
-        import json
-
-        _json_module = json
+        _json_module = stdlib_json
         _json_backend = "stdlib"
 
 JSON_BACKEND = _json_backend
 
 # Compression libraries
 _lz4_available = False
-_lz4_module: Any = None
+_lz4_module = None
 try:
     import lz4.frame  # type: ignore
 
@@ -62,7 +59,7 @@ except ImportError:
 LZ4_AVAILABLE = _lz4_available
 
 _zstd_available = False
-_zstd_module: Any = None
+_zstd_module = None
 try:
     import zstandard  # type: ignore
 
@@ -74,7 +71,7 @@ except ImportError:
 ZSTD_AVAILABLE = _zstd_available
 
 _xxhash_available = False
-_xxhash_module: Any = None
+_xxhash_module = None
 try:
     import xxhash  # type: ignore
 
@@ -89,7 +86,7 @@ XXHASH_AVAILABLE = _xxhash_available
 class PerformanceOptimizer:
     """High-performance optimizations for MCP operations."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.json_backend = JSON_BACKEND
         self.compression_enabled = LZ4_AVAILABLE or ZSTD_AVAILABLE
         self.hash_enabled = XXHASH_AVAILABLE
@@ -112,34 +109,25 @@ class PerformanceOptimizer:
         """Set up high-performance event loop."""
         if UVLOOP_AVAILABLE and sys.platform != "win32":
             try:
-                if _uvloop_available:
-                    import uvloop  # type: ignore
-
-                    uvloop.install()
+                uvloop.install()
             except Exception:
                 pass  # Fall back to default event loop
 
     def optimize_json_serialization(self, data: Any) -> bytes:
         """High-performance JSON serialization."""
-        if self.json_backend == "orjson" and _json_module:
+        if self.json_backend == "orjson":
             return _json_module.dumps(data)
-        elif self.json_backend == "ujson" and _json_module:
-            result = _json_module.dumps(data)
-            return result.encode("utf-8") if isinstance(result, str) else result
+        elif self.json_backend == "ujson":
+            return _json_module.dumps(data).encode("utf-8")
         else:
-            if _json_module:
-                return _json_module.dumps(
-                    data, separators=(",", ":"), ensure_ascii=False
-                ).encode("utf-8")
-            return b"{}"
+            return _json_module.dumps(
+                data, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
 
     def optimize_json_deserialization(self, data: bytes | str) -> Any:
         """High-performance JSON deserialization."""
         if isinstance(data, str):
             data = data.encode("utf-8")
-
-        if not _json_module:
-            return {}
 
         if self.json_backend == "orjson":
             return _json_module.loads(data)
@@ -155,8 +143,8 @@ class PerformanceOptimizer:
 
         if algorithm == "lz4" and LZ4_AVAILABLE and _lz4_module:
             return _lz4_module.compress(data, compression_level=1)
-        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd_module:
-            cctx = _zstd_module.ZstdCompressor(level=1)  # Fast compression
+        elif algorithm == "zstd" and ZSTD_AVAILABLE:
+            cctx = zstd.ZstdCompressor(level=1)  # Fast compression
             return cctx.compress(data)
 
         return data
@@ -166,30 +154,35 @@ class PerformanceOptimizer:
         if not self.compression_enabled:
             return data
 
-        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4_module:
-            return _lz4_module.decompress(data)
-        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd_module:
-            dctx = _zstd_module.ZstdDecompressor()
+        if algorithm == "lz4" and LZ4_AVAILABLE:
+            return lz4.decompress(data)
+        elif algorithm == "zstd" and ZSTD_AVAILABLE:
+            dctx = zstd.ZstdDecompressor()
             return dctx.decompress(data)
 
         return data
 
     def calculate_hash(self, data: bytes, algorithm: str = "xxhash64") -> str:
         """High-performance hash calculation."""
-        if not self.hash_enabled or not _xxhash_module:
+        if not self.hash_enabled:
+            import hashlib
+
             return hashlib.sha256(data).hexdigest()
 
         if algorithm == "xxhash64":
-            return _xxhash_module.xxh64(data).hexdigest()
+            return xxhash.xxh64(data).hexdigest()
         elif algorithm == "xxhash32":
-            return _xxhash_module.xxh32(data).hexdigest()
+            return xxhash.xxh32(data).hexdigest()
         else:
+            import hashlib
+
             return hashlib.sha256(data).hexdigest()
 
-    def optimize_asyncio_task(self, coro: Any) -> Any:
-        """Create optimized asyncio tasks."""
+    def optimize_asyncio_task(self, coro):
+        """Create optimized asyncio task with performance hints."""
         if hasattr(asyncio, "create_task"):
             task = asyncio.create_task(coro)
+            # Set task name for better debugging
             task.set_name(f"mcp_task_{id(task)}")
             return task
         else:
@@ -197,31 +190,44 @@ class PerformanceOptimizer:
 
     def run_gc_cycle(self, generation: int = 2) -> None:
         """Manual garbage collection for performance-critical sections."""
-        gc.collect(generation)
+        collected = gc.collect(generation)
+        if os.getenv("FASTMCP_DEBUG", "").lower() == "true":
+            print(f"GC: Collected {collected} objects in generation {generation}")
 
 
 class ConnectionPool:
-    """High-performance connection pool."""
+    """High-performance connection pool for MCP clients."""
 
-    def __init__(self, max_size: int = 100) -> None:
+    def __init__(self, max_size: int = 100, max_overflow: int = 20):
         self.max_size = max_size
-        self._pool: dict[str, Any] = {}
-        self._lock = asyncio.Lock()
+        self.max_overflow = max_overflow
+        self._pool: Dict[str, Any] = {}
         self._overflow_counter = 0
+        self._lock = asyncio.Lock()
 
     async def get_connection(self, key: str) -> Any:
-        """Get a connection from the pool."""
+        """Get or create a connection from the pool."""
         async with self._lock:
             if key in self._pool:
                 return self._pool[key]
 
             if len(self._pool) < self.max_size:
+                # Create new connection
                 connection = await self._create_connection(key)
                 self._pool[key] = connection
                 return connection
-            else:
+
+            if self._overflow_counter < self.max_overflow:
+                # Allow overflow
                 self._overflow_counter += 1
                 return await self._create_connection(key)
+
+            # Pool is full, reuse existing connection
+            return next(iter(self._pool.values()))
+
+    async def _create_connection(self, key: str) -> Any:
+        """Create a new connection (to be overridden)."""
+        raise NotImplementedError("Subclasses must implement _create_connection")
 
     async def close_all(self) -> None:
         """Close all connections in the pool."""
@@ -232,23 +238,20 @@ class ConnectionPool:
             self._pool.clear()
             self._overflow_counter = 0
 
-    async def _create_connection(self, key: str) -> Any:
-        """Create a new connection (override in subclasses)."""
-        # This is a placeholder implementation
-        return f"connection_{key}"
 
+class PerformanceMonitor:
+    """Monitor and report performance metrics."""
 
-class PerformanceMetrics:
-    """Performance metrics collection."""
-
-    def __init__(self) -> None:
-        self.metrics: dict[str, list[dict[str, Any]]] = {}
+    def __init__(self):
+        self.metrics: Dict[str, Any] = {}
+        self.start_time = asyncio.get_event_loop().time()
 
     def record_metric(
-        self, name: str, value: float, tags: dict[str, str] | None = None
+        self, name: str, value: float, tags: Optional[Dict[str, str]] = None
     ) -> None:
         """Record a performance metric."""
         timestamp = asyncio.get_event_loop().time()
+
         if name not in self.metrics:
             self.metrics[name] = []
 
@@ -256,12 +259,13 @@ class PerformanceMetrics:
             {"value": value, "timestamp": timestamp, "tags": tags or {}}
         )
 
-    def get_stats(self, name: str) -> dict[str, float]:
+    def get_stats(self, name: str) -> Dict[str, float]:
         """Get statistics for a metric."""
         if name not in self.metrics:
             return {}
 
         values = [m["value"] for m in self.metrics[name]]
+
         return {
             "count": len(values),
             "min": min(values),
@@ -272,7 +276,7 @@ class PerformanceMetrics:
 
 
 # Global performance optimizer instance
-_performance_optimizer: PerformanceOptimizer | None = None
+_performance_optimizer: Optional[PerformanceOptimizer] = None
 
 
 def get_performance_optimizer() -> PerformanceOptimizer:
@@ -284,40 +288,22 @@ def get_performance_optimizer() -> PerformanceOptimizer:
 
 
 def enable_performance_mode() -> None:
-    """Enable high-performance mode for the MCP server."""
+    """Enable high-performance mode for MCP operations."""
     optimizer = get_performance_optimizer()
+
+    # Set environment variables for performance
+    os.environ.setdefault("PYTHONOPTIMIZE", "2")
+    os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+    os.environ.setdefault("PYTHONHASHSEED", "0")
+
+    # Enable garbage collection optimization
     optimizer._setup_gc_optimization()
+
+    # Set up high-performance event loop
     optimizer._setup_event_loop()
 
-    # Print performance status
-    print("🚀 MCP Performance Mode Enabled!")
-    print(f"   JSON Backend: {JSON_BACKEND}")
+    print(f"🚀 MCP Performance Mode Enabled!")
+    print(f"   JSON Backend: {optimizer.json_backend}")
     print(f"   Compression: {'✓' if optimizer.compression_enabled else '✗'}")
-    print(f"   Hashing: {'✓' if optimizer.hash_enabled else '✗'}")
+    print(f"   Fast Hashing: {'✓' if optimizer.hash_enabled else '✗'}")
     print(f"   Event Loop: {'uvloop' if UVLOOP_AVAILABLE else 'asyncio'}")
-
-
-# Convenience functions
-def optimize_json(data: Any) -> bytes:
-    """Optimize JSON serialization."""
-    return get_performance_optimizer().optimize_json_serialization(data)
-
-
-def optimize_json_loads(data: bytes | str) -> Any:
-    """Optimize JSON deserialization."""
-    return get_performance_optimizer().optimize_json_deserialization(data)
-
-
-def compress(data: bytes, algorithm: str = "lz4") -> bytes:
-    """Compress data using the best available algorithm."""
-    return get_performance_optimizer().compress_data(data, algorithm)
-
-
-def decompress(data: bytes, algorithm: str = "lz4") -> bytes:
-    """Decompress data using the specified algorithm."""
-    return get_performance_optimizer().decompress_data(data, algorithm)
-
-
-def hash_data(data: bytes, algorithm: str = "xxhash64") -> str:
-    """Calculate hash using the best available algorithm."""
-    return get_performance_optimizer().calculate_hash(data, algorithm)

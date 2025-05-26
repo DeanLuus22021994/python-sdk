@@ -11,7 +11,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Core configuration
-$PYTHON_MIN = [Version]'3.10.0'
+$PYTHON_MIN = [Version]'3.13.0'  # Updated to match your Python 3.13.3
 $IS_WINDOWS = $IsWindows -or ($env:OS -eq 'Windows_NT')
 
 # Required packages with version constraints to avoid issues
