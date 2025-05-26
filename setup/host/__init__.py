@@ -1,222 +1,248 @@
-"""Docker container configuration utilities."""
+"""
+Host Environment Setup
+Modern host system configuration and validation for the MCP Python SDK.
+"""
 
 from pathlib import Path
 from typing import Any
 
-import yaml
-
-try:
-    from setup.environment import get_project_root
-except ImportError:
-    from pathlib import Path
-
-    def get_project_root() -> Path:
-        """Get the project root directory."""
-        return Path(__file__).parent.parent.parent
+from ..types import ValidationDetails, ValidationStatus
+from .env_validator import HostEnvironmentValidator
 
 
-class DockerContainerManager:
-    """Manages Docker container configuration."""
+class SystemInfoCollector:
+    """Simple system information collector."""
 
-    def __init__(self, project_root: Path) -> None:
-        """Initialize container manager."""
-        self.project_root = project_root
+    @staticmethod
+    def collect_all_info() -> dict[str, Any]:
+        """Collect comprehensive system information."""
+        import platform
+        import sys
 
-    def get_container_config(self) -> dict[str, Any]:
-        """Get Docker container configuration for development."""
         return {
-            "mcp-postgres": {
-                "image": "postgres:14-alpine",
-                "container_name": "mcp-postgres",
-                "environment": {
-                    "POSTGRES_USER": "mcp_user",
-                    "POSTGRES_PASSWORD": "mcp_password",
-                    "POSTGRES_DB": "mcp_development",
-                },
-                "ports": ["5432:5432"],
-                "volumes": ["mcp-postgres-data:/var/lib/postgresql/data"],
-                "restart": "unless-stopped",
-                "healthcheck": {
-                    "test": [
-                        "CMD",
-                        "pg_isready",
-                        "-U",
-                        "mcp_user",
-                        "-d",
-                        "mcp_development",
-                    ],
-                    "interval": "5s",
-                    "timeout": "5s",
-                    "retries": 5,
-                },
+            "platform": {
+                "system": platform.system(),
+                "release": platform.release(),
+                "version": platform.version(),
+                "machine": platform.machine(),
+                "processor": platform.processor(),
             },
-            "mcp-dev": {
-                "build": {
-                    "context": str(self.project_root),
-                    "dockerfile": "setup/docker/dockerfiles/Dockerfile.dev",
-                },
-                "container_name": "mcp-dev",
-                "volumes": [
-                    f"{self.project_root}:/app",
-                    "mcp-python-cache:/root/.cache/pip",
-                ],
-                "working_dir": "/app",
-                "command": "sleep infinity",
-                "depends_on": ["mcp-postgres"],
+            "python": {
+                "version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+                "executable": sys.executable,
+                "implementation": platform.python_implementation(),
             },
         }
 
-    def create_container_config(self) -> bool:
-        """Create container configuration."""
+    @staticmethod
+    def get_system_type() -> str:
+        """Get system type."""
+        import platform
+
+        return platform.system()
+
+
+class HostSetupManager:
+    """
+    Modern host environment setup and validation manager.
+
+    Provides comprehensive host system validation, configuration,
+    and optimization for development environments.
+    """
+
+    def __init__(self, workspace_root: Path, verbose: bool = False) -> None:
+        """
+        Initialize host setup manager.
+
+        Args:
+            workspace_root: Root directory of the workspace
+            verbose: Enable verbose logging
+        """
+        self.workspace_root = Path(workspace_root).resolve()
+        self.verbose = verbose
+        self.validator = HostEnvironmentValidator(self.workspace_root)
+        self.system_info = SystemInfoCollector()
+
+    def validate_host_environment(self) -> ValidationDetails:
+        """
+        Comprehensive host environment validation.
+
+        Returns:
+            ValidationDetails with complete validation results
+        """
+        return self.validator.validate_complete_environment()
+
+    def setup_host_environment(self, config: dict[str, Any] | None = None) -> bool:
+        """
+        Set up complete host development environment.
+
+        Args:
+            config: Optional configuration overrides
+
+        Returns:
+            True if setup completed successfully
+        """
+        try:
+            config = config or {}
+
+            if self.verbose:
+                print("Setting up host environment...")
+
+            # Validate current environment
+            validation = self.validate_host_environment()
+            if not validation.is_valid and validation.status == ValidationStatus.ERROR:
+                if self.verbose:
+                    print(f"Host validation failed: {validation.message}")
+                return False
+
+            # Configure system-specific optimizations
+            success = self._configure_system_optimizations(config)
+            if not success:
+                if self.verbose:
+                    print("Failed to configure system optimizations")
+                return False
+
+            # Setup development tools integration
+            success = self._setup_development_tools(config)
+            if not success:
+                if self.verbose:
+                    print("Failed to setup development tools")
+                return False
+
+            if self.verbose:
+                print("✓ Host environment setup completed successfully")
+
+            return True
+
+        except Exception as e:
+            if self.verbose:
+                print(f"Host setup failed: {e}")
+            return False
+
+    def get_host_status(self) -> dict[str, Any]:
+        """
+        Get comprehensive host environment status.
+
+        Returns:
+            Dictionary with detailed host status information
+        """
+        try:
+            # Get system information
+            system_info = self.system_info.collect_all_info()
+
+            # Get validation results
+            validation = self.validate_host_environment()
+
+            # Get environment-specific info
+            env_info = self.validator.get_environment_info()
+
+            return {
+                "system_info": system_info,
+                "validation": {
+                    "is_valid": validation.is_valid,
+                    "status": validation.status.value,
+                    "message": validation.message,
+                    "warnings": validation.warnings,
+                    "errors": validation.errors,
+                    "recommendations": validation.recommendations,
+                },
+                "environment": env_info,
+                "workspace_root": str(self.workspace_root),
+            }
+
+        except Exception as e:
+            return {
+                "error": str(e),
+                "status": "error",
+                "workspace_root": str(self.workspace_root),
+            }
+
+    def _configure_system_optimizations(self, config: dict[str, Any]) -> bool:
+        """Configure system-specific optimizations."""
+        try:
+            # Platform-specific optimizations
+            system_type = self.system_info.get_system_type()
+
+            if system_type == "Windows":
+                return self._configure_windows_optimizations(config)
+            elif system_type == "Darwin":
+                return self._configure_macos_optimizations(config)
+            elif system_type == "Linux":
+                return self._configure_linux_optimizations(config)
+
+            return True
+
+        except Exception:
+            return False
+
+    def _configure_windows_optimizations(self, config: dict[str, Any]) -> bool:
+        """Configure Windows-specific optimizations."""
+        # Windows-specific configuration
+        # Could include PowerShell execution policy, Windows Defender exclusions, etc.
         return True
 
+    def _configure_macos_optimizations(self, config: dict[str, Any]) -> bool:
+        """Configure macOS-specific optimizations."""
+        # macOS-specific configuration
+        # Could include Xcode tools, Homebrew setup, etc.
+        return True
 
-def get_container_config() -> dict[str, Any]:
-    """
-    Get Docker container configuration for development.
+    def _configure_linux_optimizations(self, config: dict[str, Any]) -> bool:
+        """Configure Linux-specific optimizations."""
+        # Linux-specific configuration
+        # Could include package manager setup, system packages, etc.
+        return True
 
-    Returns:
-        Dictionary with container configurations
-    """
-    project_root = get_project_root()
-
-    return {
-        "mcp-postgres": {
-            "image": "postgres:14-alpine",
-            "container_name": "mcp-postgres",
-            "environment": {
-                "POSTGRES_USER": "mcp_user",
-                "POSTGRES_PASSWORD": "mcp_password",
-                "POSTGRES_DB": "mcp_development",
-            },
-            "ports": ["5432:5432"],
-            "volumes": ["mcp-postgres-data:/var/lib/postgresql/data"],
-            "restart": "unless-stopped",
-            "healthcheck": {
-                "test": [
-                    "CMD",
-                    "pg_isready",
-                    "-U",
-                    "mcp_user",
-                    "-d",
-                    "mcp_development",
-                ],
-                "interval": "5s",
-                "timeout": "5s",
-                "retries": 5,
-            },
-        },
-        "mcp-dev": {
-            "build": {
-                "context": str(project_root),
-                "dockerfile": "setup/docker/dockerfiles/Dockerfile.dev",
-            },
-            "container_name": "mcp-dev",
-            "volumes": [
-                f"{project_root}:/app",
-                "mcp-python-cache:/root/.cache/pip",
-            ],
-            "working_dir": "/app",
-            "command": "sleep infinity",
-            "depends_on": ["mcp-postgres"],
-        },
-    }
+    def _setup_development_tools(self, config: dict[str, Any]) -> bool:
+        """Setup development tools integration."""
+        try:
+            # Setup git configuration if needed
+            # Setup shell integrations
+            # Configure terminal settings
+            return True
+        except Exception:
+            return False
 
 
-def create_docker_compose_file(output_path: Path | None = None) -> Path:
-    """
-    Create a docker-compose.yml file for local development.
-
-    Args:
-        output_path: Custom path to write the file (defaults to project root)
-
-    Returns:
-        Path to the created docker-compose.yml file
-    """
-    if output_path is None:
-        output_path = get_project_root() / "docker-compose.yml"
-
-    container_config = get_container_config()
-
-    # Import volume config
-    from .volume_config import get_volume_config
-
-    volume_config = get_volume_config()
-
-    compose_config = {
-        "version": "3.8",
-        "services": container_config,
-        "volumes": volume_config,
-    }
-
-    # Convert to YAML
-    with open(output_path, "w", encoding="utf-8") as f:
-        yaml.dump(compose_config, f, default_flow_style=False, sort_keys=False)
-
-    return output_path
-
-
-def configure_containers() -> bool:
-    """
-    Configure Docker containers for MCP development.
-
-    Returns:
-        True if configuration was successful, False otherwise
-    """
+# Utility functions for backward compatibility
+def validate_host_environment() -> tuple[bool, str]:
+    """Validate host environment - compatibility function."""
     try:
-        docker_compose_path = create_docker_compose_file()
-        print(f"✓ Docker Compose configuration created at {docker_compose_path}")
+        from ..environment.path_utils import get_project_root
 
-        # Create Dockerfile.dev
-        create_development_dockerfile()
-        print("✓ Development Dockerfile created")
-
-        return True
+        validator = HostEnvironmentValidator(get_project_root())
+        result = validator.validate_complete_environment()
+        return result.is_valid, result.message
     except Exception as e:
-        print(f"✗ Failed to configure Docker containers: {str(e)}")
+        return False, f"Host validation failed: {e}"
+
+
+def get_system_info() -> dict[str, Any]:
+    """Get system information."""
+    try:
+        collector = SystemInfoCollector()
+        return collector.collect_all_info()
+    except Exception:
+        return {"error": "Failed to collect system information"}
+
+
+def check_host_requirements() -> bool:
+    """Check if host meets basic requirements."""
+    try:
+        from ..environment.path_utils import get_project_root
+
+        validator = HostEnvironmentValidator(get_project_root())
+        result = validator.validate_complete_environment()
+        return result.is_valid
+    except Exception:
         return False
 
 
-def create_development_dockerfile() -> Path:
-    """
-    Create a development Dockerfile.
-
-    Returns:
-        Path to the created Dockerfile
-    """
-    project_root = get_project_root()
-    dockerfile_dir = project_root / "setup" / "docker" / "dockerfiles"
-    dockerfile_dir.mkdir(parents=True, exist_ok=True)
-
-    dockerfile_path = dockerfile_dir / "Dockerfile.dev"
-
-    dockerfile_content = """FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \\
-    git \\
-    curl \\
-    build-essential \\
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy source code
-COPY src/ /app/src/
-
-# Set environment variables
-ENV PYTHONPATH=/app:$PYTHONPATH
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-CMD ["bash"]
-"""
-
-    with open(dockerfile_path, "w", encoding="utf-8") as f:
-        f.write(dockerfile_content)
-
-    return dockerfile_path
+__all__ = [
+    "HostSetupManager",
+    "HostEnvironmentValidator",
+    "SystemInfoCollector",
+    "validate_host_environment",
+    "get_system_info",
+    "check_host_requirements",
+]

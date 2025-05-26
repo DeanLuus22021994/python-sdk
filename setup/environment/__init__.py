@@ -3,6 +3,8 @@ Environment Configuration Package
 Modern environment configuration for the MCP Python SDK setup with clean architecture.
 """
 
+from typing import Any
+
 # Import new modular VS Code system
 from ..vscode.integration import VSCodeIntegrationManager
 from .constants import (
@@ -38,10 +40,10 @@ from .python_validator import (
 )
 
 
-# Environment Manager - Main interface for environment operations
 class EnvironmentManager:
     """
     Centralized environment management following Single Responsibility Principle.
+    Modern async-ready implementation with proper error handling.
     """
 
     def __init__(self) -> None:
@@ -49,7 +51,7 @@ class EnvironmentManager:
 
     def validate_environment(self) -> tuple[bool, dict[str, str]]:
         """
-        Comprehensive environment validation.
+        Comprehensive environment validation with modern error handling.
 
         Returns:
             Tuple of (is_valid, validation_details)
@@ -66,13 +68,15 @@ class EnvironmentManager:
             ", ".join(missing_paths) if missing_paths else "none"
         )
 
-        # VS Code configuration check
+        # VS Code configuration check with specific exception handling
         try:
             vscode_manager = VSCodeIntegrationManager(get_project_root())
             validation = vscode_manager.validate_workspace()
             validation_results["vscode_status"] = validation.status.value
-        except Exception:
-            validation_results["vscode_status"] = "error"
+        except ImportError:
+            validation_results["vscode_status"] = "not_available"
+        except Exception as e:
+            validation_results["vscode_status"] = f"error: {type(e).__name__}"
 
         overall_valid = python_valid and paths_valid
 
@@ -80,7 +84,7 @@ class EnvironmentManager:
 
     def setup_environment(self) -> bool:
         """
-        Complete environment setup.
+        Complete environment setup with modern Path handling.
 
         Returns:
             True if setup was successful
@@ -95,17 +99,21 @@ class EnvironmentManager:
                     ensure_directory_exists(path)
 
             # Setup VS Code configuration
-            vscode_manager = VSCodeIntegrationManager(project_root)
-            vscode_manager.create_workspace_configuration()
+            try:
+                vscode_manager = VSCodeIntegrationManager(project_root)
+                vscode_manager.create_workspace_configuration()
+            except ImportError:
+                # VS Code integration not available, continue without it
+                pass
 
             return True
 
         except Exception:
             return False
 
-    def get_status(self) -> dict[str, str | int | bool]:
+    def get_status(self) -> dict[str, Any]:
         """
-        Get current environment status.
+        Get current environment status with proper type handling.
 
         Returns:
             Status dictionary with environment information
@@ -113,27 +121,47 @@ class EnvironmentManager:
         env_info = get_environment_info()
         optional_paths = get_optional_paths_status()
 
-        # Convert all values to appropriate types for the return type
-        status_dict: dict[str, str | int | bool] = {}
-
-        # Handle nested dict values by flattening or converting to strings
-        for key, value in env_info.items():
-            if isinstance(value, dict):
-                # Convert nested dict to a string representation
-                status_dict[key] = str(value)
-            elif isinstance(value, str | int | bool):
-                status_dict[key] = value
-            else:
-                # Convert other types to string
-                status_dict[key] = str(value)
-
-        # Add additional status information
-        status_dict["project_structure_valid"] = is_project_structure_valid()
-        status_dict["optional_paths_available"] = len(
-            [p for p in optional_paths.values() if p]
-        )
+        # Modern approach: build status dict with proper typing
+        status_dict: dict[str, Any] = {
+            # Environment information (nested structures preserved)
+            **env_info,
+            # Project structure validation
+            "project_structure_valid": is_project_structure_valid(),
+            "optional_paths_available": sum(optional_paths.values()),
+            # Cache and performance info
+            "cache_initialized": self._cache_initialized,
+        }
 
         return status_dict
+
+    def get_summary(self) -> dict[str, str | int | bool]:
+        """
+        Get a simplified status summary for compatibility.
+
+        Returns:
+            Status dictionary with basic types only
+        """
+        full_status = self.get_status()
+
+        # Extract and convert to basic types for backward compatibility
+        summary: dict[str, str | int | bool] = {
+            "python_version": str(
+                full_status.get("python", {}).get("version", "unknown")
+            ),
+            "platform": str(full_status.get("platform", {}).get("system", "unknown")),
+            "virtual_env_active": bool(
+                full_status.get("virtual_environment", {}).get("active", False)
+            ),
+            "project_structure_valid": bool(
+                full_status.get("project_structure_valid", False)
+            ),
+            "optional_paths_available": int(
+                full_status.get("optional_paths_available", 0)
+            ),
+            "cache_initialized": bool(full_status.get("cache_initialized", False)),
+        }
+
+        return summary
 
 
 __all__ = [
