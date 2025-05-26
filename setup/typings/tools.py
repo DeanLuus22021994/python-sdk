@@ -15,6 +15,7 @@ __all__ = [
     "VSCodeExtension",
     "VSCodeConfig",
     "DockerInfo",
+    "DockerConfig",
 ]
 
 
@@ -277,4 +278,138 @@ class DockerInfo:
             "containers_running": len(self.containers_running),
             "buildkit_available": self.buildkit_available,
             "supports_modern_features": self.supports_modern_features,
+        }
+
+
+@dataclass(slots=True)
+class DockerConfig:
+    """
+    Docker configuration for development environment setup.
+
+    Manages Docker and Docker Compose configuration settings for consistent
+    development environment provisioning.
+    """
+
+    # Basic Docker configuration
+    base_image: str = "python:3.11-slim"
+    working_directory: str = "/app"
+    exposed_ports: list[int] = field(default_factory=lambda: [8000])
+    environment_variables: dict[str, str] = field(default_factory=dict)
+
+    # Build configuration
+    build_context: str = "."
+    dockerfile_path: str = "Dockerfile"
+    build_args: dict[str, str] = field(default_factory=dict)
+    target_stage: str | None = None
+
+    # Runtime configuration
+    volumes: list[str] = field(default_factory=list)
+    networks: list[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
+    restart_policy: str = "unless-stopped"
+
+    # Development specific
+    development_overrides: dict[str, Any] = field(default_factory=dict)
+    use_buildkit: bool = True
+    enable_health_check: bool = True
+
+    def __post_init__(self) -> None:
+        """Initialize default configuration if needed."""
+        if not self.environment_variables:
+            self.environment_variables = {
+                "PYTHONPATH": "/app/src",
+                "PYTHONUNBUFFERED": "1",
+                "PYTHONDONTWRITEBYTECODE": "1",
+            }
+
+    def get_compose_config(self) -> dict[str, Any]:
+        """Generate Docker Compose configuration."""
+        config = {
+            "build": {
+                "context": self.build_context,
+                "dockerfile": self.dockerfile_path,
+            },
+            "ports": [f"{port}:{port}" for port in self.exposed_ports],
+            "environment": self.environment_variables,
+            "volumes": self.volumes,
+            "restart": self.restart_policy,
+        }
+
+        if self.target_stage:
+            config["build"]["target"] = self.target_stage
+
+        if self.build_args:
+            config["build"]["args"] = self.build_args
+
+        if self.networks:
+            config["networks"] = self.networks
+
+        if self.depends_on:
+            config["depends_on"] = self.depends_on
+
+        if self.development_overrides:
+            config.update(self.development_overrides)
+
+        return config
+
+    def get_dockerfile_content(self) -> str:
+        """Generate basic Dockerfile content."""
+        lines = [
+            f"FROM {self.base_image}",
+            f"WORKDIR {self.working_directory}",
+            "",
+            "# Install system dependencies",
+            "RUN apt-get update && apt-get install -y \\",
+            "    build-essential \\",
+            "    curl \\",
+            "    git \\",
+            "    && rm -rf /var/lib/apt/lists/*",
+            "",
+            "# Install uv",
+            "COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv",
+            "",
+            "# Copy project files",
+            "COPY pyproject.toml uv.lock ./",
+            "RUN uv sync --frozen",
+            "",
+            "# Copy source code",
+            "COPY src/ ./src/",
+            "",
+        ]  # Add port exposure
+        lines.extend([f"EXPOSE {port}" for port in self.exposed_ports])
+
+        lines.extend(
+            [
+                "",
+                "# Set environment variables",
+            ]
+        )
+
+        for key, value in self.environment_variables.items():
+            lines.append(f'ENV {key}="{value}"')
+
+        lines.extend(
+            [
+                "",
+                "# Default command",
+                'CMD ["uv", "run", "python", "-m", "src.main"]',
+            ]
+        )
+
+        return "\n".join(lines)
+
+    def get_compose_override_for_development(self) -> dict[str, Any]:
+        """Get development-specific compose overrides."""
+        return {
+            "volumes": [
+                "./src:/app/src:cached",
+                "./tests:/app/tests:cached",
+                "./pyproject.toml:/app/pyproject.toml:ro",
+            ],
+            "environment": {
+                **self.environment_variables,
+                "ENVIRONMENT": "development",
+                "DEBUG": "1",
+            },
+            "command": ["uv", "run", "python", "-m", "src.main", "--reload"],
         }

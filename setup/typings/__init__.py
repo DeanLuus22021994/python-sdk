@@ -15,12 +15,35 @@ Modules:
 """
 
 # Re-export all types from submodules for easy importing
-from .config import *
-from .core import *
-from .enums import *
-from .environment import *
-from .protocols import *
-from .tools import *
+from .config import ContainerConfig, PerformanceSettings
+from .core import (
+    EnvironmentDict,
+    EnvironmentValidationResult,
+    JsonValue,
+    LoggingCallback,
+    PackageManagerDict,
+    PathLike,
+    ProjectValidationResult,
+    SetupProgressCallback,
+    SetupResult,
+    ValidationResult,
+    VSCodeSettingsDict,
+)
+from .enums import LogLevel, SetupMode, ValidationStatus
+from .environment import (
+    EnvironmentInfo,
+    ProjectStructureInfo,
+    PythonVersion,
+    ValidationDetails,
+)
+from .protocols import (
+    ConfigManager,
+    EnvironmentProvider,
+    ProjectStructureValidator,
+    SetupManager,
+    Validator,
+)
+from .tools import DockerConfig, DockerInfo, VSCodeConfig, VSCodeExtension
 
 __version__ = "1.0.0"
 __all__ = [
