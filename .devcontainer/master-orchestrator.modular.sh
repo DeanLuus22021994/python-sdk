@@ -5,12 +5,24 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Import core dependencies
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/orchestrator/constants.sh"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/orchestrator/types.sh"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/orchestrator/utils.sh"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/orchestrator/registry.sh"
+# shellcheck source=/dev/null
 source "$SCRIPT_DIR/config/load-env.sh"
 load_env_files
+# shellcheck source=/dev/null
 source "$SCRIPT_DIR/orchestrator/utils/logging.sh"
 
 # Configuration
-declare -g ORCHESTRATOR_VERSION="2.0.0"
+declare -g ORCHESTRATOR_VERSION="2.1.0"
 declare -g ORCHESTRATOR_PARALLEL="${ORCHESTRATOR_PARALLEL:-false}"
 declare -g ORCHESTRATOR_DRY_RUN="${ORCHESTRATOR_DRY_RUN:-false}"
 declare -g ORCHESTRATOR_FORCE="${ORCHESTRATOR_FORCE:-false}"

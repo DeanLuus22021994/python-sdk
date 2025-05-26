@@ -1,14 +1,31 @@
 #!/bin/bash
 # Top-level Validation Entry Point
-# Redirects to the unified validation system
+# Delegates to the unified validation system
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Redirect to the unified validation system
-echo "🔄 Redirecting to unified validation system..."
-exec "$SCRIPT_DIR/validation/core/main.sh" "$@"
+# Import centralized logging
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/orchestrator/utils/logging.sh" || {
+  # Basic logging functions if orchestrator logging is not available
+  RED='\033[0;31m'
+  BLUE='\033[0;34m'
+  NC='\033[0m'
+  
+  info() {
+    echo -e "${BLUE}INFO: $1${NC}"
+  }
+
+  error() {
+    echo -e "${RED}ERROR: $1${NC}" >&2
+  }
+}
+
+# Delegate to the unified validation system
+info "🔄 Delegating to unified validation system..."
+"$SCRIPT_DIR/validation/core/main.sh" "$@"
 
 error() {
     echo -e "${RED}ERROR: $1${NC}" >&2
