@@ -11,6 +11,7 @@ import json as stdlib_json
 import os
 import sys
 from collections.abc import Awaitable, Coroutine
+from pathlib import Path
 from typing import Any, TypeVar, cast
 
 # Platform check for uvloop - use lowercase to avoid constant redefinition warnings
@@ -369,10 +370,70 @@ def create_performance_monitor() -> PerformanceMonitor:
     return PerformanceMonitor()
 
 
+class DockerVolumeManager:
+    """Docker volume management for MCP development environment."""
+
+    def __init__(self, workspace_root: Path) -> None:
+        """Initialize volume manager."""
+        from pathlib import Path
+
+        self.workspace_root = Path(workspace_root)
+
+    def create_volume_directories(self) -> bool:
+        """Create necessary volume directories for Docker setup."""
+        try:
+            # Create directory structure for volume mounts
+            volumes_dir = self.workspace_root / ".docker" / "volumes"
+            volumes_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create specific volume directories
+            volume_dirs = [
+                "mcp-postgres-data",
+                "mcp-python-cache",
+                "mcp-cache",
+                "python-wheels",
+            ]
+
+            for vol_dir in volume_dirs:
+                (volumes_dir / vol_dir).mkdir(exist_ok=True)
+
+            return True
+        except Exception:
+            return False
+
+    def validate_volume_config(self) -> bool:
+        """Validate volume configuration."""
+        try:
+            volumes_dir = self.workspace_root / ".docker" / "volumes"
+            return volumes_dir.exists()
+        except Exception:
+            return False
+
+    def get_volume_status(self) -> dict[str, bool]:
+        """Get status of volume configuration."""
+        try:
+            volumes_dir = self.workspace_root / ".docker" / "volumes"
+            volume_dirs = [
+                "mcp-postgres-data",
+                "mcp-python-cache",
+                "mcp-cache",
+                "python-wheels",
+            ]
+
+            status = {}
+            for vol_dir in volume_dirs:
+                status[vol_dir] = (volumes_dir / vol_dir).exists()
+
+            return status
+        except Exception:
+            return {}
+
+
 __all__ = [
     "PerformanceOptimizer",
     "ConnectionPool",
     "PerformanceMonitor",
+    "DockerVolumeManager",
     "get_performance_optimizer",
     "enable_performance_mode",
     "create_performance_monitor",
