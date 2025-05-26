@@ -92,7 +92,7 @@ dt metrics  # Development metrics
 dt modular  # Modular status checker
 ```
 
-### Performance Management
+### Performance & System Management
 ```bash
 # Apply optimizations
 ./scripts/performance/cpu-performance.sh
@@ -102,6 +102,12 @@ dt modular  # Modular status checker
 # Run system monitoring
 ./scripts/utils/system-monitor.sh all
 ./scripts/utils/log-analyzer.sh
+
+# Run validation in different modes
+./validate.sh quick    # Quick validation of essential components
+./validate.sh full     # Complete system validation
+./validate.sh rebuild  # Post-rebuild validation
+./validate.sh config   # Docker configuration validation
 ```
 
 ### Orchestration
