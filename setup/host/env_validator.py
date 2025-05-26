@@ -219,7 +219,7 @@ class HostEnvironmentValidator:
                 _, _, free = shutil.disk_usage(self.workspace_root)
                 return free > 1024 * 1024 * 1024  # 1GB
             else:
-                # Use os.statvfs for Unix-like systems
+                # Use os.statvfs for Unix-like systems with hasattr check
                 if hasattr(os, "statvfs"):
                     stat = os.statvfs(self.workspace_root)
                     free_bytes = stat.f_frsize * stat.f_bavail

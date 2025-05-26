@@ -3,6 +3,7 @@ Setup Sequence Management
 Orchestrates the setup process for the MCP Python SDK
 """
 
+import importlib.util
 import sys
 from pathlib import Path
 from typing import Any
@@ -108,33 +109,35 @@ def run_setup_sequence() -> bool:
             success = False
 
     # Step 5: Configure Docker environment (if available)
-    try:
-        from .docker import (
-            check_required_images,
-            configure_containers,
-            configure_volumes,
-            pull_required_images,
-            validate_docker_environment_compat,
-        )
+    docker_spec = importlib.util.find_spec("setup.docker")
+    if docker_spec is not None:
+        try:
+            from .docker import (
+                configure_containers,
+                configure_volumes,
+                validate_docker_environment_compat,
+            )
 
-        print("\nStep 5: Configuring Docker environment")
-        docker_valid, docker_msg = validate_docker_environment_compat()
-        if docker_valid:
-            print(f"✓ {docker_msg}")
+            print("\nStep 5: Configuring Docker environment")
+            docker_valid, docker_msg = validate_docker_environment_compat()
+            if docker_valid:
+                print(f"✓ {docker_msg}")
 
-            # Configure Docker components
-            volumes_success = configure_volumes()
-            containers_success = configure_containers()
+                # Configure Docker components
+                volumes_success = configure_volumes()
+                containers_success = configure_containers()
 
-            if volumes_success and containers_success:
-                print("✓ Docker environment configured")
+                if volumes_success and containers_success:
+                    print("✓ Docker environment configured")
+                else:
+                    print("⚠ Docker configuration incomplete")
             else:
-                print("⚠ Docker configuration incomplete")
-        else:
-            print(f"⚠ {docker_msg}")
+                print(f"⚠ {docker_msg}")
 
-    except ImportError:
-        print("\nℹ Docker setup not available (optional)")
+        except ImportError:
+            print("\nℹ Docker setup not available (optional)")
+    else:
+        print("\nℹ Docker setup module not found (optional)")
 
     # Summary
     print("\n" + "=" * 50)
