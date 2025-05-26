@@ -66,8 +66,8 @@ def check_docker_version() -> tuple[bool, str]:
             return True, f"✓ Docker version {version_str} meets requirements"
         else:
             return False, (
-                f"✗ Docker version {version_str} does not meet "
-                f"minimum requirements {min_version[0]}.{min_version[1]}.{min_version[2]}"
+                f"✗ Docker version {version_str} does not meet minimum "
+                f"requirements {min_version[0]}.{min_version[1]}.{min_version[2]}"
             )
     except FileNotFoundError:
         return False, "✗ Docker is not installed or not in PATH"
@@ -129,7 +129,8 @@ def validate_docker_environment() -> tuple[bool, dict[str, bool | str]]:
     # Determine if Docker environment is ready for development
     is_valid = daemon_running and version_valid and compose_available
 
-    env_info = {
+    # Explicitly specify the dictionary types to match the return type annotation
+    env_info: dict[str, bool | str] = {
         "daemon_running": daemon_running,
         "version_valid": version_valid,
         "compose_available": compose_available,
@@ -149,7 +150,8 @@ def get_docker_runtime_info() -> dict[str, str | list[str]]:
     Returns:
         Dict with Docker version, configuration, and capabilities
     """
-    info = {
+    # Explicitly annotate the info dictionary with correct types
+    info: dict[str, str | list[str]] = {
         "version": "unknown",
         "api_version": "unknown",
         "os": "unknown",
@@ -158,7 +160,7 @@ def get_docker_runtime_info() -> dict[str, str | list[str]]:
         "memory": "unknown",
         "storage_driver": "unknown",
         "root_dir": "unknown",
-        "plugins": [],
+        "plugins": [],  # Always initialize as a list
     }
 
     try:
@@ -188,10 +190,12 @@ def get_docker_runtime_info() -> dict[str, str | list[str]]:
         info["root_dir"] = docker_info.get("DockerRootDir", "unknown")
 
         # Extract plugins
+        plugins_list: list[str] = []  # Create a temporary list for plugins
         if "Plugins" in docker_info:
             for plugin_type, plugins in docker_info["Plugins"].items():
                 for plugin in plugins:
-                    info["plugins"].append(f"{plugin_type}: {plugin}")
+                    plugins_list.append(f"{plugin_type}: {plugin}")
+        info["plugins"] = plugins_list  # Assign the complete list to info["plugins"]
 
     except Exception:
         # If we can't get detailed info, fall back to basic version
