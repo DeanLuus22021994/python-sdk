@@ -352,8 +352,7 @@ class DockerConfig:
             config["depends_on"] = self.depends_on
 
         if self.development_overrides:
-            for key, value in self.development_overrides.items():
-                config[key] = value
+            config = {**config, **self.development_overrides}
 
         return config
 
