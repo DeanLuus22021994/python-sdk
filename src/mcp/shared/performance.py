@@ -154,10 +154,10 @@ class PerformanceOptimizer:
         if not self.compression_enabled:
             return data
 
-        if algorithm == "lz4" and LZ4_AVAILABLE:
-            return lz4.decompress(data)
-        elif algorithm == "zstd" and ZSTD_AVAILABLE:
-            dctx = zstd.ZstdDecompressor()
+        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4_module:
+            return _lz4_module.decompress(data)
+        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd_module:
+            dctx = _zstd_module.ZstdDecompressor()
             return dctx.decompress(data)
 
         return data
@@ -169,16 +169,16 @@ class PerformanceOptimizer:
 
             return hashlib.sha256(data).hexdigest()
 
-        if algorithm == "xxhash64":
-            return xxhash.xxh64(data).hexdigest()
-        elif algorithm == "xxhash32":
-            return xxhash.xxh32(data).hexdigest()
+        if algorithm == "xxhash64" and _xxhash_module:
+            return _xxhash_module.xxh64(data).hexdigest()
+        elif algorithm == "xxhash32" and _xxhash_module:
+            return _xxhash_module.xxh32(data).hexdigest()
         else:
             import hashlib
 
             return hashlib.sha256(data).hexdigest()
 
-    def optimize_asyncio_task(self, coro):
+    def optimize_asyncio_task(self, coro: Any) -> Any:
         """Create optimized asyncio task with performance hints."""
         if hasattr(asyncio, "create_task"):
             task = asyncio.create_task(coro)
@@ -201,7 +201,7 @@ class ConnectionPool:
     def __init__(self, max_size: int = 100, max_overflow: int = 20):
         self.max_size = max_size
         self.max_overflow = max_overflow
-        self._pool: Dict[str, Any] = {}
+        self._pool: dict[str, Any] = {}
         self._overflow_counter = 0
         self._lock = asyncio.Lock()
 
@@ -243,11 +243,11 @@ class PerformanceMonitor:
     """Monitor and report performance metrics."""
 
     def __init__(self):
-        self.metrics: Dict[str, Any] = {}
+        self.metrics: dict[str, Any] = {}
         self.start_time = asyncio.get_event_loop().time()
 
     def record_metric(
-        self, name: str, value: float, tags: Optional[Dict[str, str]] = None
+        self, name: str, value: float, tags: dict[str, str] | None = None
     ) -> None:
         """Record a performance metric."""
         timestamp = asyncio.get_event_loop().time()
@@ -259,7 +259,7 @@ class PerformanceMonitor:
             {"value": value, "timestamp": timestamp, "tags": tags or {}}
         )
 
-    def get_stats(self, name: str) -> Dict[str, float]:
+    def get_stats(self, name: str) -> dict[str, float]:
         """Get statistics for a metric."""
         if name not in self.metrics:
             return {}
@@ -276,7 +276,7 @@ class PerformanceMonitor:
 
 
 # Global performance optimizer instance
-_performance_optimizer: Optional[PerformanceOptimizer] = None
+_performance_optimizer: PerformanceOptimizer | None = None
 
 
 def get_performance_optimizer() -> PerformanceOptimizer:
