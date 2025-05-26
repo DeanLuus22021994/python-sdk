@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  mcp-postgres:
+    image: postgres:14-alpine
+    container_name: mcp-postgres
+    environment:
+      POSTGRES_USER: mcp_user
+      POSTGRES_PASSWORD: mcp_password
+      POSTGRES_DB: mcp_development
+    ports:
+    - 5432:5432
+    volumes:
+    - mcp-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - pg_isready
+      - -U
+      - mcp_user
+      - -d
+      - mcp_development
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  mcp-dev:
+    build:
+      context: C:\Projects\python-sdk
+      dockerfile: setup/docker/dockerfiles/Dockerfile.dev
+    container_name: mcp-dev
+    volumes:
+    - C:\Projects\python-sdk:/app
+    - mcp-python-cache:/root/.cache/pip
+    working_dir: /app
+    command: sleep infinity
+    depends_on:
+    - mcp-postgres
+volumes:
+  mcp-postgres-data:
+    driver: local
+  mcp-python-cache:
+    driver: local
