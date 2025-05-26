@@ -3,7 +3,8 @@ Setup Module 2.1: Main Orchestration
 Coordinates the entire setup process
 """
 
-from .sequence import run_setup_sequence
+# Use relative import for intra-package references
+from . import sequence
 
 
 def print_header() -> None:
@@ -32,7 +33,7 @@ def main() -> int:
     """Main setup orchestrator."""
     print_header()
     try:
-        success = run_setup_sequence()
+        success = sequence.run_setup_sequence()
         print_footer(success)
         return 0 if success else 1
     except KeyboardInterrupt:

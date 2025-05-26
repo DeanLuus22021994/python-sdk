@@ -3,11 +3,12 @@ Setup Module 05: Additional Setup Sequence
 Provides future-proofing and extra steps for advanced setup if needed
 """
 
+# Use relative import for intra-package references
 from .host import (
-    validate_environment,
     setup_packages,
-    validate_sdk,
     setup_vscode_config,
+    validate_environment,
+    validate_sdk,
 )
 
 
