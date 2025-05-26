@@ -1,9 +1,25 @@
 {
-  "python.defaultInterpreterPath": "python",
+  "python.defaultInterpreterPath": "./venv/Scripts/python.exe",
   "python.analysis.autoImportCompletions": true,
-  "python.analysis.typeCheckingMode": "basic",
-  "python.analysis.autoSearchPaths": true,
   "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.inlayHints.variableTypes": true,
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.inlayHints.callArgumentNames": "partial",
+  "python.analysis.inlayHints.pytestParameters": true,
+  "python.analysis.completeFunctionParens": true,
+  "python.analysis.indexing": true,
+  "python.analysis.packageIndexDepths": [
+    {
+      "name": "mcp",
+      "depth": 5
+    }
+  ],
+  "python.analysis.userFileIndexingLimit": 5000,
+  "python.analysis.autoFormatStrings": true,
+  "python.analysis.fixAll": [
+    "source.unusedImports",
+    "source.convertImportFormat"
+  ],
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.pyc": true,
@@ -11,7 +27,16 @@
     "*.egg-info": true,
     "**/.mypy_cache": true,
     "**/.ruff_cache": true,
-    "**/node_modules": true
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/venv": true,
+    "**/.env": true,
+    "**/build": true,
+    "**/dist": true,
+    "**/*.egg-info": true,
+    "**/.coverage": true,
+    "**/.tox": true,
+    "**/htmlcov": true
   },
   "files.watcherExclude": {
     "**/.git/objects/**": true,
@@ -19,16 +44,37 @@
     "**/node_modules/**": true,
     "**/.pytest_cache/**": true,
     "**/.mypy_cache/**": true,
-    "**/.ruff_cache/**": true
+    "**/.ruff_cache/**": true,
+    "**/.venv/**": true,
+    "**/venv/**": true,
+    "**/build/**": true,
+    "**/dist/**": true,
+    "**/.coverage/**": true,
+    "**/.tox/**": true,
+    "**/htmlcov/**": true
+  },
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "files.associations": {
+    "*.toml": "toml",
+    "pyproject.toml": "toml",
+    "*.lock": "yaml",
+    "uv.lock": "yaml"
   },
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
   "python.testing.pytestArgs": [
     "tests",
     "-v",
-    "--tb=short"
+    "--tb=short",
+    "--strict-markers",
+    "--strict-config",
+    "--color=yes"
   ],
   "python.testing.autoTestDiscoverOnSaveEnabled": true,
+  "python.testing.cwd": "${workspaceFolder}",
+  "python.testing.debugPort": 3000,
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true,
@@ -36,45 +82,129 @@
       "source.organizeImports": "explicit",
       "source.fixAll.ruff": "explicit"
     },
-    "editor.rulers": [88],
+    "editor.rulers": [
+      88
+    ],
     "editor.tabSize": 4,
-    "editor.insertSpaces": true
+    "editor.insertSpaces": true,
+    "editor.wordWrap": "off",
+    "editor.trimAutoWhitespace": true,
+    "editor.insertFinalNewline": true,
+    "editor.trimFinalNewlines": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.guides.indentation": true,
+    "editor.semanticHighlighting.enabled": true,
+    "editor.inlayHints.enabled": "on"
   },
-  "python.linting.enabled": true,
-  "python.linting.ruffEnabled": true,
-  "python.linting.mypyEnabled": true,
-  "python.linting.pylintEnabled": false,
-  "python.linting.flake8Enabled": false,
+  "python.linting.enabled": false,
   "ruff.enable": true,
   "ruff.organizeImports": true,
   "ruff.fixAll": true,
   "isort.args": [
     "--profile",
-    "black"
+    "black",
+    "--settings-path=pyproject.toml"
   ],
   "mypy-type-checker.importStrategy": "fromEnvironment",
   "mypy-type-checker.args": [
-    "--strict",
-    "--ignore-missing-imports"
+    "--config-file=pyproject.toml"
+  ],
+  "mypy-type-checker.preferDaemon": true,
+  "black-formatter.args": [
+    "--config=pyproject.toml"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit"
+    "source.organizeImports": "explicit",
+    "source.fixAll.ruff": "explicit"
   },
+  "editor.inlayHints.enabled": "on",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.renderWhitespace": "trailing",
+  "editor.unicodeHighlight.ambiguousCharacters": false,
+  "editor.unicodeHighlight.invisibleCharacters": false,
   "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "terminal.integrated.env.windows": {
+    "PYTHONPATH": "${workspaceFolder}/src"
+  },
   "git.enableSmartCommit": true,
   "git.confirmSync": false,
   "git.autofetch": true,
+  "git.ignoreLimitWarning": true,
+  "git.openRepositoryInParentFolders": "never",
   "errorLens.enabledDiagnosticLevels": [
     "error",
     "warning",
     "info"
   ],
+  "errorLens.enabledInDiffView": true,
+  "errorLens.followCursor": "allLinesExceptActive",
+  "errorLens.gutterIconsEnabled": true,
   "github.copilot.enable": {
     "*": true,
     "yaml": true,
     "plaintext": true,
     "markdown": true,
-    "python": true
-  }
+    "python": true,
+    "toml": true,
+    "json": true,
+    "jsonc": true
+  },
+  "github.copilot.chat.localeOverride": "en",
+  "github.copilot.advanced": {
+    "debug.overrideEngine": "copilot-chat"
+  },
+  "workbench.editorAssociations": {
+    "*.ipynb": "jupyter-notebook"
+  },
+  "notebook.cellToolbarLocation": {
+    "default": "right",
+    "jupyter-notebook": "left"
+  },
+  "jupyter.askForKernelRestart": false,
+  "jupyter.alwaysTrustNotebooks": true,
+  "jupyter.interactiveWindow.creationMode": "perFile",
+  "jupyter.jupyterServerType": "local",
+  "search.exclude": {
+    "**/.venv": true,
+    "**/venv": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/build": true,
+    "**/dist": true,
+    "**/*.egg-info": true,
+    "**/.coverage": true,
+    "**/.tox": true,
+    "**/htmlcov": true,
+    "**/uv.lock": true
+  },
+  "python.envFile": "${workspaceFolder}/.env",
+  "python.terminal.activateEnvironment": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.terminal.executeInFileDir": false,
+  "python.terminal.launchArgs": [],
+  "python.experiments.optInto": [
+    "pythonTerminalEnvVarActivation",
+    "pythonTestAdapter"
+  ],
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.py": "${capture}.pyc, ${capture}.pyo, ${capture}.pyd",
+    "pyproject.toml": "uv.lock, poetry.lock, Pipfile.lock, requirements*.txt, setup.py, setup.cfg, MANIFEST.in",
+    "*.md": "${capture}.*.md",
+    ".gitignore": ".gitattributes, .gitmodules, .gitmessage, .mailmap, .git-blame*",
+    "README*": "AUTHORS, CHANGELOG*, CONTRIBUTING*, HISTORY*, LICENSE*, SECURITY*",
+    "Dockerfile": ".dockerignore, docker-compose*.yml, docker-compose*.yaml"
+  },
+  "diffEditor.experimental.showMoves": true,
+  "diffEditor.renderSideBySide": true,
+  "timeline.excludeSources": [
+    "git.fileHistory"
+  ]
 }
