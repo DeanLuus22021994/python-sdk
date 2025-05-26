@@ -235,10 +235,16 @@ class VSCodeExtensionsManager:
             if not isinstance(recs, list):
                 errors.append("Recommendations must be a list")
             else:
-                # Check for invalid extension IDs
-                for ext in recs:
-                    if not isinstance(ext, str) or "." not in ext:
-                        warnings.append(f"Potentially invalid extension ID: {ext}")
+                # Check for invalid extension IDs using list comprehension
+                invalid_extensions = [
+                    ext for ext in recs if not isinstance(ext, str) or "." not in ext
+                ]
+                warnings.extend(
+                    [
+                        f"Potentially invalid extension ID: {ext}"
+                        for ext in invalid_extensions
+                    ]
+                )
 
         # Check for conflicting extensions
         unwanted = set(self.get_unwanted_extensions())
