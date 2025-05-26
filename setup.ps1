@@ -14,25 +14,25 @@ $ErrorActionPreference = 'Stop'
 $PYTHON_MIN = [Version]'3.10.0'
 $IS_WINDOWS = $IsWindows -or ($env:OS -eq 'Windows_NT')
 
-# All required packages (consolidated for reliability)
+# Required packages with version constraints to avoid issues
 $PACKAGES = @(
-  'asyncpg',
-  'httpx-sse',
-  'sse-starlette', 
-  'pydantic-ai',
-  'pgvector',
-  'pyautogui',
-  'numpy',
-  'orjson',
-  'lz4',
-  'ujson',
-  'types-PyAutoGUI',
-  'types-ujson'
+  'asyncpg>=0.28.0',
+  'httpx-sse>=0.4.0',
+  'sse-starlette>=1.6.0',
+  'pydantic-ai>=0.0.7',
+  'pgvector>=0.2.4',
+  'pyautogui>=0.9.54',
+  'numpy>=1.21.0',
+  'orjson>=3.8.0',
+  'lz4>=4.0.0',
+  'ujson>=5.7.0',
+  'types-PyAutoGUI>=0.9.3',
+  'types-ujson>=5.7.0'
 )
 
 # Unix-only packages
 if (-not $IS_WINDOWS) {
-  $PACKAGES += 'uvloop'
+  $PACKAGES += 'uvloop>=0.17.0'
 }
 
 # Utility functions
@@ -63,20 +63,15 @@ function Install-Packages {
   param([string]$PythonCmd, [string[]]$Packages)
   
   # Upgrade pip first
-  & $PythonCmd -m pip install --upgrade pip setuptools wheel | Out-Null
+  Write-Host "Upgrading pip, setuptools, wheel..."
+  & $PythonCmd -m pip install --upgrade pip setuptools wheel --quiet
+  if ($LASTEXITCODE -ne 0) { throw "Failed to upgrade pip" }
   
-  # Try uv if available
-  if (Test-Command 'uv') {
-    try {
-      & uv add @Packages
-      if ($LASTEXITCODE -eq 0) { return $true }
-    } catch { }
-  }
-  
-  # Fallback to pip
+  # Install packages one by one with pip (skip uv due to resolution issues)
   foreach ($package in $Packages) {
+    Write-Host "Installing $package..."
     try {
-      $pipArgs = @('-m', 'pip', 'install', '--upgrade', $package)
+      $pipArgs = @('-m', 'pip', 'install', '--upgrade', $package, '--quiet')
       if ($Force) { $pipArgs += '--force-reinstall' }
       & $PythonCmd @pipArgs
       if ($LASTEXITCODE -ne 0) { throw "Failed to install $package" }
