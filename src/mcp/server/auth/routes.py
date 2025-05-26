@@ -34,10 +34,7 @@ def validate_issuer_url(url: AnyHttpUrl):
     if (
         url.scheme != "https"
         and url.host is not None
-        and not (
-            url.host == "localhost"
-            or (url.host is not None and url.host.startswith("127.0.0.1"))
-        )
+        and not (url.host == "localhost" or url.host.startswith("127.0.0.1"))
     ):
         raise ValueError("Issuer URL must be HTTPS")
 

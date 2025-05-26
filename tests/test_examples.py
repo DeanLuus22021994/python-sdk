@@ -10,10 +10,11 @@ from mcp.shared.memory import (
 from mcp.types import TextContent, TextResourceContents
 
 if TYPE_CHECKING:
-    from pytest_examples import CodeExample, EvalExample, find_examples
+    from pytest_examples import CodeExample, EvalExample, find_examples  # type: ignore
 else:
     # Mock these classes/functions for type checking, but they're not used at runtime
-    # except in the test_docs_examples function which is skipped if the module is missing
+    # except in the test_docs_examples function which is skipped if the module is
+    # missing
     class CodeExample:
         pass
 
@@ -105,7 +106,7 @@ async def test_desktop(monkeypatch):
 
 @pytest.mark.parametrize(
     "example",
-    pytest.importorskip("pytest_examples").find_examples("README.md"),
+    pytest.importorskip("pytest_examples").find_examples("README.md"),  # type: ignore
     ids=str,
 )
 def test_docs_examples(example: "CodeExample", eval_example: "EvalExample"):
