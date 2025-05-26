@@ -10,7 +10,8 @@ import gc
 import json as stdlib_json
 import os
 import sys
-from typing import Any
+from collections.abc import Awaitable, Coroutine
+from typing import Any, TypeVar, cast
 
 # Platform check for uvloop - use lowercase to avoid constant redefinition warnings
 _uvloop_available = False
@@ -84,11 +85,14 @@ except ImportError:
 
 XXHASH_AVAILABLE = _xxhash_available
 
+# Type variable for async operations
+T = TypeVar("T")
+
 
 class PerformanceOptimizer:
     """High-performance optimizations for MCP operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.json_backend = JSON_BACKEND
         self.compression_enabled = LZ4_AVAILABLE or ZSTD_AVAILABLE
         self.hash_enabled = XXHASH_AVAILABLE
@@ -184,15 +188,22 @@ class PerformanceOptimizer:
 
             return hashlib.sha256(data).hexdigest()
 
-    def optimize_asyncio_task(self, coro: Any) -> Any:
+    def optimize_asyncio_task(
+        self, coro: Coroutine[Any, Any, T] | Awaitable[T]
+    ) -> asyncio.Task[T]:
         """Create optimized asyncio task with performance hints."""
-        if hasattr(asyncio, "create_task"):
-            task = asyncio.create_task(coro)
-            # Set task name for better debugging
-            task.set_name(f"mcp_task_{id(task)}")
+        # Modern approach using asyncio.create_task directly
+        try:
+            # Get current event loop for modern asyncio (Python 3.10+)
+            loop = asyncio.get_running_loop()
+            task = loop.create_task(coro)  # type: ignore[arg-type]
+            # Set task name for better debugging - cast to handle type inference issues
+            task_id = id(cast(object, task))
+            task.set_name(f"mcp_task_{task_id}")
             return task
-        else:
-            return asyncio.ensure_future(coro)
+        except RuntimeError:
+            # Fallback for older Python versions or edge cases
+            return asyncio.ensure_future(coro)  # type: ignore[arg-type]
 
     def run_gc_cycle(self, generation: int = 2) -> None:
         """Manual garbage collection for performance-critical sections."""
@@ -204,7 +215,7 @@ class PerformanceOptimizer:
 class ConnectionPool:
     """High-performance connection pool for MCP clients."""
 
-    def __init__(self, max_size: int = 100, max_overflow: int = 20):
+    def __init__(self, max_size: int = 100, max_overflow: int = 20) -> None:
         self.max_size = max_size
         self.max_overflow = max_overflow
         self._pool: dict[str, Any] = {}
@@ -248,15 +259,31 @@ class ConnectionPool:
 class PerformanceMonitor:
     """Monitor and report performance metrics."""
 
-    def __init__(self):
-        self.metrics: dict[str, Any] = {}
-        self.start_time = asyncio.get_event_loop().time()
+    def __init__(self) -> None:
+        self.metrics: dict[str, list[dict[str, Any]]] = {}
+        # Modern approach to get event loop time
+        try:
+            loop = asyncio.get_running_loop()
+            self.start_time: float = loop.time()
+        except RuntimeError:
+            # Fallback if no event loop is running
+            import time
+
+            self.start_time = time.monotonic()
 
     def record_metric(
         self, name: str, value: float, tags: dict[str, str] | None = None
     ) -> None:
         """Record a performance metric."""
-        timestamp = asyncio.get_event_loop().time()
+        # Modern approach to get timestamp
+        try:
+            loop = asyncio.get_running_loop()
+            timestamp: float = loop.time()
+        except RuntimeError:
+            # Fallback if no event loop is running
+            import time
+
+            timestamp = time.monotonic()
 
         if name not in self.metrics:
             self.metrics[name] = []
@@ -273,12 +300,32 @@ class PerformanceMonitor:
         values = [m["value"] for m in self.metrics[name]]
 
         return {
-            "count": len(values),
+            "count": float(len(values)),
             "min": min(values),
             "max": max(values),
             "avg": sum(values) / len(values),
             "total": sum(values),
         }
+
+    def get_all_metrics(self) -> dict[str, dict[str, float]]:
+        """Get statistics for all recorded metrics."""
+        return {name: self.get_stats(name) for name in self.metrics.keys()}
+
+    def reset_metrics(self) -> None:
+        """Reset all recorded metrics."""
+        self.metrics.clear()
+
+    def get_uptime(self) -> float:
+        """Get system uptime since monitor initialization."""
+        try:
+            loop = asyncio.get_running_loop()
+            current_time = loop.time()
+        except RuntimeError:
+            import time
+
+            current_time = time.monotonic()
+
+        return current_time - self.start_time
 
 
 # Global performance optimizer instance
@@ -313,3 +360,23 @@ def enable_performance_mode() -> None:
     print(f"   Compression: {'✓' if optimizer.compression_enabled else '✗'}")
     print(f"   Fast Hashing: {'✓' if optimizer.hash_enabled else '✗'}")
     print(f"   Event Loop: {'uvloop' if UVLOOP_AVAILABLE else 'asyncio'}")
+
+
+def create_performance_monitor() -> PerformanceMonitor:
+    """Create a new performance monitor instance."""
+    return PerformanceMonitor()
+
+
+__all__ = [
+    "PerformanceOptimizer",
+    "ConnectionPool",
+    "PerformanceMonitor",
+    "get_performance_optimizer",
+    "enable_performance_mode",
+    "create_performance_monitor",
+    "UVLOOP_AVAILABLE",
+    "JSON_BACKEND",
+    "LZ4_AVAILABLE",
+    "ZSTD_AVAILABLE",
+    "XXHASH_AVAILABLE",
+]

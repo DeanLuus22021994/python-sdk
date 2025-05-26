@@ -144,7 +144,7 @@ class EnvironmentManager:
         full_status = self.get_status()
 
         # Extract and convert to basic types for backward compatibility
-        # Explicitly convert each value to match the union type str | int | bool
+        # Convert the optional_paths_available to string for type compatibility
         summary: dict[str, str | int | bool] = {
             "python_version": str(
                 full_status.get("python", {}).get("version", "unknown")
@@ -156,7 +156,7 @@ class EnvironmentManager:
             "project_structure_valid": bool(
                 full_status.get("project_structure_valid", False)
             ),
-            # Convert to string to maintain type compatibility with str | int | bool
+            # Convert to string to match the declared return type str | int | bool
             "optional_paths_available": str(
                 full_status.get("optional_paths_available", 0)
             ),
