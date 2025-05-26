@@ -12,18 +12,22 @@ import os
 import sys
 from typing import Any
 
-# Platform check for uvloop
-UVLOOP_AVAILABLE = False
+# Platform check for uvloop - use lowercase to avoid constant redefinition warnings
+_uvloop_available = False
+_uvloop_module: Any = None
 if sys.platform != "win32":
     try:
         import uvloop  # type: ignore
 
-        UVLOOP_AVAILABLE = True
+        _uvloop_module = uvloop
+        _uvloop_available = True
     except ImportError:
         pass
 
+UVLOOP_AVAILABLE = _uvloop_available
+
 # JSON backend selection with proper typing
-JSON_BACKEND = "stdlib"
+_json_backend = "stdlib"
 _orjson: Any = None
 _ujson: Any = None
 
@@ -31,46 +35,54 @@ try:
     import orjson  # type: ignore
 
     _orjson = orjson
-    JSON_BACKEND = "orjson"
+    _json_backend = "orjson"
 except ImportError:
     try:
         import ujson  # type: ignore
 
         _ujson = ujson
-        JSON_BACKEND = "ujson"
+        _json_backend = "ujson"
     except ImportError:
         pass
 
+JSON_BACKEND = _json_backend
+
 # Compression libraries
-LZ4_AVAILABLE = False
+_lz4_available = False
 _lz4: Any = None
 try:
     import lz4.frame  # type: ignore
 
     _lz4 = lz4.frame
-    LZ4_AVAILABLE = True
+    _lz4_available = True
 except ImportError:
     pass
 
-ZSTD_AVAILABLE = False
+LZ4_AVAILABLE = _lz4_available
+
+_zstd_available = False
 _zstd: Any = None
 try:
     import zstandard  # type: ignore
 
     _zstd = zstandard
-    ZSTD_AVAILABLE = True
+    _zstd_available = True
 except ImportError:
     pass
 
-XXHASH_AVAILABLE = False
+ZSTD_AVAILABLE = _zstd_available
+
+_xxhash_available = False
 _xxhash: Any = None
 try:
     import xxhash  # type: ignore
 
     _xxhash = xxhash
-    XXHASH_AVAILABLE = True
+    _xxhash_available = True
 except ImportError:
     pass
+
+XXHASH_AVAILABLE = _xxhash_available
 
 
 class PerformanceOptimizer:
@@ -99,9 +111,8 @@ class PerformanceOptimizer:
         """Set up high-performance event loop."""
         if UVLOOP_AVAILABLE and sys.platform != "win32":
             try:
-                import uvloop  # type: ignore
-
-                uvloop.install()
+                if _uvloop_module:
+                    _uvloop_module.install()
             except Exception:
                 pass  # Fall back to default event loop
 

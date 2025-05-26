@@ -4,7 +4,9 @@
     "reportMissingTypeStubs": "information",
     "reportUnknownMemberType": "information",
     "reportMissingImports": "warning",
-    "reportUndefinedVariable": "error"
+    "reportUndefinedVariable": "error",
+    "reportConstantRedefinition": "information",
+    "reportUnusedImport": "information"
   },
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.autoImportCompletions": true,
