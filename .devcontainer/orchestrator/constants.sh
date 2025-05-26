@@ -2,9 +2,12 @@
 # DevContainer Orchestrator Constants
 # Centralized constants for the entire orchestrator system
 
+# shellcheck disable=SC2034  # Variables are used by sourcing scripts
+
 # ====== PATH CONSTANTS ======
 # Base paths
-readonly DEVCONTAINER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DEVCONTAINER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly DEVCONTAINER_DIR
 readonly CONFIG_DIR="$DEVCONTAINER_DIR/config"
 readonly ORCHESTRATOR_DIR="$DEVCONTAINER_DIR/orchestrator"
 readonly VALIDATION_DIR="$DEVCONTAINER_DIR/validation"
@@ -47,7 +50,8 @@ readonly DEFAULT_MEMORY_ALLOCATOR="jemalloc"
 readonly DEFAULT_CPU_GOVERNOR="performance"
 
 # ====== EXECUTION CONSTANTS ======
-readonly MAX_PARALLEL_PROCESSES=$(nproc 2>/dev/null || echo 4)
+MAX_PARALLEL_PROCESSES=$(nproc 2>/dev/null || echo 4)
+readonly MAX_PARALLEL_PROCESSES
 readonly DEFAULT_TIMEOUT=30
 readonly RETRY_COUNT=3
 readonly RETRY_DELAY=2

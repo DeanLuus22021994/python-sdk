@@ -16,7 +16,8 @@ validate_cpu_optimizations() {
     echo "Checking CPU governor..."
     for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
         if [[ -f "$cpu" ]]; then
-            local governor=$(cat "$cpu")
+            local governor
+            governor=$(cat "$cpu")
             if [[ "$governor" != "performance" ]]; then
                 echo "❌ CPU governor not set to performance: $governor"
                 ((issues++))
@@ -32,8 +33,10 @@ validate_cpu_optimizations() {
     local max_freq_set=false
     for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do
         if [[ -f "$cpu" ]]; then
-            local current_max=$(cat "$cpu")
-            local available_max=$(cat "${cpu%/*}/cpuinfo_max_freq")
+            local current_max
+            local available_max
+            current_max=$(cat "$cpu")
+            available_max=$(cat "${cpu%/*}/cpuinfo_max_freq")
             if [[ "$current_max" -lt "$available_max" ]]; then
                 echo "❌ CPU not running at maximum frequency"
                 ((issues++))
@@ -55,7 +58,8 @@ validate_memory_optimizations() {
     
     # Check swappiness
     echo "Checking swappiness..."
-    local swappiness=$(cat /proc/sys/vm/swappiness)
+    local swappiness
+    swappiness=$(cat /proc/sys/vm/swappiness)
     if [[ $swappiness -gt 10 ]]; then
         echo "❌ Swappiness too high: $swappiness (should be ≤10)"
         ((issues++))
@@ -65,7 +69,8 @@ validate_memory_optimizations() {
     
     # Check dirty ratios
     echo "Checking dirty ratios..."
-    local dirty_ratio=$(cat /proc/sys/vm/dirty_ratio)
+    local dirty_ratio
+    dirty_ratio=$(cat /proc/sys/vm/dirty_ratio)
     if [[ $dirty_ratio -gt 20 ]]; then
         echo "❌ Dirty ratio too high: $dirty_ratio (should be ≤20)"
         ((issues++))
@@ -76,7 +81,8 @@ validate_memory_optimizations() {
     # Check huge pages
     echo "Checking transparent huge pages..."
     if [[ -f /sys/kernel/mm/transparent_hugepage/enabled ]]; then
-        local thp=$(cat /sys/kernel/mm/transparent_hugepage/enabled)
+        local thp
+        thp=$(cat /sys/kernel/mm/transparent_hugepage/enabled)
         if [[ "$thp" == *"[never]"* ]]; then
             echo "❌ Transparent huge pages disabled"
             ((issues++))
@@ -97,7 +103,8 @@ validate_io_optimizations() {
     echo "Checking disk schedulers..."
     for scheduler in /sys/block/*/queue/scheduler; do
         if [[ -f "$scheduler" ]]; then
-            local current=$(cat "$scheduler" | grep -o '\[.*\]' | tr -d '[]')
+            local current
+            current=$(cat "$scheduler" | grep -o '\[.*\]' | tr -d '[]')
             if [[ "$current" != "mq-deadline" && "$current" != "none" ]]; then
                 echo "❌ Suboptimal disk scheduler: $current"
                 ((issues++))
@@ -111,7 +118,8 @@ validate_io_optimizations() {
     # Check network buffer sizes
     echo "Checking network buffer sizes..."
     if [[ -f /proc/sys/net/core/rmem_max ]]; then
-        local rmem_max=$(cat /proc/sys/net/core/rmem_max)
+        local rmem_max
+        rmem_max=$(cat /proc/sys/net/core/rmem_max)
         if [[ $rmem_max -lt 134217728 ]]; then
             echo "❌ Network receive buffer too small: $rmem_max"
             ((issues++))
@@ -172,7 +180,8 @@ validate_docker_setup() {
     
     # Check Docker Swarm
     echo "Checking Docker Swarm..."
-    local swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}')
+    local swarm_state
+    swarm_state=$(docker info --format '{{.Swarm.LocalNodeState}}')
     if [[ "$swarm_state" != "active" ]]; then
         echo "❌ Docker Swarm not active: $swarm_state"
         ((issues++))

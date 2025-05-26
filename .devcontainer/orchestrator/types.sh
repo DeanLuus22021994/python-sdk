@@ -2,6 +2,8 @@
 # DevContainer Orchestrator Types
 # Centralized type definitions for bash scripts
 
+# shellcheck disable=SC2034  # Variables are used via nameref by calling functions
+
 # Import constants
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=./constants.sh
@@ -19,13 +21,15 @@ create_result() {
     local message="$3"
     local code="${4:-0}"
     local data="${5:-}"
+    local timestamp
+    timestamp="$(date +%s)"
     
     result_ref=()
     result_ref[status]="$status"     # success, error, warning
     result_ref[message]="$message"   # Human-readable message
     result_ref[code]="$code"         # Numeric code
     result_ref[data]="$data"         # Optional data payload
-    result_ref[timestamp]="$(date +%s)"
+    result_ref[timestamp]="$timestamp"
 }
 
 # ====== CONFIG TYPE DEFINITION ======
