@@ -60,19 +60,17 @@ class EnvironmentManager:
 
         # Python version validation
         python_valid, python_msg = validate_python_version()
-        validation_results["python_message"] = python_msg
-
-        # Project structure validation
+        validation_results["python_message"] = (
+            python_msg  # Project structure validation
+        )
         paths_valid, missing_paths = check_required_paths()
         validation_results["missing_paths"] = (
             ", ".join(missing_paths) if missing_paths else "none"
-        )
-
-        # VS Code configuration check with specific exception handling
+        )  # VS Code configuration check with specific exception handling
         try:
             vscode_manager = VSCodeIntegrationManager(get_project_root())
             validation = vscode_manager.validate_workspace()
-            validation_results["vscode_status"] = validation.status.value
+            validation_results["vscode_status"] = validation.status.name.lower()
         except ImportError:
             validation_results["vscode_status"] = "not_available"
         except Exception as e:
