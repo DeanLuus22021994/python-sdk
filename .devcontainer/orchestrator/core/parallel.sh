@@ -101,11 +101,12 @@ report_parallel_results_core() {
     for result_file in "${results_array_ref[@]}"; do
         if [[ -f "$result_file" ]]; then
             local result
-            local status
-            local module
-            
             result=$(cat "$result_file")
+            
+            local status
             status=$(echo "$result" | cut -d':' -f1)
+            
+            local module
             module=$(echo "$result" | cut -d':' -f2)
             
             if [[ "$status" == "SUCCESS" ]]; then

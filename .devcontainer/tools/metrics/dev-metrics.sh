@@ -9,9 +9,12 @@ track_dev_metrics() {
     
     case "$action" in
         "record")
-            local timestamp=$(date +%s)
-            local build_time=$(stat -c %Y /workspaces/python-sdk/.devcontainer/master-orchestrator.sh 2>/dev/null || echo "0")
-            local file_count=$(find /workspaces/python-sdk -name "*.py" | wc -l)
+            local timestamp
+            timestamp=$(date +%s)
+            local build_time
+            build_time=$(stat -c %Y /workspaces/python-sdk/.devcontainer/master-orchestrator.sh 2>/dev/null || echo "0")
+            local file_count
+            file_count=$(find /workspaces/python-sdk -name "*.py" | wc -l)
             
             echo "{\"timestamp\":$timestamp,\"build_time\":$build_time,\"python_files\":$file_count,\"memory_mb\":$(free -m | awk 'NR==2{print $3}')}" >> "$metrics_file"
             echo "Metrics recorded at $(date)"

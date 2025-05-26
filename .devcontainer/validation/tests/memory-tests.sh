@@ -36,7 +36,8 @@ test_huge_pages() {
     info "Testing huge pages configuration"
     
     if [[ -f /proc/meminfo ]]; then
-        local huge_pages=$(grep "HugePages_Total" /proc/meminfo | awk '{print $2}')
+        local huge_pages
+        huge_pages=$(grep "HugePages_Total" /proc/meminfo | awk '{print $2}')
         if [[ $huge_pages -gt 0 ]]; then
             info "✓ Huge pages configured: $huge_pages pages"
         else
@@ -49,7 +50,8 @@ test_swap_configuration() {
     info "Testing swap configuration"
     
     if [[ -f /proc/sys/vm/swappiness ]]; then
-        local swappiness=$(cat /proc/sys/vm/swappiness)
+        local swappiness
+        swappiness=$(cat /proc/sys/vm/swappiness)
         if [[ $swappiness -le 10 ]]; then
             info "✓ Swappiness optimized: $swappiness"
         else
@@ -62,15 +64,18 @@ test_memory_bandwidth() {
     info "Testing memory bandwidth performance"
     
     # Simple memory bandwidth test
-    local start_time=$(date +%s.%N)
+    local start_time
+    start_time=$(date +%s.%N)
     python3 -c "
 import array
 data = array.array('i', range(1000000))
 result = sum(data)
 " 2>/dev/null || true
-    local end_time=$(date +%s.%N)
+    local end_time
+    end_time=$(date +%s.%N)
     
-    local duration=$(echo "$end_time - $start_time" | bc 2>/dev/null || echo "0.1")
+    local duration
+    duration=$(echo "$end_time - $start_time" | bc 2>/dev/null || echo "0.1")
     info "Memory bandwidth test completed in ${duration}s"
 }
 

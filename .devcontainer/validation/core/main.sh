@@ -9,9 +9,10 @@ source "$(dirname "$0")/../orchestrator/utils/logging.sh"
 validation_main() {
     info "Starting performance validation suite"
     
-    local validation_start_time=$(date +%s)
-    local tests_dir="$(dirname "$0")/tests"
-    local reports_dir="$(dirname "$0")/reports"
+    local validation_start_time
+    validation_start_time=$(date +%s)
+    local reports_dir
+    reports_dir="$(dirname "$0")/reports"
     
     # Create reports directory
     mkdir -p "$reports_dir"
@@ -22,8 +23,10 @@ validation_main() {
     run_io_validation_tests
     run_python_validation_tests
     
-    local validation_end_time=$(date +%s)
-    local validation_duration=$((validation_end_time - validation_start_time))
+    local validation_end_time
+    validation_end_time=$(date +%s)
+    local validation_duration
+    validation_duration=$((validation_end_time - validation_start_time))
     
     # Generate final report
     generate_validation_report "$validation_duration"
@@ -61,7 +64,8 @@ run_python_validation_tests() {
 
 generate_validation_report() {
     local duration="$1"
-    local report_file="$(dirname "$0")/reports/validation-$(date +%Y%m%d-%H%M%S).json"
+    local report_file
+    report_file="$(dirname "$0")/reports/validation-$(date +%Y%m%d-%H%M%S).json"
     
     cat > "$report_file" << EOF
 {
