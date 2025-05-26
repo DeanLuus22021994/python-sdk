@@ -1,8 +1,6 @@
 # MCP Python SDK
 
-<div align="center">
-
-<strong>Python implementation of the Model Context Protocol (MCP)</strong>
+## Python implementation of the Model Context Protocol (MCP)
 
 [![PyPI][pypi-badge]][pypi-url]
 [![MIT licensed][mit-badge]][mit-url]
@@ -11,12 +9,11 @@
 [![Specification][spec-badge]][spec-url]
 [![GitHub Discussions][discussions-badge]][discussions-url]
 
-</div>
-
 <!-- omit in toc -->
 ## Table of Contents
 
 - [MCP Python SDK](#mcp-python-sdk)
+  - [Python implementation of the Model Context Protocol (MCP)](#python-implementation-of-the-model-context-protocol-mcp)
   - [Overview](#overview)
   - [Installation](#installation)
     - [Adding MCP to your python project](#adding-mcp-to-your-python-project)
@@ -30,10 +27,12 @@
     - [Prompts](#prompts)
     - [Images](#images)
     - [Context](#context)
+    - [Authentication](#authentication)
   - [Running Your Server](#running-your-server)
     - [Development Mode](#development-mode)
     - [Claude Desktop Integration](#claude-desktop-integration)
     - [Direct Execution](#direct-execution)
+    - [Streamable HTTP Transport](#streamable-http-transport)
     - [Mounting to an Existing ASGI Server](#mounting-to-an-existing-asgi-server)
   - [Examples](#examples)
     - [Echo Server](#echo-server)
@@ -41,9 +40,9 @@
   - [Advanced Usage](#advanced-usage)
     - [Low-Level Server](#low-level-server)
     - [Writing MCP Clients](#writing-mcp-clients)
+    - [OAuth Authentication for Clients](#oauth-authentication-for-clients)
     - [MCP Primitives](#mcp-primitives)
     - [Server Capabilities](#server-capabilities)
-  - [Documentation](#documentation)
   - [Contributing](#contributing)
   - [License](#license)
 
@@ -73,7 +72,7 @@ The Model Context Protocol allows applications to provide context for LLMs in a 
 
 ### Adding MCP to your python project
 
-We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python projects. 
+We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python projects.
 
 If you haven't created a uv-managed project yet, create one:
 
@@ -89,6 +88,7 @@ If you haven't created a uv-managed project yet, create one:
    ```
 
 Alternatively, for projects using pip for dependencies:
+
 ```bash
 pip install "mcp[cli]"
 ```
@@ -128,11 +128,13 @@ def get_greeting(name: str) -> str:
 ```
 
 You can install this server in [Claude Desktop](https://claude.ai/download) and interact with it right away by running:
+
 ```bash
 mcp install server.py
 ```
 
 Alternatively, you can test it with the MCP Inspector:
+
 ```bash
 mcp dev server.py
 ```
@@ -316,22 +318,18 @@ Authentication can be used by servers that want to expose tools accessing protec
 `mcp.server.auth` implements an OAuth 2.0 server interface, which servers can use by
 providing an implementation of the `OAuthServerProvider` protocol.
 
-```
-mcp = FastMCP("My App",
-        auth_server_provider=MyOAuthServerProvider(),
-        auth=AuthSettings(
-            issuer_url="https://myapp.com",
-            revocation_options=RevocationOptions(
-                enabled=True,
-            ),
-            client_registration_options=ClientRegistrationOptions(
-                enabled=True,
-                valid_scopes=["myscope", "myotherscope"],
-                default_scopes=["myscope"],
-            ),
-            required_scopes=["myscope"],
-        ),
-)
+```python
+from mcp.server.auth import OAuthServerProvider, OAuthToken
+from mcp.server.fastmcp import FastMCP
+
+# Create an auth provider
+class MyAuthProvider(OAuthServerProvider):
+    async def validate_token(self, token: str) -> OAuthToken:
+        # Validate and return token information
+        return OAuthToken(...)
+
+# Create server with auth
+mcp = FastMCP("SecureApp", auth_provider=MyAuthProvider())
 ```
 
 See [OAuthServerProvider](src/mcp/server/auth/provider.py) for more details.
@@ -381,6 +379,7 @@ if __name__ == "__main__":
 ```
 
 Run it with:
+
 ```bash
 python server.py
 # or
@@ -458,17 +457,16 @@ app.mount("/math", math.mcp.streamable_http_app())
 ```
 
 For low level server with Streamable HTTP implementations, see:
+
 - Stateful server: [`examples/servers/simple-streamablehttp/`](examples/servers/simple-streamablehttp/)
 - Stateless server: [`examples/servers/simple-streamablehttp-stateless/`](examples/servers/simple-streamablehttp-stateless/)
 
-
-
 The streamable HTTP transport supports:
+
 - Stateful and stateless operation modes
 - Resumability with event stores
 - JSON or SSE response formats  
 - Better scalability for multi-node deployments
-
 
 ### Mounting to an Existing ASGI Server
 
@@ -637,6 +635,7 @@ async def query_db(name: str, arguments: dict) -> list:
 ```
 
 The lifespan API provides:
+
 - A way to initialize resources when the server starts and clean them up when it stops
 - Access to initialized resources through the request context in handlers
 - Type-safe context passing between lifespan and request handlers
@@ -849,30 +848,27 @@ async def main():
 
 For a complete working example, see [`examples/clients/simple-auth-client/`](examples/clients/simple-auth-client/).
 
-
 ### MCP Primitives
 
 The MCP protocol defines three core primitives that servers can implement:
 
-| Primitive | Control               | Description                                         | Example Use                  |
-|-----------|-----------------------|-----------------------------------------------------|------------------------------|
-| Prompts   | User-controlled       | Interactive templates invoked by user choice        | Slash commands, menu options |
-| Resources | Application-controlled| Contextual data managed by the client application   | File contents, API responses |
-| Tools     | Model-controlled      | Functions exposed to the LLM to take actions        | API calls, data updates      |
+| Primitive | Control                | Description                                       | Example Use                  |
+| --------- | ---------------------- | ------------------------------------------------- | ---------------------------- |
+| Prompts   | User-controlled        | Interactive templates invoked by user choice      | Slash commands, menu options |
+| Resources | Application-controlled | Contextual data managed by the client application | File contents, API responses |
+| Tools     | Model-controlled       | Functions exposed to the LLM to take actions      | API calls, data updates      |
 
 ### Server Capabilities
 
 MCP servers declare capabilities during initialization:
 
-| Capability  | Feature Flag                 | Description                        |
-|-------------|------------------------------|------------------------------------|
-| `prompts`   | `listChanged`                | Prompt template management         |
-| `resources` | `subscribe`<br/>`listChanged`| Resource exposure and updates      |
-| `tools`     | `listChanged`                | Tool discovery and execution       |
-| `logging`   | -                            | Server logging configuration       |
-| `completion`| -                            | Argument completion suggestions    |
-
-## Documentation
+| Capability   | Feature Flag                  | Description                     |
+| ------------ | ----------------------------- | ------------------------------- |
+| `prompts`    | `listChanged`                 | Prompt template management      |
+| `resources`  | `subscribe` / `listChanged`   | Resource exposure and updates   |
+| `tools`      | `listChanged`                 | Tool discovery and execution    |
+| `logging`    | -                             | Server logging configuration    |
+| `completion` | -                             | Argument completion suggestions |
 
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [Model Context Protocol specification](https://spec.modelcontextprotocol.io)
