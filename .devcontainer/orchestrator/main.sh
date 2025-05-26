@@ -4,13 +4,10 @@
 
 set -euo pipefail
 
-SCRIPT_DIR=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR=""
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Safely source the required files
-# shellcheck source=constants.sh
+# shellcheck source=./constants.sh
 if [[ -r "$SCRIPT_DIR/constants.sh" ]]; then
     source "$SCRIPT_DIR/constants.sh"
 else
@@ -18,7 +15,7 @@ else
     exit 1
 fi
 
-# shellcheck source=types.sh
+# shellcheck source=./types.sh
 if [[ -r "$SCRIPT_DIR/types.sh" ]]; then
     source "$SCRIPT_DIR/types.sh"
 else
@@ -26,7 +23,7 @@ else
     exit 1
 fi
 
-# shellcheck source=utils.sh
+# shellcheck source=./utils.sh
 if [[ -r "$SCRIPT_DIR/utils.sh" ]]; then
     source "$SCRIPT_DIR/utils.sh"
 else
@@ -34,7 +31,7 @@ else
     exit 1
 fi
 
-# shellcheck source=registry.sh
+# shellcheck source=./registry.sh
 if [[ -r "$SCRIPT_DIR/registry.sh" ]]; then
     source "$SCRIPT_DIR/registry.sh"
 else
@@ -52,7 +49,7 @@ if [[ -r "$ROOT_DIR/config/load-env.sh" ]]; then
 fi
 
 # Logging script is optional but recommended
-# shellcheck source=utils/logging.sh
+# shellcheck source=./utils/logging.sh
 if [[ -r "$SCRIPT_DIR/utils/logging.sh" ]]; then
     source "$SCRIPT_DIR/utils/logging.sh"
 fi
@@ -68,7 +65,7 @@ show_usage() {
 MCP Python SDK Master Orchestrator v$ORCHESTRATOR_VERSION
 
 USAGE:
-    $0 [OPTIONS] [MODULES...]
+    \$0 [OPTIONS] [MODULES...]
 
 OPTIONS:
     --parallel, -p      Execute modules in parallel
@@ -86,10 +83,10 @@ MODULES:
     all                 Execute all modules (default)
 
 EXAMPLES:
-    $0                  # Execute all modules sequentially
-    $0 --parallel       # Execute all modules in parallel
-    $0 cpu memory       # Execute only CPU and memory modules
-    $0 --dry-run all    # Show what would be executed
+    \$0                  # Execute all modules sequentially
+    \$0 --parallel       # Execute all modules in parallel
+    \$0 cpu memory       # Execute only CPU and memory modules
+    \$0 --dry-run all    # Show what would be executed
 EOF
 }
 
@@ -103,9 +100,7 @@ list_available_modules() {
             local desc
             desc="$(grep "^# .*Module\$" "$module" | head -1 || true)"
             desc="${desc/#"# "/}"
-            if [[ -z "$desc" ]]; then
-                desc="No description"
-            fi
+            [[ -z "$desc" ]] && desc="No description"
             printf "  %-15s %s\n" "$name" "$desc"
         done < <(find "$modules_dir" -type f -executable -name "*.sh" -print0)
     else
@@ -178,7 +173,6 @@ main() {
     execute_orchestration "${modules[@]}"
 }
 
-# Run if executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi

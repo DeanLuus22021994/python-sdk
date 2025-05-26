@@ -2,9 +2,9 @@
 # DevContainer Orchestrator Utilities
 # Common utility functions used across the orchestrator system
 
-SCRIPT_DIR=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# shellcheck source=./constants.sh
 if [[ -r "$SCRIPT_DIR/constants.sh" ]]; then
     source "$SCRIPT_DIR/constants.sh"
 else
@@ -12,6 +12,7 @@ else
     exit 1
 fi
 
+# shellcheck source=./types.sh
 if [[ -r "$SCRIPT_DIR/types.sh" ]]; then
     source "$SCRIPT_DIR/types.sh"
 else
@@ -19,7 +20,7 @@ else
     exit 1
 fi
 
-# ====== STRING UTILITIES ======
+# ===== STRING UTILITIES =====
 to_lowercase() {
     printf "%s" "$1" | tr '[:upper:]' '[:lower:]'
 }
@@ -29,7 +30,6 @@ to_uppercase() {
 }
 
 strip_whitespace() {
-    # Remove leading and trailing whitespace
     sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
 
@@ -46,7 +46,7 @@ string_length() {
     printf "%d" "${#1}"
 }
 
-# ====== FILE UTILITIES ======
+# ===== FILE UTILITIES =====
 is_file_readable() {
     [[ -f "$1" && -r "$1" ]]
 }
@@ -84,7 +84,7 @@ get_file_mtime() {
     fi
 }
 
-# ====== ARRAY UTILITIES ======
+# ===== ARRAY UTILITIES =====
 join_array() {
     local separator="$1"
     shift
@@ -97,9 +97,7 @@ array_contains() {
     shift
     local item
     for item in "$@"; do
-        if [[ "$item" == "$element" ]]; then
-            return 0
-        fi
+        [[ "$item" == "$element" ]] && return 0
     done
     return 1
 }
@@ -108,7 +106,7 @@ array_length() {
     printf "%d" "$#"
 }
 
-# ====== VALIDATION UTILITIES ======
+# ===== VALIDATION UTILITIES =====
 is_set() {
     [[ -n "${1+x}" ]]
 }
@@ -126,10 +124,10 @@ is_ip_address() {
 }
 
 is_hostname() {
-    [[ "$1" =~ ^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$ ]]
+    [[ "$1" =~ ^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][a-zA-Z0-9\-]*[A-Za-z0-9])$ ]]
 }
 
-# ====== SYSTEM UTILITIES ======
+# ===== SYSTEM UTILITIES =====
 get_system_memory() {
     local mem=""
     mem="$(free -m | awk '/Mem:/ {print $2}' 2>/dev/null || true)"
@@ -152,7 +150,7 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# ====== TIME UTILITIES ======
+# ===== TIME UTILITIES =====
 get_timestamp() {
     date +%s
 }
@@ -185,7 +183,7 @@ format_duration() {
     fi
 }
 
-# ====== ERROR HANDLING ======
+# ===== ERROR HANDLING =====
 run_with_timeout() {
     local timeout_val="$1"
     shift
@@ -220,9 +218,7 @@ retry() {
     local count=0
     until "$@"; do
         count=$((count + 1))
-        if [[ $count -ge $attempts ]]; then
-            return 1
-        fi
+        [[ $count -ge $attempts ]] && return 1
         sleep "$delay"
     done
     return 0

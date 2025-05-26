@@ -2,10 +2,9 @@
 # DevContainer Orchestrator Registry
 # Central registry for all modules, tools, and validation tests
 
-SCRIPT_DIR=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Safely source the required files
+# shellcheck source=./constants.sh
 if [[ -r "$SCRIPT_DIR/constants.sh" ]]; then
     source "$SCRIPT_DIR/constants.sh"
 else
@@ -13,6 +12,7 @@ else
     exit 1
 fi
 
+# shellcheck source=./types.sh
 if [[ -r "$SCRIPT_DIR/types.sh" ]]; then
     source "$SCRIPT_DIR/types.sh"
 else
@@ -20,6 +20,7 @@ else
     exit 1
 fi
 
+# shellcheck source=./utils.sh
 if [[ -r "$SCRIPT_DIR/utils.sh" ]]; then
     source "$SCRIPT_DIR/utils.sh"
 else
@@ -28,9 +29,9 @@ else
 fi
 
 # Initialize registries
-declare -a MODULE_REGISTRY=()
-declare -a TOOL_REGISTRY=()
-declare -a TEST_REGISTRY=()
+declare -a MODULE_REGISTRY=()  # Used to store module descriptors
+declare -a TOOL_REGISTRY=()    # Used to store tool descriptors
+declare -a TEST_REGISTRY=()    # Used to store validation test descriptors
 
 register_modules() {
     local module_data
