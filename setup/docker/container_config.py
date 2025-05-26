@@ -5,7 +5,10 @@ from typing import Any
 
 import yaml
 
-from setup.environment.path_utils import get_project_root
+from setup.environment.path_utils import get_project_root as get_env_project_root
+
+# Alias for backward compatibility
+get_project_root = get_env_project_root
 
 
 class DockerContainerManager:

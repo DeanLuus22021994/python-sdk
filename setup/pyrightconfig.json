@@ -1,18 +1,127 @@
 {
-  "include": ["**/*.py"],
-  "exclude": [
-    "**/venv",
-    "**/__pycache__",
-    "**/.pytest_cache",
-    "**/.mypy_cache",
-    "**/.venv",
-    "**/venv"
+  // Modern Python SDK Configuration for MCP
+  "include": [
+    "src/**/*.py",
+    "setup/**/*.py",
+    "tests/**/*.py",
+    "examples/**/*.py"
   ],
-  "reportMissingImports": "warning",
-  "reportMissingTypeStubs": "none",
-  "reportUnknownVariableType": "none",
-  "reportOptionalMemberAccess": "none",
-  "reportArgumentType": "none",
+  "exclude": [
+    "**/venv/**",
+    "**/__pycache__/**",
+    "**/.pytest_cache/**",
+    "**/.mypy_cache/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/.coverage",
+    "**/htmlcov/**"
+  ],
+
+  // Python Environment Configuration
   "pythonVersion": "3.10",
-  "typeCheckingMode": "basic"
+  "pythonPlatform": "All",
+  "executionEnvironments": [
+    {
+      "root": "src",
+      "pythonVersion": "3.10",
+      "pythonPlatform": "All",
+      "extraPaths": ["src"]
+    },
+    {
+      "root": "setup",
+      "pythonVersion": "3.10",
+      "extraPaths": ["src", "setup"]
+    },
+    {
+      "root": "tests",
+      "pythonVersion": "3.10",
+      "extraPaths": ["src", "setup"]
+    }
+  ],
+
+  // Type Checking Strictness (Progressive Enhancement)
+  "typeCheckingMode": "strict",
+  "strictListInference": true,
+  "strictDictionaryInference": true,
+  "strictSetInference": true,
+  "strictParameterNoneValue": true,
+
+  // Import and Module Resolution
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": "warning",
+  "reportImportCycles": "error",
+  "reportMissingModuleSource": "warning",
+  "reportInvalidTypeVarUse": "error",
+
+  // Type Annotation Enforcement
+  "reportUnknownVariableType": "warning",
+  "reportUnknownMemberType": "warning",
+  "reportUnknownArgumentType": "warning",
+  "reportUnknownLambdaType": "warning",
+  "reportUnknownParameterType": "warning",
+
+  // Function and Method Validation
+  "reportOptionalMemberAccess": "error",
+  "reportOptionalSubscript": "error",
+  "reportOptionalIterable": "error",
+  "reportOptionalContextManager": "error",
+  "reportOptionalOperand": "error",
+  "reportArgumentType": "error",
+  "reportAssignmentType": "error",
+  "reportReturnType": "error",
+  "reportCallIssue": "error",
+
+  // Code Quality and Best Practices
+  "reportUnusedImport": "warning",
+  "reportUnusedClass": "warning",
+  "reportUnusedFunction": "warning",
+  "reportUnusedVariable": "warning",
+  "reportDuplicateImport": "warning",
+  "reportInconsistentConstructor": "error",
+  "reportInvalidStubStatement": "error",
+  "reportIncompleteStub": "warning",
+
+  // Modern Python Features
+  "reportUntypedFunctionDecorator": "warning",
+  "reportUntypedClassDecorator": "warning",
+  "reportUntypedBaseClass": "error",
+  "reportUntypedNamedTuple": "warning",
+  "reportPrivateUsage": "warning",
+  "reportTypeCommentUsage": "error",
+  "reportPrivateImportUsage": "error",
+
+  // Async/Await Validation (Important for MCP)
+  "reportInvalidStringEscapeSequence": "error",
+  "reportUnknownMemberType": "warning",
+  "reportGeneralTypeIssues": "error",
+
+  // Constants and Naming
+  "reportConstantRedefinition": "error",
+  "reportIncompatibleVariableOverride": "error",
+  "reportIncompatibleMethodOverride": "error",
+  "reportOverlappingOverload": "error",
+
+  // Advanced Features for SDK Development
+  "reportPropertyTypeMismatch": "error",
+  "reportFunctionMemberAccess": "warning",
+  "reportInvalidTypeForm": "error",
+  "reportMissingParameterType": "warning",
+  "reportImplicitStringConcatenation": "warning",
+  "reportUndefinedVariable": "error",
+
+  // Performance and Analysis Settings
+  "autoImportCompletions": true,
+  "useLibraryCodeForTypes": true,
+  "autoSearchPaths": true,
+  "stubPath": "typings",
+  "analysis": {
+    "autoImportCompletions": true,
+    "useLibraryCodeForTypes": true
+  },
+
+  // VS Code Integration
+  "venvPath": ".",
+  "venv": ".venv"
 }
