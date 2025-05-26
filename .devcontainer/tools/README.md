@@ -4,7 +4,7 @@ This directory contains modular development utilities following a structured nam
 
 ## Directory Structure
 
-```
+```structure
 tools/
 ├── index.sh                    # Central tool registry and launcher
 ├── inspect/                    # State inspection and analysis tools
@@ -18,6 +18,7 @@ tools/
 ## Naming Convention
 
 Tools follow a structured naming pattern: `{ID}-{name}.sh`
+
 - **ID**: 3-digit sequential number (001, 002, 003, ...)
 - **Name**: Descriptive kebab-case name
 - **Category**: Directory-based organization (inspect, utils, metrics)
@@ -25,17 +26,21 @@ Tools follow a structured naming pattern: `{ID}-{name}.sh`
 ## Tool Categories
 
 ### inspect/
+
 Tools for examining and analyzing the current state of the development environment.
 
 ### utils/
+
 General-purpose utilities for development workflow assistance.
 
 ### metrics/
+
 Performance tracking, benchmarking, and development cycle analytics.
 
 ## Usage
 
 ### Using the Index (Recommended)
+
 ```bash
 # Show all available tools
 ./tools/index.sh list
@@ -47,6 +52,7 @@ Performance tracking, benchmarking, and development cycle analytics.
 ```
 
 ### Direct Execution
+
 ```bash
 # Make scripts executable
 chmod +x tools/*/*.sh
@@ -87,6 +93,7 @@ chmod +x tools/*/*.sh
 ## Integration
 
 These tools are designed to integrate with:
+
 - Master orchestrator workflows
 - CI/CD pipelines
 - Development environment monitoring
