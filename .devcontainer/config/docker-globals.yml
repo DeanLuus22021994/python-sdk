@@ -5,12 +5,11 @@
 # =============================================================================
 # GLOBAL ENVIRONMENT VARIABLES
 # =============================================================================
-x-global-env: &global-env
-  # Network Configuration
+x-global-env: &global-env # Network Configuration
   GLOBAL_NETWORK_MTU: "9000"
   GLOBAL_NETWORK_SUBNET: "172.20.0.0/16"
   GLOBAL_NETWORK_GATEWAY: "172.20.0.1"
-  
+
   # Python Optimization
   GLOBAL_PYTHONOPTIMIZE: "2"
   GLOBAL_PYTHONUNBUFFERED: "1"
@@ -18,16 +17,16 @@ x-global-env: &global-env
   GLOBAL_PYTHONHASHSEED: "0"
   GLOBAL_PYTHONSTARTUP: "/workspaces/python-sdk/.devcontainer/config/python-startup.py"
   GLOBAL_PYTHONPATH: "/workspaces/python-sdk/src"
-  
+
   # Performance Settings
   GLOBAL_MALLOC_CONF: "dirty_decay_ms:1000,muzzy_decay_ms:1000"
   GLOBAL_LD_PRELOAD: "/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"
-  
+
   # GPU Configuration
   GLOBAL_NVIDIA_VISIBLE_DEVICES: "all"
   GLOBAL_NVIDIA_DRIVER_CAPABILITIES: "all"
   GLOBAL_CUDA_VISIBLE_DEVICES: "all"
-  
+
   # Cache Directories
   GLOBAL_CACHE_ROOT: "/opt/mcp-cache"
   GLOBAL_NUMBA_CACHE_DIR: "/opt/mcp-cache/numba"
@@ -35,7 +34,7 @@ x-global-env: &global-env
   GLOBAL_WHEELS_CACHE_SIZE: "4G"
   GLOBAL_BYTECODE_CACHE_SIZE: "2G"
   GLOBAL_NUMBA_CACHE_SIZE: "4G"
-  
+
   # Resource Limits
   GLOBAL_TMPFS_SIZE: "32G"
   GLOBAL_CONTAINER_SHM_SIZE: "16G"
@@ -43,27 +42,27 @@ x-global-env: &global-env
   GLOBAL_MEMORY_LIMIT: "0"
   GLOBAL_CPU_RESERVATION: "4"
   GLOBAL_MEMORY_RESERVATION: "8G"
-  
+
   # Database Configuration
   GLOBAL_POSTGRES_USER: "postgres"
   GLOBAL_POSTGRES_DB: "postgres"
   GLOBAL_POSTGRES_PASSWORD: "postgres"
   GLOBAL_POSTGRES_PORT: "5432"
   GLOBAL_POSTGRES_DATA_PATH: "/opt/postgres-data"
-  
+
   # Redis Configuration
   GLOBAL_REDIS_PORT: "6379"
   GLOBAL_REDIS_MAXMEMORY: "4gb"
-  
+
   # Build Configuration
   GLOBAL_BUILDKIT_INLINE_CACHE: "1"
   GLOBAL_DOCKER_BUILDKIT: "1"
-  
+
   # Security Settings
   GLOBAL_PRIVILEGED_MODE: "true"
   GLOBAL_SECURITY_OPT: "seccomp:unconfined"
   GLOBAL_APPARMOR_PROFILE: "apparmor:unconfined"
-  
+
   # System Optimization
   GLOBAL_ULIMIT_MEMLOCK_SOFT: "-1"
   GLOBAL_ULIMIT_MEMLOCK_HARD: "-1"
@@ -71,7 +70,7 @@ x-global-env: &global-env
   GLOBAL_ULIMIT_STACK_HARD: "67108864"
   GLOBAL_ULIMIT_NOFILE_SOFT: "1048576"
   GLOBAL_ULIMIT_NOFILE_HARD: "1048576"
-  
+
   # Sysctls for Performance
   GLOBAL_SYSCTL_SOMAXCONN: "32768"
   GLOBAL_SYSCTL_TCP_MAX_SYN_BACKLOG: "32768"
@@ -80,7 +79,7 @@ x-global-env: &global-env
   GLOBAL_SYSCTL_VM_DIRTY_RATIO: "80"
   GLOBAL_SYSCTL_VM_DIRTY_BACKGROUND_RATIO: "5"
   GLOBAL_SYSCTL_VM_VFS_CACHE_PRESSURE: "50"
-  
+
   # Python Development Package Versions
   GLOBAL_UV_VERSION: "0.5.0"
   GLOBAL_FASTAPI_VERSION: "0.115.0"
@@ -92,7 +91,7 @@ x-global-env: &global-env
   GLOBAL_PYTEST_ASYNCIO_VERSION: "0.24.0"
   GLOBAL_BLACK_VERSION: "24.10.0"
   GLOBAL_RUFF_VERSION: "0.8.0"
-  
+
   # Performance Optimization Package Versions
   GLOBAL_UVLOOP_VERSION: "0.21.0"
   GLOBAL_ORJSON_VERSION: "3.10.0"
@@ -100,14 +99,13 @@ x-global-env: &global-env
   GLOBAL_NUMBA_VERSION: "0.60.0"
   GLOBAL_PSUTIL_VERSION: "6.1.0"
   GLOBAL_JEMALLOC_VERSION: "2.0.0"
-  
+
   # Python Package Installation Options
   GLOBAL_PIP_NO_CACHE_DIR: "false"
   GLOBAL_PIP_DISABLE_PIP_VERSION_CHECK: "true"
   GLOBAL_PIP_ROOT_USER_ACTION: "ignore"
   GLOBAL_UV_CACHE_DIR: "/opt/mcp-cache/uv"
   GLOBAL_UV_PYTHON: "3.12"
-  GLOBAL_POSTGRES_DATA_PATH: "/opt/postgres-data"
 
 # =============================================================================
 # DOCKER COMPOSE CONFIGURATIONS
@@ -135,28 +133,28 @@ volumes:
       type: tmpfs
       device: tmpfs
       o: "size=8G,uid=1000,gid=1000,mode=0755"
-  
+
   python-wheels-volume:
-    driver: local 
+    driver: local
     driver_opts:
       type: tmpfs
       device: tmpfs
       o: "size=4G,uid=1000,gid=1000,mode=0755"
-  
+
   python-bytecode-volume:
     driver: local
     driver_opts:
       type: tmpfs
       device: tmpfs
       o: "size=2G,uid=1000,gid=1000,mode=0755"
-  
+
   numba-cache-volume:
     driver: local
     driver_opts:
       type: tmpfs
       device: tmpfs
       o: "size=4G,uid=1000,gid=1000,mode=0755"
-  
+
   postgres-data:
     driver: local
     driver_opts:
@@ -227,9 +225,41 @@ x-unlimited-resources: &unlimited-resources
 # =============================================================================
 
 x-app-service: &app-service
-  <<: *performance-config
-  <<: *gpu-config
-  <<: *unlimited-resources
+  privileged: true
+  init: true
+  security_opt:
+    - "seccomp:unconfined"
+    - "apparmor:unconfined"
+  ulimits:
+    memlock:
+      soft: -1
+      hard: -1
+    stack:
+      soft: 67108864
+      hard: 67108864
+    nofile:
+      soft: 1048576
+      hard: 1048576
+  sysctls:
+    - "net.core.somaxconn=32768"
+    - "net.ipv4.tcp_max_syn_backlog=32768"
+    - "net.core.netdev_max_backlog=32768"
+    - "vm.swappiness=1"
+    - "vm.dirty_ratio=80"
+    - "vm.dirty_background_ratio=5"
+    - "vm.vfs_cache_pressure=50"
+  deploy:
+    resources:
+      limits:
+        cpus: "0"
+        memory: "0"
+      reservations:
+        cpus: "4"
+        memory: "8G"
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu, compute, utility]
   environment: *global-env
   volumes:
     - type: bind
@@ -253,8 +283,37 @@ x-app-service: &app-service
     - "/var/tmp:size=8G,mode=1777"
 
 x-postgres-service: &postgres-service
-  <<: *performance-config
-  <<: *unlimited-resources
+  privileged: true
+  init: true
+  security_opt:
+    - "seccomp:unconfined"
+    - "apparmor:unconfined"
+  ulimits:
+    memlock:
+      soft: -1
+      hard: -1
+    stack:
+      soft: 67108864
+      hard: 67108864
+    nofile:
+      soft: 1048576
+      hard: 1048576
+  sysctls:
+    - "net.core.somaxconn=32768"
+    - "net.ipv4.tcp_max_syn_backlog=32768"
+    - "net.core.netdev_max_backlog=32768"
+    - "vm.swappiness=1"
+    - "vm.dirty_ratio=80"
+    - "vm.dirty_background_ratio=5"
+    - "vm.vfs_cache_pressure=50"
+  deploy:
+    resources:
+      limits:
+        cpus: "0"
+        memory: "0"
+      reservations:
+        cpus: "4"
+        memory: "8G"
   environment:
     <<: *global-env
     POSTGRES_USER: "postgres"
@@ -289,8 +348,37 @@ x-postgres-service: &postgres-service
     -c full_page_writes=off
 
 x-redis-service: &redis-service
-  <<: *performance-config
-  <<: *unlimited-resources
+  privileged: true
+  init: true
+  security_opt:
+    - "seccomp:unconfined"
+    - "apparmor:unconfined"
+  ulimits:
+    memlock:
+      soft: -1
+      hard: -1
+    stack:
+      soft: 67108864
+      hard: 67108864
+    nofile:
+      soft: 1048576
+      hard: 1048576
+  sysctls:
+    - "net.core.somaxconn=32768"
+    - "net.ipv4.tcp_max_syn_backlog=32768"
+    - "net.core.netdev_max_backlog=32768"
+    - "vm.swappiness=1"
+    - "vm.dirty_ratio=80"
+    - "vm.dirty_background_ratio=5"
+    - "vm.vfs_cache_pressure=50"
+  deploy:
+    resources:
+      limits:
+        cpus: "0"
+        memory: "0"
+      reservations:
+        cpus: "4"
+        memory: "8G"
   environment: *global-env
   tmpfs:
     - "/data:size=4G,mode=1777"
