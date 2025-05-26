@@ -7,80 +7,70 @@ from __future__ import annotations
 
 import asyncio
 import gc
+import json as stdlib_json
 import os
 import sys
 from typing import Any
-import json as stdlib_json
 
 # Platform check for uvloop
-_uvloop_available = False
+UVLOOP_AVAILABLE = False
 if sys.platform != "win32":
     try:
         import uvloop  # type: ignore
 
-        _uvloop_available = True
+        UVLOOP_AVAILABLE = True
     except ImportError:
         pass
 
-UVLOOP_AVAILABLE = _uvloop_available
-
-# JSON backend selection
-_json_module = None
-_json_backend = "stdlib"
+# JSON backend selection with proper typing
+JSON_BACKEND = "stdlib"
+_orjson: Any = None
+_ujson: Any = None
 
 try:
     import orjson  # type: ignore
 
-    _json_module = orjson
-    _json_backend = "orjson"
+    _orjson = orjson
+    JSON_BACKEND = "orjson"
 except ImportError:
     try:
         import ujson  # type: ignore
 
-        _json_module = ujson
-        _json_backend = "ujson"
+        _ujson = ujson
+        JSON_BACKEND = "ujson"
     except ImportError:
-        _json_module = stdlib_json
-        _json_backend = "stdlib"
-
-JSON_BACKEND = _json_backend
+        pass
 
 # Compression libraries
-_lz4_available = False
-_lz4_module = None
+LZ4_AVAILABLE = False
+_lz4: Any = None
 try:
     import lz4.frame  # type: ignore
 
-    _lz4_module = lz4.frame
-    _lz4_available = True
+    _lz4 = lz4.frame
+    LZ4_AVAILABLE = True
 except ImportError:
     pass
 
-LZ4_AVAILABLE = _lz4_available
-
-_zstd_available = False
-_zstd_module = None
+ZSTD_AVAILABLE = False
+_zstd: Any = None
 try:
     import zstandard  # type: ignore
 
-    _zstd_module = zstandard
-    _zstd_available = True
+    _zstd = zstandard
+    ZSTD_AVAILABLE = True
 except ImportError:
     pass
 
-ZSTD_AVAILABLE = _zstd_available
-
-_xxhash_available = False
-_xxhash_module = None
+XXHASH_AVAILABLE = False
+_xxhash: Any = None
 try:
     import xxhash  # type: ignore
 
-    _xxhash_module = xxhash
-    _xxhash_available = True
+    _xxhash = xxhash
+    XXHASH_AVAILABLE = True
 except ImportError:
     pass
-
-XXHASH_AVAILABLE = _xxhash_available
 
 
 class PerformanceOptimizer:
@@ -90,10 +80,10 @@ class PerformanceOptimizer:
         self.json_backend = JSON_BACKEND
         self.compression_enabled = LZ4_AVAILABLE or ZSTD_AVAILABLE
         self.hash_enabled = XXHASH_AVAILABLE
-        self._setup_gc_optimization()
-        self._setup_event_loop()
+        self.setup_gc_optimization()
+        self.setup_event_loop()
 
-    def _setup_gc_optimization(self) -> None:
+    def setup_gc_optimization(self) -> None:
         """Optimize garbage collection for performance."""
         # Disable automatic garbage collection for latency-sensitive operations
         gc.disable()
@@ -105,47 +95,52 @@ class PerformanceOptimizer:
         if os.getenv("FASTMCP_DEBUG", "").lower() == "true":
             gc.set_debug(gc.DEBUG_STATS)
 
-    def _setup_event_loop(self) -> None:
+    def setup_event_loop(self) -> None:
         """Set up high-performance event loop."""
         if UVLOOP_AVAILABLE and sys.platform != "win32":
             try:
+                import uvloop  # type: ignore
+
                 uvloop.install()
             except Exception:
                 pass  # Fall back to default event loop
 
     def optimize_json_serialization(self, data: Any) -> bytes:
         """High-performance JSON serialization."""
-        if self.json_backend == "orjson":
-            return _json_module.dumps(data)
-        elif self.json_backend == "ujson":
-            return _json_module.dumps(data).encode("utf-8")
+        if self.json_backend == "orjson" and _orjson:
+            # orjson.dumps returns bytes directly
+            return _orjson.dumps(data)  # type: ignore
+        elif self.json_backend == "ujson" and _ujson:
+            # ujson.dumps returns str, need to encode
+            result = _ujson.dumps(data)  # type: ignore
+            return result.encode("utf-8")
         else:
-            return _json_module.dumps(
-                data, separators=(",", ":"), ensure_ascii=False
-            ).encode("utf-8")
+            # stdlib json.dumps returns str, need to encode
+            result = stdlib_json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+            return result.encode("utf-8")
 
     def optimize_json_deserialization(self, data: bytes | str) -> Any:
         """High-performance JSON deserialization."""
         if isinstance(data, str):
             data = data.encode("utf-8")
 
-        if self.json_backend == "orjson":
-            return _json_module.loads(data)
-        elif self.json_backend == "ujson":
-            return _json_module.loads(data.decode("utf-8"))
+        if self.json_backend == "orjson" and _orjson:
+            return _orjson.loads(data)  # type: ignore
+        elif self.json_backend == "ujson" and _ujson:
+            return _ujson.loads(data.decode("utf-8"))  # type: ignore
         else:
-            return _json_module.loads(data.decode("utf-8"))
+            return stdlib_json.loads(data.decode("utf-8"))
 
     def compress_data(self, data: bytes, algorithm: str = "lz4") -> bytes:
         """High-performance data compression."""
         if not self.compression_enabled:
             return data
 
-        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4_module:
-            return _lz4_module.compress(data, compression_level=1)
-        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd_module:
-            cctx = _zstd_module.ZstdCompressor(level=1)  # Fast compression
-            return cctx.compress(data)
+        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4:
+            return _lz4.compress(data, compression_level=1)  # type: ignore
+        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd:
+            cctx = _zstd.ZstdCompressor(level=1)  # Fast compression  # type: ignore
+            return cctx.compress(data)  # type: ignore
 
         return data
 
@@ -154,11 +149,11 @@ class PerformanceOptimizer:
         if not self.compression_enabled:
             return data
 
-        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4_module:
-            return _lz4_module.decompress(data)
-        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd_module:
-            dctx = _zstd_module.ZstdDecompressor()
-            return dctx.decompress(data)
+        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4:
+            return _lz4.decompress(data)  # type: ignore
+        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd:
+            dctx = _zstd.ZstdDecompressor()  # type: ignore
+            return dctx.decompress(data)  # type: ignore
 
         return data
 
@@ -169,10 +164,10 @@ class PerformanceOptimizer:
 
             return hashlib.sha256(data).hexdigest()
 
-        if algorithm == "xxhash64" and _xxhash_module:
-            return _xxhash_module.xxh64(data).hexdigest()
-        elif algorithm == "xxhash32" and _xxhash_module:
-            return _xxhash_module.xxh32(data).hexdigest()
+        if algorithm == "xxhash64" and _xxhash:
+            return _xxhash.xxh64(data).hexdigest()  # type: ignore
+        elif algorithm == "xxhash32" and _xxhash:
+            return _xxhash.xxh32(data).hexdigest()  # type: ignore
         else:
             import hashlib
 
@@ -297,12 +292,12 @@ def enable_performance_mode() -> None:
     os.environ.setdefault("PYTHONHASHSEED", "0")
 
     # Enable garbage collection optimization
-    optimizer._setup_gc_optimization()
+    optimizer.setup_gc_optimization()
 
     # Set up high-performance event loop
-    optimizer._setup_event_loop()
+    optimizer.setup_event_loop()
 
-    print(f"🚀 MCP Performance Mode Enabled!")
+    print("🚀 MCP Performance Mode Enabled!")
     print(f"   JSON Backend: {optimizer.json_backend}")
     print(f"   Compression: {'✓' if optimizer.compression_enabled else '✗'}")
     print(f"   Fast Hashing: {'✓' if optimizer.hash_enabled else '✗'}")
