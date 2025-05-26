@@ -1,8 +1,10 @@
+# filepath: c:\Projects\python-sdk\setup\environment\constants.py
 """
 Constants and Configuration Values
 Centralized constants for the MCP Python SDK setup with type safety and immutability.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final, NamedTuple
 
@@ -16,17 +18,14 @@ class PythonVersion(NamedTuple):
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}"
 
-    def __lt__(self, other: "PythonVersion") -> bool:
-        return (self.major, self.minor) < (other.major, other.minor)
-
-    def __le__(self, other: "PythonVersion") -> bool:
-        return (self.major, self.minor) <= (other.major, other.minor)
-
-    def __gt__(self, other: "PythonVersion") -> bool:
-        return (self.major, self.minor) > (other.major, other.minor)
-
-    def __ge__(self, other: "PythonVersion") -> bool:
-        return (self.major, self.minor) >= (other.major, other.minor)
+    def compare_to(self, other: "PythonVersion") -> int:
+        """Compare versions safely without overriding tuple methods."""
+        if (self.major, self.minor) < (other.major, other.minor):
+            return -1
+        elif (self.major, self.minor) > (other.major, other.minor):
+            return 1
+        else:
+            return 0
 
 
 @dataclass(frozen=True)
@@ -69,25 +68,40 @@ REQUIRED_PROJECT_PATHS: Final[tuple[str, ...]] = (
 OPTIONAL_PROJECT_PATHS: Final[tuple[str, ...]] = (
     "docs",
     "tests",
-    "examples",
-    "README.md",
-    "LICENSE",
-    "docker-compose.yml",
     ".devcontainer",
+    "docker-compose.yml",
+    "Dockerfile",
     ".github",
+    "CONTRIBUTING.md",
+    "README.md",
 )
 
-# VS Code recommended extensions for enhanced development
+# Package requirements with exact versions for reproducibility
+CORE_PACKAGES: Final[tuple[str, ...]] = (
+    "pydantic>=2.0.0",
+    "anyio>=4.0.0",
+    "httpx>=0.24.0",
+    "jsonschema>=4.17.0",
+)
+
+# Development packages for enhanced workflow
+DEV_PACKAGES: Final[tuple[str, ...]] = (
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.0.0",
+)
+
+# VS Code extension recommendations
 RECOMMENDED_EXTENSIONS: Final[tuple[str, ...]] = (
     "ms-python.python",
     "ms-python.vscode-pylance",
     "ms-python.black-formatter",
-    "ms-python.mypy-type-checker",
     "charliermarsh.ruff",
-    "ms-python.debugpy",
-    "github.copilot",
-    "github.copilot-chat",
-    "ms-vscode.errorlens",
+    "ms-python.mypy-type-checker",
     "ms-vscode.vscode-json",
     "tamasfe.even-better-toml",
     "redhat.vscode-yaml",
@@ -98,10 +112,11 @@ RECOMMENDED_EXTENSIONS: Final[tuple[str, ...]] = (
 # Default performance settings instance
 PERFORMANCE_SETTINGS: Final[PerformanceSettings] = PerformanceSettings()
 
-# VS Code performance settings
-VS_CODE_PERFORMANCE_SETTINGS: Final[dict[str, str | int | bool | dict[str, bool]]] = {
+# VS Code performance settings - Fixed type compatibility
+VS_CODE_PERFORMANCE_SETTINGS: Final[
+    Mapping[str, str | int | bool | Mapping[str, bool]]
+] = {
     "python.analysis.userFileIndexingLimit": 5000,
-    "python.analysis.packageIndexDepths": [{"name": "mcp", "depth": 5}],
     "files.watcherExclude": {
         "**/__pycache__/**": True,
         "**/.git/objects/**": True,

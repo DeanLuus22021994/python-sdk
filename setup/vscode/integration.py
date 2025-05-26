@@ -1,8 +1,7 @@
+# filepath: c:\Projects\python-sdk\setup\vscode\integration.py
 """
-VS Code integration manager.
-
-Coordinates the creation and management of all VS Code configuration files
-to provide a comprehensive Python development environment.
+VS Code Integration Manager
+Comprehensive VS Code workspace configuration and management.
 """
 
 from pathlib import Path
@@ -16,30 +15,37 @@ from .tasks import VSCodeTasksManager
 
 
 class VSCodeIntegrationManager:
-    """Manages VS Code integration for Python projects."""
+    """
+    Comprehensive VS Code workspace configuration manager.
 
-    def __init__(self, project_root: Path) -> None:
-        """Initialize the integration manager.
+    Coordinates all VS Code configuration components including extensions,
+    settings, tasks, and launch configurations.
+    """
+
+    def __init__(self, workspace_root: Path) -> None:
+        """
+        Initialize VS Code integration manager.
 
         Args:
-            project_root: Path to the project root directory
+            workspace_root: Root directory of the workspace
         """
-        self.project_root = project_root
-        self.vscode_dir = project_root / ".vscode"
+        self.workspace_root = Path(workspace_root).resolve()
+        self.vscode_dir = self.workspace_root / ".vscode"
 
         # Initialize component managers
-        self.extensions = VSCodeExtensionsManager(project_root)
-        self.settings = VSCodeSettingsManager(project_root)
-        self.tasks = VSCodeTasksManager(project_root)
-        self.launch = VSCodeLaunchManager(project_root)
+        self.extensions = VSCodeExtensionsManager(self.vscode_dir)
+        self.settings = VSCodeSettingsManager(self.vscode_dir)
+        self.tasks = VSCodeTasksManager(self.vscode_dir)
+        self.launch = VSCodeLaunchManager(self.vscode_dir)
 
-    def setup_workspace(
+    def create_workspace_configuration(
         self,
         force_overwrite: bool = False,
         include_optional: bool = True,
         custom_config: dict[str, Any] | None = None,
     ) -> bool:
-        """Set up complete VS Code workspace configuration.
+        """
+        Create complete VS Code workspace configuration.
 
         Args:
             force_overwrite: Whether to overwrite existing files
@@ -47,7 +53,7 @@ class VSCodeIntegrationManager:
             custom_config: Custom configuration overrides
 
         Returns:
-            True if setup was successful
+            True if configuration was created successfully
         """
         try:
             # Ensure .vscode directory exists
@@ -319,39 +325,23 @@ class VSCodeIntegrationManager:
         except Exception:
             return False
 
-    def create_workspace_template(
-        self, template_name: str = "python-mcp"
-    ) -> dict[str, Any]:
-        """Create a workspace configuration template.
+    # Add the missing methods that are being called
+    def get_python_extensions(self) -> list[str]:
+        """Get Python-related extensions for this workspace."""
+        return self.extensions.get_python_extensions()
 
-        Args:
-            template_name: Name of the template to create
+    def get_python_tasks(self) -> dict[str, Any]:
+        """Get Python-related tasks for this workspace."""
+        return self.tasks.get_python_tasks()
 
-        Returns:
-            Template configuration dictionary
-        """
-        base_template = {
-            "name": template_name,
-            "description": "Modern Python development workspace for MCP SDK",
-            "extensions": self.extensions.get_python_extensions(),
-            "settings": self.settings.get_modern_settings(),
-            "tasks": self.tasks.get_python_tasks(),
-            "launch": self.launch.get_python_launch_configs(),
-        }
+    def get_python_launch_configs(self) -> dict[str, Any]:
+        """Get Python launch configurations for this workspace."""
+        return self.launch.get_python_launch_configs()
 
-        # Add template-specific customizations
-        if template_name == "python-mcp":
-            base_template["settings"].update(
-                {
-                    "python.analysis.extraPaths": ["src", "examples"],
-                    "python.testing.pytestArgs": [
-                        "tests/",
-                        "-v",
-                        "--tb=short",
-                        "--cov=src",
-                        "--cov-report=html",
-                    ],
-                }
-            )
+    def create_all_configurations(self, **kwargs) -> bool:
+        """Create all VS Code configurations."""
+        return self.create_workspace_configuration(**kwargs)
 
-        return base_template
+    def validate_all_configurations(self) -> ValidationDetails:
+        """Validate all VS Code configurations."""
+        return self.validate_workspace()

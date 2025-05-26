@@ -1,129 +1,260 @@
+# filepath: c:\Projects\python-sdk\setup\docker\__init__.py
 """
-Docker Configuration Package
-Provides Docker environment validation and configuration for MCP Python SDK
+Docker Setup Manager
+Comprehensive Docker environment setup and management for the MCP Python SDK.
 """
 
-from .container_config import configure_containers, get_container_config
-from .docker_validator import (
-    check_docker_compose,
-    check_docker_daemon,
-    check_docker_version,
-    validate_docker_environment,
-)
-from .image_manager import (
-    build_development_image,
-    check_required_images,
-    pull_required_images,
-)
-from .volume_config import configure_volumes, get_volume_config
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+from ..types import ValidationDetails, ValidationStatus
+from .container_config import DockerContainerManager
+from .docker_validator import validate_docker_environment
+from .image_manager import DockerImageManager
+from .volume_config import DockerVolumeManager
 
 
 class DockerSetupManager:
     """
-    Docker-based setup manager following Single Responsibility Principle.
+    Comprehensive Docker setup and management for the MCP Python SDK.
 
-    Coordinates Docker environment setup and containerization.
+    Coordinates Docker container, volume, and image management for both
+    development and production environments.
     """
 
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(self, workspace_root: Path, verbose: bool = False) -> None:
+        """
+        Initialize Docker setup manager.
+
+        Args:
+            workspace_root: Root directory of the workspace
+            verbose: Enable verbose logging
+        """
+        self.workspace_root = Path(workspace_root).resolve()
         self.verbose = verbose
-        self._setup_results: dict[str, bool] = {}
 
-    def setup(self) -> tuple[bool, dict[str, bool]]:
+        # Initialize component managers
+        self.container_manager = DockerContainerManager(self.workspace_root)
+        self.volume_manager = DockerVolumeManager(self.workspace_root)
+        self.image_manager = DockerImageManager()
+
+    def setup_docker_environment(self, config: dict[str, Any] | None = None) -> bool:
         """
-        Perform complete Docker-based setup.
+        Set up complete Docker development environment.
+
+        Args:
+            config: Optional configuration overrides
 
         Returns:
-            Tuple of (success, setup_results)
+            True if setup completed successfully
         """
-        print("🐳 Starting Docker-based setup...")
+        try:
+            success = True
+            config = config or {}
 
-        # Docker environment validation
-        docker_valid, docker_info = validate_docker_environment()
-        self._setup_results["docker_environment"] = docker_valid
-        if self.verbose:
-            print(f"Docker environment: {'✓' if docker_valid else '✗'}")
+            if self.verbose:
+                print("Setting up Docker environment...")
 
-        if not docker_valid:
-            print("❌ Docker environment not available. Skipping Docker setup.")
-            return False, self._setup_results
+            # Validate Docker installation
+            docker_valid, docker_msg = validate_docker_environment()
+            if not docker_valid:
+                if self.verbose:
+                    print(f"❌ Docker validation failed: {docker_msg}")
+                return False
 
-        # Image management
-        images_success, _ = pull_required_images()
-        self._setup_results["images"] = images_success
-        if self.verbose:
-            print(f"Docker images: {'✓' if images_success else '✗'}")
+            # Configure volumes
+            volumes_success = self.volume_manager.create_volume_directories()
+            if not volumes_success:
+                if self.verbose:
+                    print("❌ Volume configuration failed")
+                success = False
 
-        # Volume configuration
-        volumes_success, _ = configure_volumes()
-        self._setup_results["volumes"] = volumes_success
-        if self.verbose:
-            print(f"Docker volumes: {'✓' if volumes_success else '✗'}")
+            # Pull required images
+            images_success = self.image_manager.pull_required_images()
+            if not images_success:
+                if self.verbose:
+                    print("⚠️  Some Docker images failed to pull")
 
-        # Container configuration
-        containers_success = configure_containers()
-        self._setup_results["containers"] = containers_success
-        if self.verbose:
-            print(f"Docker containers: {'✓' if containers_success else '✗'}")
+            # Configure containers
+            containers_success = self.container_manager.create_container_config()
+            if not containers_success:
+                if self.verbose:
+                    print("❌ Container configuration failed")
+                success = False
 
-        overall_success = all(self._setup_results.values())
+            return success
 
-        if overall_success:
-            print("✅ Docker setup completed successfully!")
-        else:
-            print("❌ Docker setup completed with some issues.")
-
-        return overall_success, self._setup_results
-
-    def validate(self) -> bool:
-        """
-        Validate current Docker environment.
-
-        Returns:
-            True if Docker environment is valid for development
-        """
-        docker_valid, _ = validate_docker_environment()
-        if not docker_valid:
+        except Exception as e:
+            if self.verbose:
+                print(f"❌ Docker setup failed: {e}")
             return False
 
-        image_status = check_required_images()
-        return all(image_status.values())
-
-    def get_status(self) -> dict[str, bool | dict[str, bool]]:
+    def validate_docker_setup(self) -> ValidationDetails:
         """
-        Get current Docker environment status.
+        Validate Docker environment setup.
 
         Returns:
-            Dictionary with Docker status information
+            ValidationDetails with comprehensive validation results
         """
-        docker_valid, docker_info = validate_docker_environment()
-        image_status = check_required_images()
+        try:
+            warnings: list[str] = []
+            errors: list[str] = []
+            recommendations: list[str] = []
 
-        return {
-            "docker_valid": docker_valid,
-            "docker_details": docker_info,
-            "image_status": image_status,
-            "setup_results": self._setup_results,
-        }
+            # Validate Docker environment
+            docker_valid, docker_msg = validate_docker_environment()
+            if not docker_valid:
+                errors.append(f"Docker environment: {docker_msg}")
+
+            # Validate volumes
+            volumes_valid = self.volume_manager.validate_volume_config()
+            if not volumes_valid:
+                warnings.append("Docker volume configuration may have issues")
+
+            # Check required images
+            images_available = self.image_manager.check_required_images()
+            if not images_available:
+                warnings.append("Some required Docker images are not available")
+                recommendations.append(
+                    "Run 'docker-compose pull' to download required images"
+                )
+
+            # Determine overall status
+            if errors:
+                status = ValidationStatus.ERROR
+                is_valid = False
+                message = f"Docker setup validation failed with {len(errors)} errors"
+            elif warnings:
+                status = ValidationStatus.WARNING
+                is_valid = True
+                message = (
+                    f"Docker setup validation passed with {len(warnings)} warnings"
+                )
+            else:
+                status = ValidationStatus.VALID
+                is_valid = True
+                message = "Docker setup validation passed successfully"
+
+            return ValidationDetails(
+                is_valid=is_valid,
+                status=status,
+                message=message,
+                warnings=warnings,
+                errors=errors,
+                recommendations=recommendations,
+                metadata={
+                    "docker_environment": {
+                        "valid": docker_valid,
+                        "message": docker_msg,
+                    },
+                    "volumes": self.volume_manager.get_volume_status(),
+                    "images": self.image_manager.get_image_status(),
+                },
+            )
+
+        except Exception as e:
+            return ValidationDetails(
+                is_valid=False,
+                status=ValidationStatus.ERROR,
+                message=f"Docker validation failed: {e}",
+                warnings=[],
+                errors=[str(e)],
+                recommendations=["Check Docker installation and configuration"],
+                metadata={},
+            )
+
+    def get_docker_status(self) -> dict[str, Any]:
+        """
+        Get comprehensive Docker environment status.
+
+        Returns:
+            Dictionary with detailed Docker status information
+        """
+        try:
+            docker_valid, docker_msg = validate_docker_environment()
+            validation = self.validate_docker_setup()
+
+            return {
+                "setup_type": "docker",
+                "workspace_root": str(self.workspace_root),
+                "docker_available": docker_valid,
+                "docker_message": docker_msg,
+                "validation": {
+                    "is_valid": validation.is_valid,
+                    "status": validation.status.value,
+                    "message": validation.message,
+                    "warnings_count": len(validation.warnings),
+                    "errors_count": len(validation.errors),
+                },
+                "components": {
+                    "volumes": self.volume_manager.get_volume_status(),
+                    "images": self.image_manager.get_image_status(),
+                    "containers": self.container_manager.get_container_status(),
+                },
+            }
+
+        except Exception as e:
+            return {
+                "setup_type": "docker",
+                "workspace_root": str(self.workspace_root),
+                "error": str(e),
+                "status": "error",
+            }
 
 
-__version__ = "1.0.0"
+# Utility functions for backward compatibility
+def validate_docker_environment_compat() -> tuple[bool, str]:
+    """Validate Docker environment - compatibility function."""
+    return validate_docker_environment()
+
+
+def configure_volumes() -> bool:
+    """Configure Docker volumes."""
+    try:
+        from ..environment.path_utils import get_project_root
+
+        project_root = get_project_root()
+        volume_manager = DockerVolumeManager(project_root)
+        return volume_manager.create_volume_directories()
+    except Exception:
+        return False
+
+
+def configure_containers() -> bool:
+    """Configure Docker containers."""
+    try:
+        from ..environment.path_utils import get_project_root
+
+        project_root = get_project_root()
+        container_manager = DockerContainerManager(project_root)
+        return container_manager.create_container_config()
+    except Exception:
+        return False
+
+
+def check_required_images() -> bool:
+    """Check if required Docker images are available."""
+    try:
+        image_manager = DockerImageManager()
+        return image_manager.check_required_images()
+    except Exception:
+        return False
+
+
+def pull_required_images() -> bool:
+    """Pull required Docker images."""
+    try:
+        image_manager = DockerImageManager()
+        return image_manager.pull_required_images()
+    except Exception:
+        return False
+
+
 __all__ = [
-    # Main manager
     "DockerSetupManager",
-    # Docker environment validation
     "validate_docker_environment",
-    "check_docker_daemon",
-    "check_docker_version",
-    "check_docker_compose",
-    # Container configuration
-    "configure_containers",
-    "get_container_config",
-    # Volume configuration
     "configure_volumes",
-    "get_volume_config",
-    # Image management
+    "configure_containers",
     "check_required_images",
     "pull_required_images",
-    "build_development_image",
 ]

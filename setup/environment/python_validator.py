@@ -1,6 +1,7 @@
+# filepath: c:\Projects\python-sdk\setup\environment\python_validator.py
 """
-Python Environment Validation
-Modern Python version and environment validation utilities with performance optimization.
+Python Environment Validator
+Comprehensive Python environment validation and information gathering.
 """
 
 import platform
@@ -9,16 +10,20 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .constants import MIN_PYTHON_VERSION, RECOMMENDED_PYTHON_VERSION, PythonVersion
+from .constants import (
+    MIN_PYTHON_VERSION,
+    RECOMMENDED_PYTHON_VERSION,
+    PythonVersion,
+)
 from .path_utils import get_project_root
 
 
 def get_python_version_info() -> PythonVersion:
     """
-    Get the current Python version as a structured type.
+    Get current Python version information.
 
     Returns:
-        PythonVersion: Named tuple with major and minor version numbers
+        PythonVersion tuple with major and minor version numbers
     """
     return PythonVersion(sys.version_info.major, sys.version_info.minor)
 
@@ -32,17 +37,16 @@ def validate_python_version() -> tuple[bool, str]:
     """
     current_version = get_python_version_info()
 
-    if current_version < MIN_PYTHON_VERSION:
+    if current_version.compare_to(MIN_PYTHON_VERSION) < 0:
         return False, (
-            f"Python {current_version} is too old. "
-            f"Minimum required: {MIN_PYTHON_VERSION}, "
-            f"Recommended: {RECOMMENDED_PYTHON_VERSION}"
+            f"Python {current_version} is not supported. "
+            f"Minimum required version is {MIN_PYTHON_VERSION}"
         )
 
-    if current_version < RECOMMENDED_PYTHON_VERSION:
+    if current_version.compare_to(RECOMMENDED_PYTHON_VERSION) < 0:
         return True, (
-            f"Python {current_version} meets minimum requirements "
-            f"but {RECOMMENDED_PYTHON_VERSION} is recommended for optimal performance"
+            f"Python {current_version} meets minimum requirements. "
+            f"Recommended version is {RECOMMENDED_PYTHON_VERSION} for better performance."
         )
 
     return True, f"Python {current_version} meets all requirements"
@@ -89,8 +93,9 @@ def get_environment_info() -> dict[str, Any]:
         "virtual_environment": venv_info,
         "package_management": package_info,
         "validation": {
-            "meets_minimum": current_version >= MIN_PYTHON_VERSION,
-            "meets_recommended": current_version >= RECOMMENDED_PYTHON_VERSION,
+            "meets_minimum": current_version.compare_to(MIN_PYTHON_VERSION) >= 0,
+            "meets_recommended": current_version.compare_to(RECOMMENDED_PYTHON_VERSION)
+            >= 0,
             "is_supported": True,  # Could add upper bound checking here
         },
     }
@@ -193,19 +198,19 @@ def check_python_compatibility() -> tuple[bool, list[str]]:
     Returns:
         Tuple of (is_compatible, compatibility_issues)
     """
-    issues = []
+    issues: list[str] = []
     current_version = get_python_version_info()
 
     # Check for modern typing features (PEP 585)
-    if current_version < PythonVersion(3, 9):
+    if current_version.compare_to(PythonVersion(3, 9)) < 0:
         issues.append("Modern typing features (dict, list) require Python 3.9+")
 
     # Check for structural pattern matching
-    if current_version < PythonVersion(3, 10):
+    if current_version.compare_to(PythonVersion(3, 10)) < 0:
         issues.append("Structural pattern matching requires Python 3.10+")
 
     # Check for performance improvements
-    if current_version < PythonVersion(3, 11):
+    if current_version.compare_to(PythonVersion(3, 11)) < 0:
         issues.append("Significant performance improvements available in Python 3.11+")
 
     return len(issues) == 0, issues
@@ -264,7 +269,7 @@ def validate_python_environment() -> dict[str, Any]:
     Returns:
         Dictionary containing validation results and recommendations
     """
-    results = {
+    results: dict[str, Any] = {
         "valid": True,
         "warnings": [],
         "errors": [],

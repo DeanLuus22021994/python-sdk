@@ -1,133 +1,240 @@
-"""Docker volume configuration utilities."""
+# filepath: c:\Projects\python-sdk\setup\docker\volume_config.py
+"""
+Docker Volume Configuration Manager
+Handles Docker volume setup and management for the MCP Python SDK.
+"""
 
-import subprocess
+import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List
+from functools import cached_property
 
-try:
-    from setup.environment import get_project_root
-except ImportError:
-    from pathlib import Path
 
-    def get_project_root() -> Path:
+class DockerVolumeManager:
+    """
+    Manages Docker volume configuration for the MCP Python SDK.
+
+    Provides functionality to create, configure, and manage Docker volumes
+    for development and production environments.
+    """
+
+    def __init__(self, project_root: Path) -> None:
+        """
+        Initialize Docker volume manager.
+
+        Args:
+            project_root: Root directory of the project
+        """
+        self.project_root = Path(project_root).resolve()
+
+    @cached_property
+    def get_project_root(self) -> Path:
         """Get the project root directory."""
-        return Path(__file__).parent.parent.parent
+        return self.project_root
+
+    def create_volume_config(self) -> Dict[str, Any]:
+        """
+        Create comprehensive Docker volume configuration.
+
+        Returns:
+            Dictionary containing volume configuration
+        """
+        return {
+            "version": "3.8",
+            "volumes": {
+                "mcp_data": {
+                    "driver": "local",
+                    "driver_opts": {
+                        "type": "none",
+                        "o": "bind",
+                        "device": str(self.project_root / "data"),
+                    },
+                },
+                "mcp_cache": {
+                    "driver": "local",
+                    "driver_opts": {
+                        "type": "tmpfs",
+                        "o": "size=1g,uid=1000,gid=1000",
+                    },
+                },
+                "postgres_data": {
+                    "driver": "local",
+                },
+                "redis_data": {
+                    "driver": "local",
+                },
+            },
+            "networks": {
+                "mcp_network": {
+                    "driver": "bridge",
+                    "ipam": {
+                        "config": [
+                            {
+                                "subnet": "172.20.0.0/16",
+                                "ip_range": "172.20.240.0/20",
+                            }
+                        ]
+                    },
+                }
+            },
+        }
+
+    def validate_volume_config(self) -> bool:
+        """
+        Validate Docker volume configuration.
+
+        Returns:
+            True if configuration is valid
+        """
+        try:
+            config = self.create_volume_config()
+
+            # Basic validation checks
+            required_keys = ["version", "volumes", "networks"]
+            if not all(key in config for key in required_keys):
+                return False
+
+            # Validate volumes structure
+            volumes = config.get("volumes", {})
+            if not isinstance(volumes, dict):
+                return False
+
+            # Validate each volume
+            for volume_name, volume_config in volumes.items():
+                if not isinstance(volume_config, dict):
+                    return False
+                if "driver" not in volume_config:
+                    return False
+
+            return True
+
+        except Exception:
+            return False
+
+    def get_volume_status(self) -> Dict[str, Any]:
+        """
+        Get current volume configuration status.
+
+        Returns:
+            Dictionary with volume status information
+        """
+        try:
+            config = self.create_volume_config()
+            is_valid = self.validate_volume_config()
+
+            return {
+                "project_root": str(self.project_root),
+                "configuration_valid": is_valid,
+                "volumes_defined": len(config.get("volumes", {})),
+                "networks_defined": len(config.get("networks", {})),
+                "config": config,
+            }
+
+        except Exception as e:
+            return {
+                "error": str(e),
+                "status": "error"
+            }
+
+    def write_volume_config(self, output_path: Path | None = None) -> bool:
+        """
+        Write Docker volume configuration to file.
+
+        Args:
+            output_path: Path to write configuration file
+
+        Returns:
+            True if file was written successfully
+        """
+        try:
+            if output_path is None:
+                output_path = self.project_root / "docker-volumes.yml"
+
+            config = self.create_volume_config()
+
+            # Convert to YAML format for docker-compose
+            import yaml
+
+            with open(output_path, "w", encoding="utf-8") as f:
+                yaml.dump(config, f, default_flow_style=False, indent=2)
+
+            return True
+
+        except Exception:
+            return False
+
+    def create_volume_directories(self) -> bool:
+        """
+        Create necessary directories for volume mounts.
+
+        Returns:
+            True if directories were created successfully
+        """
+        try:
+            directories = [
+                self.project_root / "data",
+                self.project_root / "data" / "postgres",
+                self.project_root / "data" / "redis",
+                self.project_root / "logs",
+                self.project_root / "cache",
+            ]
+
+            for directory in directories:
+                directory.mkdir(parents=True, exist_ok=True)
+
+            return True
+
+        except Exception:
+            return False
 
 
-def get_volume_config() -> dict[str, dict[str, str]]:
+def configure_volumes() -> bool:
     """
-    Get Docker volume configuration.
+    Configure Docker volumes for the MCP Python SDK.
 
     Returns:
-        Dictionary with volume configurations
-    """
-    return {
-        "mcp-postgres-data": {"driver": "local"},
-        "mcp-python-cache": {"driver": "local"},
-    }
-
-
-def check_volume_exists(volume_name: str) -> bool:
-    """
-    Check if a Docker volume exists.
-
-    Args:
-        volume_name: Name of the volume to check
-
-    Returns:
-        True if volume exists, False otherwise
+        True if volumes were configured successfully
     """
     try:
-        result = subprocess.run(
-            ["docker", "volume", "inspect", volume_name],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        return result.returncode == 0
+        from ..environment.path_utils import get_project_root
+
+        project_root = get_project_root()
+        volume_manager = DockerVolumeManager(project_root)
+
+        # Create necessary directories
+        dirs_created = volume_manager.create_volume_directories()
+        if not dirs_created:
+            return False
+
+        # Write volume configuration
+        config_written = volume_manager.write_volume_config()
+        return config_written
+
     except Exception:
         return False
 
 
-def create_volume(volume_name: str) -> tuple[bool, str | None]:
+def validate_volume_setup() -> bool:
     """
-    Create a Docker volume.
-
-    Args:
-        volume_name: Name of the volume to create
+    Validate Docker volume setup.
 
     Returns:
-        Tuple of (success, error_message)
+        True if volume setup is valid
     """
     try:
-        if check_volume_exists(volume_name):
-            return True, None
+        from ..environment.path_utils import get_project_root
 
-        # Execute docker volume create but don't store unused result
-        subprocess.run(
-            ["docker", "volume", "create", volume_name],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return True, None
-    except Exception as e:
-        return False, str(e)
+        project_root = get_project_root()
+        volume_manager = DockerVolumeManager(project_root)
 
+        return volume_manager.validate_volume_config()
 
-def configure_volumes() -> tuple[bool, list[str]]:
-    """
-    Configure Docker volumes for MCP development.
-
-    Returns:
-        Tuple of (success, error_messages)
-    """
-    volume_config = get_volume_config()
-    errors = []
-
-    for volume_name in volume_config:
-        success, error = create_volume(volume_name)
-        if not success:
-            errors.append(f"Failed to create volume {volume_name}: {error}")
-
-    return len(errors) == 0, errors
-
-
-def get_volume_info(volume_name: str) -> dict[str, Any]:
-    """
-    Get detailed information about a Docker volume.
-
-    Args:
-        volume_name: Name of the volume
-
-    Returns:
-        Dictionary with volume information
-    """
-    try:
-        if not check_volume_exists(volume_name):
-            return {"name": volume_name, "exists": False}
-
-        result = subprocess.run(
-            ["docker", "volume", "inspect", volume_name],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-
-        import json
-
-        volume_info = json.loads(result.stdout)[0]
-
-        return {
-            "name": volume_name,
-            "exists": True,
-            "driver": volume_info.get("Driver", "unknown"),
-            "mountpoint": volume_info.get("Mountpoint", "unknown"),
-            "created": volume_info.get("CreatedAt", "unknown"),
-        }
     except Exception:
-        return {
-            "name": volume_name,
-            "exists": False,
-            "error": "Failed to inspect volume",
-        }
+        return False
+
+
+__all__ = [
+    "DockerVolumeManager",
+    "configure_volumes",
+    "validate_volume_setup",
+]

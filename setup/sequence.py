@@ -1,3 +1,4 @@
+# filepath: c:\Projects\python-sdk\setup\sequence.py
 """
 Setup Sequence Management
 Orchestrates the setup process for the MCP Python SDK
@@ -5,19 +6,23 @@ Orchestrates the setup process for the MCP Python SDK
 
 import json
 import sys
-from pathlib import Path
 from typing import Any
 
 from .environment import (
     check_required_paths,
-    create_vscode_directory,
-    get_modern_launch_config,
-    get_modern_tasks_config,
-    get_modern_vscode_settings,
-    should_create_settings_json,
     validate_python_version,
 )
 from .packages import get_packages_for_platform, normalize_package_name
+from .vscode.extensions import create_vscode_extensions_config
+from .vscode.launch import get_modern_launch_config
+
+# Import VSCode functions directly from their modules
+from .vscode.settings import (
+    create_vscode_directory,
+    get_modern_vscode_settings,
+    should_create_settings_json,
+)
+from .vscode.tasks import get_modern_tasks_config
 
 
 class SetupOrchestrator:
@@ -50,53 +55,54 @@ def run_setup_sequence() -> bool:
     """
     Run the complete setup sequence for the MCP Python SDK.
 
-    This function orchestrates the entire setup process:
-    1. Validate the Python environment
-    2. Check required project structure
-    3. Configure VS Code settings
-    4. Ensure dependencies are installed
-    5. Configure Docker environment (if available)
-
     Returns:
-        bool: True if setup completed successfully, False otherwise
+        True if all setup steps completed successfully
     """
-    # Add current directory to path to ensure imports work
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    print("🚀 Starting MCP Python SDK Setup")
+    print("=" * 50)
 
     success = True
 
     # Step 1: Validate Python version
-    python_valid, python_message = validate_python_version()
-    print(f"Checking Python version: {python_message}")
-    if not python_valid:
-        return False
-
-    # Step 2: Check project structure
-    paths_valid, missing_paths = check_required_paths()
-    if paths_valid:
-        print("✓ Project structure is valid")
+    print("\nStep 1: Validating Python environment")
+    is_valid, message = validate_python_version()
+    if is_valid:
+        print(f"✓ {message}")
     else:
-        print("✗ Missing required project paths:")
-        for path in missing_paths:
-            print(f"  - {path}")
+        print(f"✗ {message}")
         success = False
 
-    # Step 3: Configure VS Code settings
+    # Step 2: Check required project structure
+    print("\nStep 2: Validating project structure")
+    paths_valid, path_results = check_required_paths()
+    if paths_valid:
+        print("✓ All required paths exist")
+        for path_type, paths in path_results.items():
+            for path_info in paths:
+                if path_info.get("exists", False):
+                    print(f"  ✓ {path_info['path']}")
+                else:
+                    print(f"  ⚠ {path_info['path']} (optional)")
+    else:
+        print("✗ Missing required project paths")
+        success = False
+
+    # Step 3: Configure VS Code workspace
+    print("\nStep 3: Configuring VS Code workspace")
     try:
-        print("Creating modern VS Code configuration...")
+        # Ensure .vscode directory exists
         vscode_dir = create_vscode_directory()
+        print(f"✓ VS Code directory: {vscode_dir}")
+
+        # Configure settings.json
         settings_path = vscode_dir / "settings.json"
-
-        if should_create_settings_json():
-            settings = get_modern_vscode_settings()
+        if not settings_path.exists() or should_create_settings_json():
+            settings_config = get_modern_vscode_settings()
             with open(settings_path, "w", encoding="utf-8") as f:
-                json.dump(settings, f, indent=2)
-            print("✓ VS Code configuration created successfully")
-            print("  - settings.json (Python development settings)")
-        else:
-            print("✓ VS Code settings.json already exists")
+                json.dump(settings_config, f, indent=2)
+            print("  - settings.json (Editor configuration)")
 
-        # Create other VS Code configuration files
+        # Configure launch.json
         launch_path = vscode_dir / "launch.json"
         if not launch_path.exists():
             launch_config = get_modern_launch_config()
@@ -113,9 +119,6 @@ def run_setup_sequence() -> bool:
 
         extensions_path = vscode_dir / "extensions.json"
         if not extensions_path.exists():
-            # Import this function directly here to avoid circular imports
-            from .environment import create_vscode_extensions_config
-
             extensions_config = create_vscode_extensions_config()
             with open(extensions_path, "w", encoding="utf-8") as f:
                 json.dump(extensions_config, f, indent=2)
@@ -151,63 +154,66 @@ def run_setup_sequence() -> bool:
             validate_docker_environment,
         )
 
-        print("\nChecking Docker environment:")
-        docker_valid, docker_info = validate_docker_environment()
-
+        print("\nStep 5: Configuring Docker environment")
+        docker_valid, docker_msg = validate_docker_environment()
         if docker_valid:
-            print("✓ Docker environment is valid:")
-            print(f"  - {docker_info['daemon_message']}")
-            print(f"  - {docker_info['version_message']}")
-            print(f"  - {docker_info['compose_message']}")
+            print(f"✓ {docker_msg}")
 
-            # Check required images
-            print("\nChecking required Docker images:")
-            image_status = check_required_images()
-            missing_images = [img for img, exists in image_status.items() if not exists]
-
-            if missing_images:
-                print(f"Missing {len(missing_images)} required Docker images")
-                pull_success, pull_errors = pull_required_images()
-                if not pull_success:
-                    print("⚠ Some Docker images could not be pulled")
-                    for error in pull_errors:
-                        print(f"  - {error}")
-                    success = False
+            # Configure Docker volumes
+            volume_success = configure_volumes()
+            if volume_success:
+                print("✓ Docker volumes configured")
             else:
-                print("✓ All required Docker images are available")
-
-            # Configure Docker components
-            print("\nConfiguring Docker environment:")
-
-            # Configure volumes
-            volumes_success, volume_errors = configure_volumes()
-            if volumes_success:
-                print("✓ Docker volumes configured successfully")
-            else:
-                print("⚠ Failed to configure some Docker volumes")
-                for error in volume_errors:
-                    print(f"  - {error}")
-                success = False
+                print("⚠ Docker volume configuration failed")
 
             # Configure containers
-            if configure_containers():
-                print("✓ Docker containers configured successfully")
+            container_success = configure_containers()
+            if container_success:
+                print("✓ Docker containers configured")
             else:
-                print("⚠ Failed to configure Docker containers")
-                success = False
+                print("⚠ Docker container configuration failed")
+
+            # Check required images
+            images_present = check_required_images()
+            if not images_present:
+                print("ℹ Pulling required Docker images...")
+                pull_success = pull_required_images()
+                if pull_success:
+                    print("✓ Required Docker images downloaded")
+                else:
+                    print("⚠ Failed to download some Docker images")
 
         else:
-            print("⚠ Docker environment is not valid or not available:")
-            print(f"  - {docker_info['daemon_message']}")
-            print(f"  - {docker_info['version_message']}")
-            print(f"  - {docker_info['compose_message']}")
-            print("\nDocker configuration will be skipped.")
-            # Don't fail the setup if Docker is not available
+            print(f"ℹ Docker not available: {docker_msg}")
 
     except ImportError:
-        print("\n⚠ Docker setup module not available. Docker configuration skipped.")
-    except Exception as e:
-        print(f"\n⚠ Error during Docker setup: {str(e)}")
-        # Don't fail the setup if Docker setup fails
+        print("\nℹ Docker setup not available (optional)")
+
+    # Summary
+    print("\n" + "=" * 50)
+    if success:
+        print("🎉 Setup completed successfully!")
+        print("\nNext steps:")
+        print("1. Install dependencies: uv sync")
+        print("2. Run tests: uv run pytest")
+        print("3. Start development server: uv run python -m mcp.server")
+
+        # Write completion marker
+        try:
+            with open("SETUP_COMPLETE.md", "w", encoding="utf-8") as f:
+                f.write("# Setup Complete\n\n")
+                f.write("The MCP Python SDK setup has been completed successfully.\n")
+                f.write("All required configurations have been created.\n")
+        except Exception:
+            pass  # Non-critical
+
+    else:
+        print("❌ Setup completed with errors")
+        print("Please review the errors above and run setup again.")
 
     return success
+
+
+if __name__ == "__main__":
+    success = run_setup_sequence()
+    sys.exit(0 if success else 1)

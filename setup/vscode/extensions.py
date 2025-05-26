@@ -53,6 +53,28 @@ class VSCodeExtensionsManager:
             # Additional utilities
             "ms-vscode.test-adapter-converter",
             "streetsidesoftware.code-spell-checker",
+            # Docker and containers
+            "ms-azuretools.vscode-docker",
+            "ms-vscode-remote.remote-containers",
+            # Git integration
+            "mhutchie.git-graph",
+            "eamodio.gitlens",
+        ]
+
+    def get_python_extensions(self) -> list[str]:
+        """Get Python-specific extensions for this workspace.
+        
+        Returns:
+            List of Python-related extension identifiers
+        """
+        return [
+            "ms-python.python",
+            "ms-python.vscode-pylance", 
+            "ms-python.debugpy",
+            "ms-python.black-formatter",
+            "ms-python.isort",
+            "charliermarsh.ruff",
+            "ms-python.mypy-type-checker",
         ]
 
     def get_unwanted_extensions(self) -> list[str]:
