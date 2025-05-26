@@ -1,59 +1,19 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-#
+set -euo pipefail
+
 # DevContainer Orchestrator Constants
-# Centralized constants for the entire orchestrator system
 
-# ====== PATH CONSTANTS ======
-if [[ -z "${DEVCONTAINER_DIR:-}" ]]; then
-    DEVCONTAINER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
-    export DEVCONTAINER_DIR
-fi
-
-if [[ -z "${CONFIG_DIR:-}" ]]; then
-    CONFIG_DIR="$DEVCONTAINER_DIR/config"
-    export CONFIG_DIR
-fi
-
-if [[ -z "${ORCHESTRATOR_DIR:-}" ]]; then
-    ORCHESTRATOR_DIR="$DEVCONTAINER_DIR/orchestrator"
-    export ORCHESTRATOR_DIR
-fi
-
-if [[ -z "${VALIDATION_DIR:-}" ]]; then
-    VALIDATION_DIR="$DEVCONTAINER_DIR/validation"
-    export VALIDATION_DIR
-fi
-
-if [[ -z "${ENV_DIR:-}" ]]; then
-    ENV_DIR="$CONFIG_DIR/env"
-    export ENV_DIR
-fi
-
-if [[ -z "${SETUP_DIR:-}" ]]; then
-    SETUP_DIR="$CONFIG_DIR/setup"
-    export SETUP_DIR
-fi
-
-if [[ -z "${CORE_DIR:-}" ]]; then
-    CORE_DIR="$ORCHESTRATOR_DIR/core"
-    export CORE_DIR
-fi
-
-if [[ -z "${MODULES_DIR:-}" ]]; then
-    MODULES_DIR="$ORCHESTRATOR_DIR/modules"
-    export MODULES_DIR
-fi
-
-if [[ -z "${UTILS_DIR:-}" ]]; then
-    UTILS_DIR="$ORCHESTRATOR_DIR/utils"
-    export UTILS_DIR
-fi
-
-if [[ -z "${LIFECYCLE_DIR:-}" ]]; then
-    LIFECYCLE_DIR="$ORCHESTRATOR_DIR/lifecycle"
-    export LIFECYCLE_DIR
-fi
+: "${DEVCONTAINER_DIR:="/workspaces/python-sdk/.devcontainer"}"
+: "${CONFIG_DIR:="$DEVCONTAINER_DIR/config"}"
+: "${ORCHESTRATOR_DIR:="$DEVCONTAINER_DIR/orchestrator"}"
+: "${VALIDATION_DIR:="$ORCHESTRATOR_DIR/validation"}"
+: "${ENV_DIR:="$CONFIG_DIR/env"}"
+: "${SETUP_DIR:="$CONFIG_DIR/setup"}"
+: "${CORE_DIR:="$ORCHESTRATOR_DIR/core"}"
+: "${MODULES_DIR:="$ORCHESTRATOR_DIR/modules"}"
+: "${UTILS_DIR:="$ORCHESTRATOR_DIR/utils"}"
+: "${LIFECYCLE_DIR:="$ORCHESTRATOR_DIR/lifecycle"}"
 
 if [[ -z "${TOOLS_DIR:-}" ]]; then
     TOOLS_DIR="$ORCHESTRATOR_DIR/tools"
