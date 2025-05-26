@@ -13,27 +13,17 @@ DEVCONTAINER_DIR="/workspaces/python-sdk/.devcontainer"
 GLOBAL_CONFIG="$DEVCONTAINER_DIR/config/docker-globals.env"
 COMPOSE_FILE="$DEVCONTAINER_DIR/docker-compose.modular.yml"
 
-# Color definitions
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Import centralized logging
+source "$DEVCONTAINER_DIR/orchestrator/utils/logging.sh"
 
+# Add success function (not in the centralized logging)
 success() {
     echo -e "${GREEN}✅ $1${NC}"
 }
 
+# Add warning function alias for compatibility
 warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
-
-error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+    warn "$@"
 }
 
 # Check if required files exist

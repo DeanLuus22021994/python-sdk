@@ -1,15 +1,15 @@
-# MCP Python SDK - High-Performance Modular Architecture
+# MCP Python SDK DevContainer
 
-## 🚀 System Overview
+This directory contains the development container configuration for the MCP Python SDK with performance optimizations, modular architecture, and comprehensive Docker orchestration.
 
-This is a dramatically enhanced MCP Python SDK with maximum performance optimizations, modular architecture following SRP/DRY principles, and comprehensive Docker Swarm orchestration.
+## Architecture Overview
 
-## 📁 Architecture Structure
+The `.devcontainer` structure is modularized for clarity, performance, and maintainability:
 
 ```
 .devcontainer/
-├── config/
-│   ├── env/           # Modular environment configuration (10 SRP files)
+├── config/                # Configuration files
+│   ├── env/               # Environment variables by category
 │   │   ├── build.env
 │   │   ├── cpu.env
 │   │   ├── database.env
@@ -20,94 +20,143 @@ This is a dramatically enhanced MCP Python SDK with maximum performance optimiza
 │   │   ├── storage.env
 │   │   ├── swarm.env
 │   │   └── system.env
-│   └── load-env.sh    # Environment loader
+│   ├── docker-globals.yml # Global Docker configuration
+│   ├── development.env    # Development overrides
+│   └── load-env.sh        # Environment loader
 │
-├── docker/
-│   ├── base/          # Python:slim optimized base image
-│   ├── components/    # Modular Docker components
-│   ├── services/      # Service-specific compose files
-│   └── swarm/         # Docker Swarm stack configurations
+├── docker/                # Docker configuration
+│   ├── Dockerfile.main    # Main multi-stage Dockerfile
+│   ├── components/        # Modular Dockerfile components
+│   ├── services/          # Service-specific compose files
+│   └── swarm/             # Docker Swarm stack configurations
 │
-├── orchestrator/
-│   ├── core/          # Main orchestration logic
-│   │   ├── main.sh    # Coordination (40 lines)
+├── orchestrator/          # Performance optimization orchestrator
+│   ├── core/              # Core orchestration logic
+│   │   ├── main.sh        # Coordination
 │   │   ├── validator.sh
 │   │   ├── sequential.sh
 │   │   └── parallel.sh
-│   ├── modules/       # Optimization modules
+│   ├── modules/           # Optimization modules
 │   │   ├── cpu-optimize.sh
 │   │   ├── memory-optimize.sh
 │   │   ├── io-optimize.sh
 │   │   └── binary-precompile.sh
-│   └── utils/         # Shared utilities
+│   └── utils/             # Shared utilities
 │
-├── validation/
-│   ├── core/          # Validation orchestrator
-│   └── tests/         # Performance test modules
+├── tools/                 # Development tools
+│   ├── inspect/           # System inspection tools
+│   ├── utils/             # Utility tools
+│   ├── metrics/           # Performance metrics
+│   ├── index.sh           # Tools registry
+│   └── dt.sh              # Quick access launcher
 │
-├── tools/             # Development tools (≤20 lines each)
-│   ├── inspect/       # System inspection tools
-│   ├── utils/         # Utility tools
-│   ├── metrics/       # Performance metrics
-│   ├── index.sh       # Tools registry
-│   └── dt.sh          # Quick access launcher
+├── scripts/               # Utility scripts
+│   ├── performance/       # Performance scripts
+│   ├── setup/             # Setup scripts
+│   ├── utils/             # Utility scripts
+│   └── validation/        # Validation scripts
 │
-├── scripts/           # Automated scripts
-├── templates/         # Configuration templates
-└── final-validation.sh # System validation
+└── validation/            # System validation
 ```
 
-## ⚡ Performance Features
+## Performance Optimizations
 
-### Core Optimizations
-- **Python:slim base image** with maximum compiler optimizations
-- **Full precompilation** of all dependency packages into runtime binaries
-- **Persistent binary volumes** for instant subsequent builds
-- **SSD NVMe capabilities** with optimized I/O settings
-- **Full CPU/RAM utilization** with parallel processing
+### Core Features
+- Python optimization level 2 for faster bytecode execution
+- jemalloc memory allocator for reduced memory usage
+- Full binary precompilation of dependency packages
+- Optimized Docker configuration with proper resource allocation
+- GPU acceleration with NVIDIA CUDA support (when available)
 
-### GPU Acceleration
-- **GPU passthrough** without additional overhead software
-- **NVIDIA, AMD, Intel GPU support** with automatic detection
-- **CUDA optimization** with proper device mapping
-- **Runtime optimization** for GPU workloads
+### Environment Optimizations
+- Python performance: bytecode optimization, worker tuning, uvloop
+- Memory: jemalloc with optimized malloc settings
+- I/O: Optimized schedulers and buffer sizes
+- Network: Jumbo frames (9000 MTU) and performance tuning
+- Docker: Unlimited resource allocation (0 limits) with minimum reservations
 
-### Container Orchestration
-- **Docker Swarm** with automatic scaling and load balancing
-- **Service mesh** with Traefik load balancer
-- **Health monitoring** and automatic recovery
-- **Resource optimization** with proper limits and reservations
+## Quick Start
 
-## 🛠️ Quick Start
-
-### 1. System Initialization
+### Development Tools
 ```bash
-# Load modular environment
-source config/load-env.sh
+# Load developer tools
+source ./tools/dt.sh
 
-# Initialize Docker Swarm (if not already done)
-docker swarm init
+# List all available tools
+dt list
 
-# Deploy the stack
-docker stack deploy -c docker/swarm/docker-stack.simple.yml mcp-stack
+# Common commands
+dt state    # DevContainer inspection
+dt status   # Build status checking
+dt metrics  # Development metrics
+dt modular  # Modular status checker
 ```
 
-### 2. Development Tools
+### Performance Management
 ```bash
-# Access development tools
-./tools/dt.sh --list
+# Apply optimizations
+./scripts/performance/cpu-performance.sh
+./scripts/performance/memory-performance.sh
+./scripts/performance/io-performance.sh
 
-# Check system status
-./tools/dt.sh inspect 001
-
-# Monitor performance
-./tools/dt.sh metrics 003
+# Run system monitoring
+./scripts/utils/system-monitor.sh all
+./scripts/utils/log-analyzer.sh
 ```
 
-### 3. System Orchestration
+### Orchestration
 ```bash
-# Run performance optimization
+# Run all optimizations
 ./master-orchestrator.modular.sh
+
+# Run specific optimization modules
+./master-orchestrator.modular.sh cpu memory
+
+# Run in parallel mode
+./master-orchestrator.modular.sh --parallel
+```
+
+## Environment Variables
+
+The environment variables are organized in modular files by category for better maintainability:
+
+| Category | File | Purpose |
+|----------|------|---------|
+| Python | python.env | Python optimization settings |
+| Memory | memory.env | Memory optimization settings |
+| CPU | cpu.env | CPU and threading optimization |
+| Storage | storage.env | Cache and storage configuration |
+| Docker | docker.env | Container resource settings |
+| GPU | gpu.env | GPU passthrough configuration |
+| System | system.env | System-wide settings |
+
+Key variables that affect performance:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| PYTHONOPTIMIZE | Python optimization level | 2 |
+| PYTHONSTARTUP | Custom Python startup file | python-startup.py |
+| LD_PRELOAD | Load jemalloc by default | libjemalloc.so.2 |
+| MALLOC_CONF | Memory allocator configuration | background_thread:true |
+| GLOBAL_PYTHON_CACHE_SIZE | Python cache volume size | 8G |
+
+## Docker Configuration
+
+The Docker setup uses a global configuration system with `GLOBAL_` prefixed variables for consistency:
+
+- Centralized configuration in `docker-globals.yml`
+- Variable substitution with `${GLOBAL_VARIABLE_NAME:-default_value}`
+- Modular service architecture using Docker Compose `include` pattern
+- Multi-stage Dockerfile builds with caching
+- Development-specific overrides in separate environment files
+
+## Troubleshooting
+
+If you encounter issues:
+1. Check that Docker daemon is running
+2. Ensure proper permissions for script execution (`chmod +x`)
+3. Verify environment variable loading with `env | grep PYTHON`
+4. Check logs with `./scripts/utils/log-analyzer.sh`
 
 # Run with parallel processing
 ORCHESTRATOR_PARALLEL=true ./master-orchestrator.modular.sh

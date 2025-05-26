@@ -12,12 +12,11 @@ echo "=== Post-Rebuild Initialization ==="
 source "$SCRIPT_DIR/config/load-env.sh"
 load_env_files
 
-# Apply performance optimizations
+# Apply performance optimizations through the unified orchestrator
 echo "Applying performance optimizations..."
 if [[ $EUID -eq 0 ]]; then
-    "$SCRIPT_DIR/scripts/performance/cpu-performance.sh" || echo "CPU optimization failed (non-critical)"
-    "$SCRIPT_DIR/scripts/performance/memory-performance.sh" || echo "Memory optimization failed (non-critical)"
-    "$SCRIPT_DIR/scripts/performance/io-performance.sh" || echo "I/O optimization failed (non-critical)"
+    # Use the master orchestrator instead of individual scripts
+    "$SCRIPT_DIR/master-orchestrator.modular.sh" --parallel cpu memory io binary
 else
     echo "Note: Performance optimizations require root privileges"
 fi
