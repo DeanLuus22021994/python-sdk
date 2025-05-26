@@ -31,16 +31,21 @@ execute_single_module() {
     
     info "Executing module: $module"
     
-    local start_time=$(date +%s)
+    local start_time
+    start_time=$(date +%s)
     
     if timeout "${JOB_TIMEOUT:-300}" bash "$module_file"; then
-        local end_time=$(date +%s)
-        local duration=$((end_time - start_time))
+        local end_time
+        end_time=$(date +%s)
+        local duration
+        duration=$((end_time - start_time))
         info "Module $module completed successfully in ${duration}s"
         return 0
     else
-        local end_time=$(date +%s)
-        local duration=$((end_time - start_time))
+        local end_time
+        end_time=$(date +%s)
+        local duration
+        duration=$((end_time - start_time))
         error "Module $module failed or timed out after ${duration}s"
         return 1
     fi
