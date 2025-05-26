@@ -3,13 +3,28 @@ Setup Module 05: Additional Setup Sequence
 Provides future-proofing and extra steps for advanced setup if needed
 """
 
-# Use absolute import instead of relative import
-from setup.host import (
-    setup_packages,
-    setup_vscode_config,
-    validate_environment,
-    validate_sdk,
-)
+import sys
+from pathlib import Path
+
+# Add the project root to the path so imports work correctly
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+try:
+    from setup.host import (
+        setup_packages,
+        setup_vscode_config,
+        validate_environment,
+        validate_sdk,
+    )
+except ImportError:
+    # Fallback to relative import if absolute import fails
+    from .host import (
+        setup_packages,
+        setup_vscode_config,
+        validate_environment,
+        validate_sdk,
+    )
 
 
 def run_setup_sequence() -> bool:

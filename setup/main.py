@@ -3,8 +3,18 @@ Setup Module 2.1: Main Orchestration
 Coordinates the entire setup process
 """
 
-# Use absolute import instead of relative import
-from setup import sequence
+import sys
+from pathlib import Path
+
+# Add the project root to the path so imports work correctly
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+try:
+    from setup import sequence
+except ImportError:
+    # Fallback to direct import if package import fails
+    from . import sequence
 
 
 def print_header() -> None:
