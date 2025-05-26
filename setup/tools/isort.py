@@ -3,17 +3,42 @@ import sys
 from pathlib import Path
 
 
-def sort_imports_in_directory(directory_path):
+def check_isort_installed() -> bool:
+    """Check if isort is installed and available."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "isort", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, Exception):
+        return False
+
+
+def sort_imports_in_directory(directory_path, dry_run=False, verbose=False):
     """
     Sort imports in all Python files within the specified directory and subdirectories.
 
     Args:
         directory_path (str): Path to the directory to process
+        dry_run (bool): If True, only show what would be changed without making changes
+        verbose (bool): If True, show detailed output
     """
     directory = Path(directory_path)
 
     if not directory.exists():
         print(f"Error: Directory '{directory_path}' does not exist.")
+        return False
+
+    # Check if isort is installed
+    if not check_isort_installed():
+        print(
+            "Error: isort is not installed. "
+            "Please install it with: pip install isort"
+        )
+        print("You can also install it with: uv add --dev isort")
         return False
 
     # Find all Python files recursively
@@ -25,12 +50,17 @@ def sort_imports_in_directory(directory_path):
 
     success = True
     files_modified = 0
+    files_checked = 0
 
     print(f"Found {len(python_files)} Python files to process...")
+    if dry_run:
+        print("DRY RUN MODE: No files will be modified")
+    print()
 
     for py_file in python_files:
+        files_checked += 1
         try:
-            # First check if file needs sorting (dry run)
+            # Always check if file needs sorting first
             check_result = subprocess.run(
                 [sys.executable, "-m", "isort", "--check-only", "--diff", str(py_file)],
                 capture_output=True,
@@ -38,48 +68,107 @@ def sort_imports_in_directory(directory_path):
                 check=False,
             )
 
-            # If check shows differences, run the actual sort
+            # If check shows differences, the file needs sorting
             if check_result.returncode != 0:
-                print(f"Fixing {py_file}")
-                sort_result = subprocess.run(
-                    [sys.executable, "-m", "isort", str(py_file)],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
+                action = "[DRY RUN] Would fix" if dry_run else "Fixing"
+                print(f"{action} {py_file}")
 
-                if sort_result.returncode == 0:
-                    files_modified += 1
+                if verbose and check_result.stdout:
+                    print("  Changes to be made:")
+                    for line in check_result.stdout.split("\n"):
+                        if line.strip():
+                            print(f"    {line}")
+
+                if not dry_run:
+                    # Run the actual sort
+                    sort_result = subprocess.run(
+                        [sys.executable, "-m", "isort", str(py_file)],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+
+                    if sort_result.returncode == 0:
+                        files_modified += 1
+                        if verbose:
+                            print(f"  ✓ Successfully sorted imports in {py_file}")
+                    else:
+                        print(f"  ✗ Error processing {py_file}: {sort_result.stderr}")
+                        if verbose and sort_result.stdout:
+                            print(f"    Output: {sort_result.stdout}")
+                        success = False
                 else:
-                    print(f"Error processing {py_file}: {sort_result.stderr}")
-                    success = False
-            # If no differences, file is already sorted (silent)
+                    files_modified += 1  # Count would-be modifications in dry run
+            else:
+                # File is already sorted
+                if verbose:
+                    print(f"✓ {py_file} (already sorted)")
 
         except FileNotFoundError:
-            print(
-                "Error: isort is not installed. Please install with: pip install isort"
-            )
+            print("Error: Could not find isort. Please ensure it's installed.")
             return False
         except Exception as e:
             print(f"Error processing {py_file}: {str(e)}")
             success = False
 
-    print(f"Modified {files_modified} files")
+    print()
+    if dry_run:
+        print(
+            f"DRY RUN SUMMARY: {files_modified} files would be modified "
+            f"out of {files_checked} checked"
+        )
+    else:
+        print(
+            f"SUMMARY: Modified {files_modified} files "
+            f"out of {files_checked} checked"
+        )
+
     return success
 
 
 def main():
     """Main entry point for the script."""
-    # Default to the setup directory relative to this script
-    script_dir = Path(__file__).parent.parent  # Go up from tools/ to setup/
-    setup_dir = script_dir
+    import argparse
 
-    # Allow command line argument to override the directory
-    if len(sys.argv) > 1:
-        setup_dir = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        description="Sort imports in Python files using isort",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python setup/tools/isort.py                    # Sort all files in setup/
+  python setup/tools/isort.py --dry-run          # Show what would be changed
+  python setup/tools/isort.py --verbose          # Show detailed output
+  python setup/tools/isort.py src/               # Sort files in src/ directory
+        """,
+    )
+    parser.add_argument(
+        "directory", nargs="?", help="Directory to process (default: setup/)"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be changed without making changes",
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Show detailed output"
+    )
+
+    args = parser.parse_args()
+
+    # Default to the setup directory relative to this script
+    if args.directory:
+        setup_dir = Path(args.directory)
+    else:
+        script_dir = Path(__file__).parent.parent  # Go up from tools/ to setup/
+        setup_dir = script_dir
 
     print(f"Sorting imports in: {setup_dir}")
-    success = sort_imports_in_directory(setup_dir)
+    print(f"Mode: {'DRY RUN' if args.dry_run else 'MODIFY FILES'}")
+    print()
+
+    success = sort_imports_in_directory(
+        setup_dir, dry_run=args.dry_run, verbose=args.verbose
+    )
 
     if success:
         print("Import sorting completed successfully.")
