@@ -1,6 +1,6 @@
 """
-Setup Module 05: Additional Setup Sequence
-Provides future-proofing and extra steps for advanced setup if needed
+Setup Sequence Controller
+Provides the main setup sequence orchestration and coordination
 """
 
 import sys

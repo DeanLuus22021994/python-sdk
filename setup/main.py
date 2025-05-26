@@ -1,5 +1,5 @@
 """
-Setup Module 2.1: Main Orchestration
+Main Setup Orchestration
 Coordinates the entire setup process
 """
 
