@@ -300,12 +300,10 @@ class DockerConfig:
     build_context: str = "."
     dockerfile_path: str = "Dockerfile"
     build_args: dict[str, str] = field(default_factory=dict)
-    target_stage: str | None = None
-
-    # Runtime configuration
-    volumes: list[str] = field(default_factory=list)
-    networks: list[str] = field(default_factory=list)
-    depends_on: list[str] = field(default_factory=list)
+    target_stage: str | None = None  # Runtime configuration
+    volumes: list[str] = field(default_factory=lambda: [])
+    networks: list[str] = field(default_factory=lambda: [])
+    depends_on: list[str] = field(default_factory=lambda: [])
     restart_policy: str = "unless-stopped"
 
     # Development specific
@@ -337,14 +335,16 @@ class DockerConfig:
             build_config["args"] = self.build_args
 
         # Create main configuration
+        port_mappings = [f"{port}:{port}" for port in self.exposed_ports]
         config: dict[str, Any] = {
             "build": build_config,
-            "ports": [f"{port}:{port}" for port in self.exposed_ports],
+            "ports": port_mappings,
             "environment": self.environment_variables,
-            "volumes": self.volumes,
+            "volumes": list(self.volumes),
             "restart": self.restart_policy,
         }
 
+        # Add optional configurations
         if self.networks:
             config["networks"] = self.networks
 
@@ -352,7 +352,8 @@ class DockerConfig:
             config["depends_on"] = self.depends_on
 
         if self.development_overrides:
-            config.update(self.development_overrides)
+            for key, value in self.development_overrides.items():
+                config[key] = value
 
         return config
 
