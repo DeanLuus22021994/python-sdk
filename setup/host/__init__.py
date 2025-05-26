@@ -3,7 +3,9 @@ Host Setup Package
 Provides host-based development environment setup for MCP Python SDK.
 """
 
-from ..environment.vscode_config import get_current_vscode_settings, setup_vscode_config
+from pathlib import Path
+
+from ..vscode.integration import VSCodeIntegrationManager
 from .env_validator import get_environment_info, validate_environment
 from .package_manager import check_package_availability, setup_packages
 from .sdk_validator import check_sdk_completeness, validate_sdk
@@ -39,10 +41,14 @@ class HostSetupManager:
         packages_success = setup_packages()
         self._setup_results["packages"] = packages_success
         if self.verbose:
-            print(f"Package setup: {'✓' if packages_success else '✗'}")
-
-        # VS Code configuration
-        vscode_success = setup_vscode_config()
+            print(
+                f"Package setup: {'✓' if packages_success else '✗'}"
+            )  # VS Code configuration
+        try:
+            vscode_manager = VSCodeIntegrationManager(Path.cwd())
+            vscode_success = vscode_manager.create_all_configurations()
+        except Exception:
+            vscode_success = False
         self._setup_results["vscode"] = vscode_success
         if self.verbose:
             print(f"VS Code setup: {'✓' if vscode_success else '✗'}")
@@ -103,7 +109,7 @@ __all__ = [
     "check_sdk_completeness",
     # Setup functions
     "setup_packages",
-    "setup_vscode_config",
+    "VSCodeIntegrationManager",
     # Utility functions
     "check_package_availability",
     "get_current_vscode_settings",

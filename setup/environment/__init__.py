@@ -4,6 +4,8 @@ Modern environment configuration for the MCP Python SDK setup with clean archite
 """
 
 # Core environment components
+# Import new modular VS Code system
+from ..vscode.integration import VSCodeIntegrationManager
 from .constants import (
     DEFAULT_CONTAINER_CONFIG,
     MAX_TESTED_PYTHON_VERSION,
@@ -65,14 +67,17 @@ class EnvironmentManager:
         # Project structure validation
         paths_valid, missing_paths = check_required_paths()
         validation_results["project_structure"] = paths_valid
-        validation_results["missing_paths"] = missing_paths
-
-        # VS Code configuration check
+        validation_results["missing_paths"] = (
+            missing_paths  # VS Code configuration check
+        )
         try:
-            vscode_dir = get_project_root() / ".vscode"
-            validation_results["vscode_config"] = vscode_dir.exists()
+            vscode_manager = VSCodeIntegrationManager(get_project_root())
+            validation = vscode_manager.validate_all_configurations()
+            validation_results["vscode_config"] = validation.is_valid
+            validation_results["vscode_status"] = validation.status.value
         except Exception:
             validation_results["vscode_config"] = False
+            validation_results["vscode_status"] = "error"
 
         overall_valid = (
             python_valid and paths_valid and validation_results["vscode_config"]
@@ -94,11 +99,9 @@ class EnvironmentManager:
             for required_path in REQUIRED_PROJECT_PATHS:
                 path = project_root / required_path
                 if not path.exists() and not required_path.endswith((".toml", ".py")):
-                    ensure_directory_exists(path)
-
-            # Setup VS Code configuration
-            create_vscode_directory()
-            create_modern_vscode_settings()
+                    ensure_directory_exists(path)  # Setup VS Code configuration
+            vscode_manager = VSCodeIntegrationManager(project_root)
+            vscode_manager.create_all_configurations()
 
             return True
 
@@ -148,20 +151,9 @@ __all__ = [
     "get_environment_info",
     "get_python_version_info",
     "validate_python_version",
-    # VS Code configuration
-    "create_modern_vscode_settings",
-    "create_vscode_directory",
-    "get_modern_vscode_settings",
-    "get_vscode_settings",
     # Main interface
     "EnvironmentManager",
 ]
-from .vscode_config import (
-    create_vscode_extensions_config,
-    get_modern_launch_config,
-    get_modern_tasks_config,
-    should_create_settings_json,
-)
 
 __version__ = "1.0.0"
 __all__ = [
@@ -181,13 +173,6 @@ __all__ = [
     "get_environment_info",
     "check_virtual_environment",
     "validate_python_environment",
-    # VS Code configuration
-    "get_vscode_settings",
-    "get_modern_vscode_settings",
-    "create_vscode_directory",
-    "should_create_settings_json",
-    "create_modern_vscode_settings",
-    "get_modern_launch_config",
-    "get_modern_tasks_config",
-    "create_vscode_extensions_config",
+    # VS Code configuration (new modular system)
+    "VSCodeIntegrationManager",
 ]

@@ -1,4 +1,3 @@
-# filepath: c:\Projects\python-sdk\setup\vscode\integration.py
 """
 VS Code integration module for MCP Python SDK setup.
 
@@ -42,10 +41,10 @@ class VSCodeIntegrationManager:
             True if any VS Code configuration needs updates
         """
         return (
-            self.settings_manager.should_create_settings() or
-            self.extensions_manager.should_create_extensions() or
-            self.launch_manager.should_create_launch() or
-            self.tasks_manager.should_create_tasks()
+            self.settings_manager.should_create_settings()
+            or self.extensions_manager.should_create_extensions()
+            or self.launch_manager.should_create_launch()
+            or self.tasks_manager.should_create_tasks()
         )
 
     def create_all_configurations(self) -> bool:
@@ -86,14 +85,15 @@ class VSCodeIntegrationManager:
 
         Returns:
             VSCodeConfig object with all current configurations
-        """        return VSCodeConfig(
+        """
+        return VSCodeConfig(
             settings=self.settings_manager.get_current_settings(),
             extensions=self.extensions_manager.get_current_extensions().get(
                 "recommendations", []
             ),
             launch_config=self.launch_manager.get_current_launch(),
             tasks_config=self.tasks_manager.get_current_tasks(),
-            workspace_config={}  # Not implemented yet
+            workspace_config={},  # Not implemented yet
         )
 
     def validate_all_configurations(self) -> ValidationDetails:
@@ -113,7 +113,7 @@ class VSCodeIntegrationManager:
             settings_validation,
             extensions_validation,
             launch_validation,
-            tasks_validation
+            tasks_validation,
         ]
 
         all_warnings = []
@@ -129,32 +129,37 @@ class VSCodeIntegrationManager:
         if all_errors:
             status = ValidationStatus.ERROR
             is_valid = False
-            message = f"VS Code validation failed with {len(all_errors)} errors across all configurations"
+            message = (
+                f"VS Code validation failed with {len(all_errors)} errors "
+                f"across all configurations"
+            )
         elif all_warnings:
             status = ValidationStatus.WARNING
             is_valid = True
-            message = f"VS Code validation passed with {len(all_warnings)} warnings across all configurations"
+            message = (
+                f"VS Code validation passed with {len(all_warnings)} "
+                f"warnings across all configurations"
+            )
         else:
             status = ValidationStatus.VALID
             is_valid = True
             message = "All VS Code configurations validated successfully"
 
         # Aggregate metadata
+        vscode_files = [
+            self.settings_manager.settings_path,
+            self.extensions_manager.extensions_path,
+            self.launch_manager.launch_path,
+            self.tasks_manager.tasks_path,
+        ]
+
         metadata = {
             "settings_valid": settings_validation.is_valid,
             "extensions_valid": extensions_validation.is_valid,
             "launch_valid": launch_validation.is_valid,
             "tasks_valid": tasks_validation.is_valid,
             "vscode_dir_exists": self.vscode_dir.exists(),
-            "total_files": sum(
-                1 for manager in [
-                    self.settings_manager,
-                    self.extensions_manager,
-                    self.launch_manager,
-                    self.tasks_manager
-                ]
-                if (self.vscode_dir / manager.__class__.__name__.lower().replace("manager", "").replace("vscode", "") + ".json").exists()
-            )
+            "total_files": sum(1 for path in vscode_files if path.exists()),
         }
 
         return ValidationDetails(
@@ -164,7 +169,7 @@ class VSCodeIntegrationManager:
             warnings=all_warnings,
             errors=all_errors,
             recommendations=all_recommendations,
-            metadata=metadata
+            metadata=metadata,
         )
 
     def update_all_configurations(self, force: bool = False) -> bool:
@@ -183,14 +188,18 @@ class VSCodeIntegrationManager:
             if force or self.settings_manager.should_create_settings():
                 modern_settings = self.settings_manager.get_modern_settings()
                 results.append(
-                    self.settings_manager.update_settings(modern_settings, merge=not force)
+                    self.settings_manager.update_settings(
+                        modern_settings, merge=not force
+                    )
                 )
 
             # Update extensions
             if force or self.extensions_manager.should_create_extensions():
                 extensions_config = self.extensions_manager.get_extensions_config()
                 results.append(
-                    self.extensions_manager.update_extensions(extensions_config, merge=not force)
+                    self.extensions_manager.update_extensions(
+                        extensions_config, merge=not force
+                    )
                 )
 
             # Update launch configurations
@@ -248,7 +257,9 @@ class VSCodeIntegrationManager:
 
             if len(cleaned_recommendations) != len(recommendations):
                 current_extensions["recommendations"] = cleaned_recommendations
-                self.extensions_manager.update_extensions(current_extensions, merge=False)
+                self.extensions_manager.update_extensions(
+                    current_extensions, merge=False
+                )
 
             return True
 
