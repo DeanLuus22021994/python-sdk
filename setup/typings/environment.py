@@ -9,39 +9,10 @@ and system information.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from pathlib import Path
 from typing import NamedTuple
 
-
-class ValidationStatus(Enum):
-    """Status of validation operations."""
-
-    VALID = auto()
-    """Validation passed successfully."""
-
-    WARNING = auto()
-    """Validation passed with warnings."""
-
-    ERROR = auto()
-    """Validation failed with errors."""
-
-    PENDING = auto()
-    """Validation is in progress."""
-
-    def __str__(self) -> str:
-        return self.name.lower()
-
-    @property
-    def is_successful(self) -> bool:
-        """Check if validation was successful (valid or warning)."""
-        return self in (ValidationStatus.VALID, ValidationStatus.WARNING)
-
-    @property
-    def is_failure(self) -> bool:
-        """Check if validation failed."""
-        return self == ValidationStatus.ERROR
-
+from .enums import ValidationStatus
 
 __all__ = [
     "PythonVersion",
@@ -134,9 +105,7 @@ class EnvironmentInfo:
             raise ValueError("python_executable cannot be empty")
 
         if self.virtual_env_active and not self.virtual_env_path:
-            raise ValueError(
-                "virtual_env_path required when virtual_env_active is True"
-            )
+            self.virtual_env_path = "unknown"
 
     @property
     def is_virtual_env(self) -> bool:
@@ -145,9 +114,9 @@ class EnvironmentInfo:
 
     @property
     def env_summary(self) -> str:
-        """Get a summary string of the environment."""
-        env_type = f" ({self.virtual_env_type})" if self.virtual_env_type else ""
-        return f"Python {self.python_version} on {self.platform_system}{env_type}"
+        """Get a brief summary of the environment."""
+        venv_status = "virtual" if self.virtual_env_active else "system"
+        return f"Python {self.python_version} ({venv_status}) on {self.platform_system}"
 
 
 @dataclass(slots=True)
@@ -169,48 +138,45 @@ class ValidationDetails:
     def __post_init__(self) -> None:
         """Ensure validation details are consistent."""
         if self.is_valid and self.status == ValidationStatus.ERROR:
-            raise ValueError("Cannot be valid with ERROR status")
+            self.is_valid = False
 
         if not self.is_valid and self.status == ValidationStatus.VALID:
-            raise ValueError("Cannot be invalid with VALID status")
-
-    def add_warning(self, warning: str) -> None:
-        """Add a warning to the validation results."""
-        if warning not in self.warnings:
-            self.warnings.append(warning)
-
-    def add_error(self, error: str) -> None:
-        """Add an error to the validation results."""
-        if error not in self.errors:
-            self.errors.append(error)
-        self.is_valid = False
-        if self.status == ValidationStatus.VALID:
             self.status = ValidationStatus.ERROR
 
+    def add_warning(self, warning: str) -> None:
+        """Add a warning message."""
+        self.warnings.append(warning)
+        if self.status == ValidationStatus.VALID:
+            self.status = ValidationStatus.WARNING
+
+    def add_error(self, error: str) -> None:
+        """Add an error message."""
+        self.errors.append(error)
+        self.is_valid = False
+        self.status = ValidationStatus.ERROR
+
     def add_recommendation(self, recommendation: str) -> None:
-        """Add a recommendation to improve the setup."""
-        if recommendation not in self.recommendations:
-            self.recommendations.append(recommendation)
+        """Add a recommendation for improvement."""
+        self.recommendations.append(recommendation)
 
     @property
-    def has_issues(self) -> bool:
-        """Check if there are any warnings or errors."""
-        return bool(self.warnings or self.errors)
+    def has_warnings(self) -> bool:
+        """Check if there are any warnings."""
+        return len(self.warnings) > 0
 
     @property
-    def issue_count(self) -> int:
-        """Get total number of issues (warnings + errors)."""
-        return len(self.warnings) + len(self.errors)
+    def has_errors(self) -> bool:
+        """Check if there are any errors."""
+        return len(self.errors) > 0
 
     def get_summary(self) -> str:
         """Get a summary of validation results."""
-        if self.is_valid:
-            return f"✅ {self.message}"
-        else:
-            issue_summary = (
-                f"{len(self.errors)} error(s), {len(self.warnings)} warning(s)"
-            )
-            return f"❌ {self.message} ({issue_summary})"
+        status_msg = f"Status: {self.status.name.lower()}"
+        if self.has_errors:
+            status_msg += f" ({len(self.errors)} errors)"
+        if self.has_warnings:
+            status_msg += f" ({len(self.warnings)} warnings)"
+        return status_msg
 
 
 @dataclass(slots=True)
@@ -235,13 +201,17 @@ class ProjectStructureInfo:
             raise ValueError(f"Project root path does not exist: {self.root_path}")
 
     @property
-    def completion_percentage(self) -> float:
-        """Calculate completion percentage of optional paths."""
-        if not self.optional_paths_status:
+    def completeness_percentage(self) -> float:
+        """Calculate project structure completeness percentage."""
+        total_paths = len(self.missing_required) + len(self.optional_paths_status)
+        if total_paths == 0:
             return 100.0
 
-        completed = sum(1 for exists in self.optional_paths_status.values() if exists)
-        return (completed / len(self.optional_paths_status)) * 100.0
+        existing_paths = len([p for p in self.optional_paths_status.values() if p])
+        if self.required_paths_valid:
+            existing_paths += len(self.missing_required)
+
+        return (existing_paths / total_paths) * 100.0
 
     @property
     def size_mb(self) -> float:
@@ -251,7 +221,7 @@ class ProjectStructureInfo:
     def get_structure_summary(self) -> str:
         """Get a summary of project structure."""
         return (
-            f"Project at {self.root_path}: "
+            f"Project at {self.root_path.name}: "
             f"{self.file_count} files, "
             f"{self.directory_count} directories, "
             f"{self.size_mb:.1f} MB"
@@ -277,13 +247,16 @@ class PackageManagerInfo:
     capabilities: dict[str, list[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Validate package manager configuration."""
-        available_managers = self.get_available_managers()
-        if not available_managers:
+        """Validate package manager information."""
+        if not any(
+            [
+                self.pip_available,
+                self.conda_available,
+                self.uv_available,
+                self.poetry_available,
+            ]
+        ):
             raise ValueError("At least one package manager must be available")
-
-        if self.preferred_manager not in available_managers:
-            self.preferred_manager = available_managers[0]
 
     def get_available_managers(self) -> list[str]:
         """Get list of available package managers."""
@@ -299,23 +272,35 @@ class PackageManagerInfo:
         return managers
 
     @property
-    def has_modern_manager(self) -> bool:
-        """Check if modern package managers (uv, poetry) are available."""
-        return self.uv_available or self.poetry_available
+    def best_manager(self) -> str:
+        """Get the best available package manager."""
+        # Prefer modern managers
+        if self.uv_available:
+            return "uv"
+        elif self.poetry_available:
+            return "poetry"
+        elif self.pip_available:
+            return "pip"
+        elif self.conda_available:
+            return "conda"
+        else:
+            return "none"
 
     def get_install_command(self, package: str) -> str:
-        """Get installation command for the preferred manager."""
-        commands = {
-            "pip": f"pip install {package}",
-            "conda": f"conda install {package}",
-            "uv": f"uv add {package}",
-            "poetry": f"poetry add {package}",
-        }
-        return commands.get(self.preferred_manager, f"pip install {package}")
+        """Get installation command for a package."""
+        manager = self.best_manager
+        if manager == "uv":
+            return f"uv add {package}"
+        elif manager == "poetry":
+            return f"poetry add {package}"
+        elif manager == "pip":
+            return f"pip install {package}"
+        elif manager == "conda":
+            return f"conda install {package}"
+        else:
+            return f"# No package manager available to install {package}"
 
     def get_manager_summary(self) -> str:
         """Get a summary of available package managers."""
         available = self.get_available_managers()
-        return (
-            f"Available: {', '.join(available)} (preferred: {self.preferred_manager})"
-        )
+        return f"Available managers: {', '.join(available)} (preferred: {self.best_manager})"

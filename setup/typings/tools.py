@@ -114,52 +114,24 @@ class VSCodeConfig:
             "version": "2.0.0",
             "tasks": [
                 {
-                    "label": "Install Dependencies",
+                    "label": "Python: Run Tests",
                     "type": "shell",
-                    "command": "uv sync",
-                    "group": "build",
-                    "presentation": {
-                        "echo": True,
-                        "reveal": "always",
-                        "focus": False,
-                        "panel": "shared",
-                    },
-                },
-                {
-                    "label": "Run Tests",
-                    "type": "shell",
-                    "command": "uv run pytest tests/ -v",
-                    "group": {"kind": "test", "isDefault": True},
-                    "presentation": {
-                        "echo": True,
-                        "reveal": "always",
-                        "focus": False,
-                        "panel": "shared",
-                    },
-                },
-                {
-                    "label": "Format Code",
-                    "type": "shell",
-                    "command": "uv run black src/ tests/ setup/",
-                    "group": "build",
-                },
-                {
-                    "label": "Type Check",
-                    "type": "shell",
-                    "command": "uv run mypy src/",
-                    "group": "build",
-                },
+                    "command": "python",
+                    "args": ["-m", "pytest"],
+                    "group": "test",
+                    "presentation": {"echo": True, "reveal": "always"},
+                }
             ],
         }
 
     def add_extension(
         self, extension_id: str, publisher: str, name: str, description: str
     ) -> None:
-        """Add an extension to the recommended list."""
+        """Add an extension to the configuration."""
         if extension_id not in self.extensions:
             self.extensions.append(extension_id)
 
-        extension_info: VSCodeExtension = {
+        extension: VSCodeExtension = {
             "id": extension_id,
             "publisher": publisher,
             "name": name,
@@ -168,13 +140,13 @@ class VSCodeConfig:
             "enabled": True,
         }
 
-        # Update existing or add new
+        # Update existing extension or add new one
         for i, ext in enumerate(self.recommended_extensions):
             if ext["id"] == extension_id:
-                self.recommended_extensions[i] = extension_info
+                self.recommended_extensions[i] = extension
                 return
 
-        self.recommended_extensions.append(extension_info)
+        self.recommended_extensions.append(extension)
 
     def get_workspace_settings_path(self) -> Path | None:
         """Get path to workspace settings file."""
@@ -183,14 +155,16 @@ class VSCodeConfig:
         return None
 
     def export_configuration(self) -> dict[str, dict[str, Any]]:
-        """Export complete VS Code configuration for serialization."""
+        """Export complete configuration for serialization."""
         return {
             "settings": self.settings,
-            "extensions": {
-                "recommendations": [ext["id"] for ext in self.recommended_extensions]
-            },
             "launch": self.launch_config,
             "tasks": self.tasks_config,
+            "extensions": {
+                "recommendations": self.extensions,
+                "details": [dict(ext) for ext in self.recommended_extensions],
+            },
+            "workspace": self.workspace_config,
         }
 
 
@@ -221,29 +195,31 @@ class DockerInfo:
     def __post_init__(self) -> None:
         """Validate Docker information after initialization."""
         if self.docker_available and not self.docker_version:
-            raise ValueError("docker_version required when docker_available is True")
-
-    @property
-    def is_usable(self) -> bool:
-        """Check if Docker is available and usable for development."""
-        return self.docker_available and self.docker_version is not None
-
-    @property
-    def supports_modern_features(self) -> bool:
-        """Check if Docker version supports modern features."""
-        if not self.docker_version:
-            return False
-
-        # Docker 20.10+ supports modern features
-        major, minor, _ = self.docker_version
-        return (major, minor) >= (20, 10)
+            # Set a default version if Docker is available but version is unknown
+            self.docker_version = (0, 0, 0)
 
     @property
     def version_string(self) -> str:
         """Get Docker version as a string."""
         if self.docker_version:
-            return f"{self.docker_version[0]}.{self.docker_version[1]}.{self.docker_version[2]}"
+            return ".".join(map(str, self.docker_version))
         return "unknown"
+
+    @property
+    def is_compose_v2(self) -> bool:
+        """Check if using Docker Compose V2."""
+        return self.compose_available and (
+            self.compose_version is None or "v2" in self.compose_version.lower()
+        )
+
+    @property
+    def has_modern_features(self) -> bool:
+        """Check if Docker has modern features (BuildKit, etc.)."""
+        return (
+            self.buildkit_available
+            and self.docker_version
+            and self.docker_version >= (20, 10, 0)
+        )
 
     def has_image(self, image_name: str) -> bool:
         """Check if a specific image is available."""
@@ -258,26 +234,24 @@ class DockerInfo:
         if not self.docker_available:
             return "Docker not available"
 
-        compose_info = (
-            f", Compose {self.compose_version}" if self.compose_available else ""
-        )
-        return (
-            f"Docker {self.version_string}{compose_info} - "
-            f"{len(self.images_available)} images, "
-            f"{len(self.containers_running)} running containers"
-        )
+        summary = f"Docker {self.version_string}"
+        if self.compose_available:
+            summary += " with Compose"
+        if self.buildkit_available:
+            summary += " (BuildKit enabled)"
+
+        return summary
 
     def get_status_dict(self) -> dict[str, Any]:
-        """Get Docker status as a dictionary."""
+        """Get status as a dictionary for serialization."""
         return {
             "available": self.docker_available,
             "version": self.version_string,
-            "compose_available": self.compose_available,
-            "compose_version": self.compose_version,
-            "images_count": len(self.images_available),
-            "containers_running": len(self.containers_running),
-            "buildkit_available": self.buildkit_available,
-            "supports_modern_features": self.supports_modern_features,
+            "compose": self.compose_available,
+            "buildkit": self.buildkit_available,
+            "containers": self.total_containers,
+            "images": self.total_images,
+            "storage_driver": self.storage_driver,
         }
 
 
@@ -300,10 +274,12 @@ class DockerConfig:
     build_context: str = "."
     dockerfile_path: str = "Dockerfile"
     build_args: dict[str, str] = field(default_factory=dict)
-    target_stage: str | None = None  # Runtime configuration
-    volumes: list[str] = field(default_factory=lambda: [])
-    networks: list[str] = field(default_factory=lambda: [])
-    depends_on: list[str] = field(default_factory=lambda: [])
+    target_stage: str | None = None
+
+    # Runtime configuration
+    volumes: list[str] = field(default_factory=list)
+    networks: list[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
     restart_policy: str = "unless-stopped"
 
     # Development specific
@@ -312,108 +288,115 @@ class DockerConfig:
     enable_health_check: bool = True
 
     def __post_init__(self) -> None:
-        """Initialize default configuration if needed."""
+        """Initialize default configuration values."""
         if not self.environment_variables:
             self.environment_variables = {
-                "PYTHONPATH": "/app/src",
-                "PYTHONUNBUFFERED": "1",
+                "PYTHONPATH": "/app",
                 "PYTHONDONTWRITEBYTECODE": "1",
+                "PYTHONUNBUFFERED": "1",
             }
 
     def get_compose_config(self) -> dict[str, Any]:
-        """Generate Docker Compose configuration."""
-        # Create build configuration with proper typing
-        build_config: dict[str, Any] = {
-            "context": self.build_context,
-            "dockerfile": self.dockerfile_path,
-        }
-
-        if self.target_stage:
-            build_config["target"] = self.target_stage
-
-        if self.build_args:
-            build_config["args"] = self.build_args
-
-        # Create main configuration
-        port_mappings = [f"{port}:{port}" for port in self.exposed_ports]
+        """Generate Docker Compose service configuration."""
         config: dict[str, Any] = {
-            "build": build_config,
-            "ports": port_mappings,
+            "build": {
+                "context": self.build_context,
+                "dockerfile": self.dockerfile_path,
+            },
+            "working_dir": self.working_directory,
             "environment": self.environment_variables,
-            "volumes": list(self.volumes),
             "restart": self.restart_policy,
         }
 
-        # Add optional configurations
+        if self.exposed_ports:
+            config["ports"] = [f"{port}:{port}" for port in self.exposed_ports]
+
+        if self.volumes:
+            config["volumes"] = self.volumes
+
         if self.networks:
             config["networks"] = self.networks
 
         if self.depends_on:
             config["depends_on"] = self.depends_on
 
-        if self.development_overrides:
-            config = {**config, **self.development_overrides}
+        if self.build_args:
+            config["build"]["args"] = self.build_args
+
+        if self.target_stage:
+            config["build"]["target"] = self.target_stage
+
+        if self.enable_health_check:
+            config["healthcheck"] = {
+                "test": [
+                    "CMD",
+                    "python",
+                    "-c",
+                    "import requests; requests.get('http://localhost:8000/health')",
+                ],
+                "interval": "30s",
+                "timeout": "10s",
+                "retries": 3,
+            }
 
         return config
 
     def get_dockerfile_content(self) -> str:
-        """Generate basic Dockerfile content."""
+        """Generate Dockerfile content based on configuration."""
         lines = [
             f"FROM {self.base_image}",
             f"WORKDIR {self.working_directory}",
             "",
             "# Install system dependencies",
             "RUN apt-get update && apt-get install -y \\",
-            "    build-essential \\",
-            "    curl \\",
             "    git \\",
+            "    curl \\",
+            "    build-essential \\",
             "    && rm -rf /var/lib/apt/lists/*",
             "",
-            "# Install uv",
-            "COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv",
-            "",
-            "# Copy project files",
-            "COPY pyproject.toml uv.lock ./",
-            "RUN uv sync --frozen",
+            "# Copy requirements and install Python dependencies",
+            "COPY requirements.txt .",
+            "RUN pip install --no-cache-dir -r requirements.txt",
             "",
             "# Copy source code",
-            "COPY src/ ./src/",
+            "COPY src/ /app/src/",
             "",
-        ]  # Add port exposure
-        lines.extend([f"EXPOSE {port}" for port in self.exposed_ports])
-
-        lines.extend(
-            [
-                "",
-                "# Set environment variables",
-            ]
-        )
+            "# Set environment variables",
+        ]
 
         for key, value in self.environment_variables.items():
-            lines.append(f'ENV {key}="{value}"')
+            lines.append(f"ENV {key}={value}")
+
+        if self.exposed_ports:
+            lines.append("")
+            for port in self.exposed_ports:
+                lines.append(f"EXPOSE {port}")
 
         lines.extend(
             [
                 "",
-                "# Default command",
-                'CMD ["uv", "run", "python", "-m", "src.main"]',
+                'CMD ["python", "-m", "mcp.server"]',
             ]
         )
 
         return "\n".join(lines)
 
     def get_compose_override_for_development(self) -> dict[str, Any]:
-        """Get development-specific compose overrides."""
-        return {
+        """Get development-specific Docker Compose overrides."""
+        override = {
+            "command": "sleep infinity",  # Keep container running for development
             "volumes": [
-                "./src:/app/src:cached",
-                "./tests:/app/tests:cached",
-                "./pyproject.toml:/app/pyproject.toml:ro",
+                "${PWD}:/app",  # Mount source code for live editing
+                "python-cache:/root/.cache/pip",  # Cache pip packages
             ],
             "environment": {
                 **self.environment_variables,
-                "ENVIRONMENT": "development",
-                "DEBUG": "1",
+                "PYTHONDEBUG": "1",
+                "DEVELOPMENT": "true",
             },
-            "command": ["uv", "run", "python", "-m", "src.main", "--reload"],
         }
+
+        if self.development_overrides:
+            override.update(self.development_overrides)
+
+        return override

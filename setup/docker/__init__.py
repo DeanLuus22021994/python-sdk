@@ -3,10 +3,14 @@ Docker Setup Manager
 Comprehensive Docker environment setup and management for the MCP Python SDK.
 """
 
+import json
+import platform
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
-from ..types import ValidationDetails, ValidationStatus
+from ..typings import ValidationDetails, ValidationStatus
 from .container_config import DockerContainerManager
 from .docker_validator import validate_docker_environment
 from .image_manager import DockerImageManager
@@ -52,37 +56,41 @@ class DockerSetupManager:
             config = config or {}
 
             if self.verbose:
-                print("Setting up Docker environment...")
+                print("🐳 Setting up Docker environment...")
 
             # Validate Docker installation
             docker_valid, docker_info = validate_docker_environment()
             if not docker_valid:
-                print(f"Docker validation failed: {docker_info}")
+                if self.verbose:
+                    print(f"✗ Docker validation failed: {docker_info}")
                 return False
 
             # Configure volumes
             volumes_success = self.volume_manager.create_volume_directories()
             if not volumes_success:
-                print("Failed to configure Docker volumes")
+                if self.verbose:
+                    print("✗ Failed to configure Docker volumes")
                 success = False
 
             # Pull required images
             images_success, _ = self.image_manager.pull_required_images()
             if not images_success:
-                print("Failed to pull required Docker images")
+                if self.verbose:
+                    print("✗ Failed to pull required Docker images")
                 success = False
 
             # Configure containers
             containers_success = self.container_manager.create_container_config()
             if not containers_success:
-                print("Failed to configure Docker containers")
+                if self.verbose:
+                    print("✗ Failed to configure Docker containers")
                 success = False
 
             return success
 
         except Exception as e:
             if self.verbose:
-                print(f"Docker setup failed: {e}")
+                print(f"✗ Docker setup failed: {e}")
             return False
 
     def validate_docker_setup(self) -> ValidationDetails:
@@ -100,31 +108,37 @@ class DockerSetupManager:
             # Validate Docker environment
             docker_valid, docker_info = validate_docker_environment()
             if not docker_valid:
-                errors.append(f"Docker environment invalid: {docker_info}")
+                errors.append("Docker environment is not properly configured")
+                recommendations.append("Install Docker and ensure daemon is running")
 
             # Validate volumes
             volumes_valid = self.volume_manager.validate_volume_config()
             if not volumes_valid:
-                warnings.append("Docker volume configuration invalid")
+                warnings.append("Docker volumes are not properly configured")
+                recommendations.append("Run volume configuration setup")
 
             # Check required images
-            images_available = self.image_manager.check_required_images()
-            if not images_available:
-                recommendations.append("Consider pulling required Docker images")
+            images_status = self.image_manager.check_required_images()
+            missing_images = [
+                img for img, available in images_status.items() if not available
+            ]
+            if missing_images:
+                warnings.append(f"Missing Docker images: {', '.join(missing_images)}")
+                recommendations.append("Pull required Docker images")
 
             # Determine overall status
             if errors:
-                status = ValidationStatus.ERROR
                 is_valid = False
-                message = "Docker validation failed"
+                status = ValidationStatus.ERROR
+                message = f"Docker setup has {len(errors)} critical errors"
             elif warnings:
+                is_valid = True
                 status = ValidationStatus.WARNING
-                is_valid = True
-                message = "Docker validation passed with warnings"
+                message = f"Docker setup is functional with {len(warnings)} warnings"
             else:
-                status = ValidationStatus.VALID
                 is_valid = True
-                message = "Docker environment is valid"
+                status = ValidationStatus.VALID
+                message = "Docker setup is fully configured and ready"
 
             return ValidationDetails(
                 is_valid=is_valid,
@@ -174,7 +188,23 @@ def validate_docker_environment_compat() -> tuple[bool, str]:
     """Validate Docker environment - compatibility function."""
     valid, info = validate_docker_environment()
     if isinstance(info, dict):
-        return valid, str(info.get("daemon_message", "Docker check complete"))
+        # Extract a meaningful message from the info dict
+        if valid:
+            return True, "Docker environment is properly configured"
+        else:
+            # Try to get specific error messages
+            daemon_msg = info.get("daemon_message", "Docker daemon issue")
+            version_msg = info.get("version_message", "Docker version issue")
+            compose_msg = info.get("compose_message", "Docker Compose issue")
+
+            if not info.get("daemon_running", False):
+                return False, daemon_msg
+            elif not info.get("version_valid", False):
+                return False, version_msg
+            elif not info.get("compose_available", False):
+                return False, compose_msg
+            else:
+                return False, "Docker environment validation failed"
     return valid, str(info)
 
 

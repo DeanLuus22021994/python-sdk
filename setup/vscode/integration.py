@@ -6,7 +6,7 @@ Comprehensive VS Code workspace configuration and management.
 from pathlib import Path
 from typing import Any
 
-from ..types import ValidationDetails, ValidationStatus
+from ..typings import ValidationDetails, ValidationStatus
 from .extensions import VSCodeExtensionsManager
 from .launch import VSCodeLaunchManager
 from .settings import VSCodeSettingsManager

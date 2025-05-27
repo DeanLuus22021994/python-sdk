@@ -5,10 +5,7 @@ from typing import Any
 
 import yaml
 
-from setup.environment.path_utils import get_project_root as get_env_project_root
-
-# Alias for backward compatibility
-get_project_root = get_env_project_root
+from ..environment.path_utils import get_project_root
 
 
 class DockerContainerManager:
@@ -64,7 +61,19 @@ class DockerContainerManager:
 
     def create_container_config(self) -> bool:
         """Create container configuration."""
-        return True
+        try:
+            # Create docker-compose.yml
+            docker_compose_path = create_docker_compose_file()
+            print(f"✓ Docker Compose configuration created at {docker_compose_path}")
+
+            # Create Dockerfile.dev
+            create_development_dockerfile()
+            print("✓ Development Dockerfile created")
+
+            return True
+        except Exception as e:
+            print(f"✗ Failed to configure Docker containers: {str(e)}")
+            return False
 
 
 def get_container_config() -> dict[str, Any]:

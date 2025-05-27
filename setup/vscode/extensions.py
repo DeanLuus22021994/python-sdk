@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..types import ValidationDetails, ValidationStatus
+from ..typings import ValidationDetails, ValidationStatus
 
 
 class VSCodeExtensionsManager:
