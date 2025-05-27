@@ -6,6 +6,7 @@ Implements the Composite pattern for combining multiple validators.
 from __future__ import annotations
 
 import asyncio
+from asyncio import Semaphore, gather, get_event_loop, get_running_loop
 from collections.abc import Sequence
 from typing import Any
 
@@ -213,24 +214,23 @@ class ParallelCompositeValidator(CompositeValidator):
         """Execute validators in parallel using asyncio."""
         try:
             # Try to get the current event loop
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
         except RuntimeError:
             # No event loop running, use sequential validation as fallback
             return super()._perform_validation()
 
         # Run parallel validation if event loop is available
         return loop.run_until_complete(self._async_validation())
-
     async def _async_validation(self) -> ValidationResult[dict[str, Any]]:
         """Async validation implementation."""
-        semaphore = asyncio.Semaphore(self.max_concurrency)
+        semaphore = Semaphore(self.max_concurrency)
 
         async def validate_with_semaphore(
             validator: BaseValidator[Any],
         ) -> tuple[str, ValidationResult[Any]]:
             async with semaphore:
                 # Run validation in thread pool since validators are sync
-                loop = asyncio.get_event_loop()
+                loop = get_running_loop()
                 result = await loop.run_in_executor(None, validator.validate)
                 return validator.get_validator_name(), result
 
@@ -238,7 +238,7 @@ class ParallelCompositeValidator(CompositeValidator):
         tasks = [
             validate_with_semaphore(validator) for validator in self.validators
         ]  # Execute all tasks
-        completed_validations = await asyncio.gather(
+        completed_validations = await gather(
             *tasks, return_exceptions=True
         )  # Process results similar to sequential version
         results: dict[str, ValidationResult[Any]] = {}
