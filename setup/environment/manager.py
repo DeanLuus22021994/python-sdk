@@ -6,22 +6,19 @@ Central coordination of environment validation and setup.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+import platform
+import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from ..typings import (
     EnvironmentInfo,
     EnvironmentValidationResult,
-    LogLevel,
+    PythonVersion,
     SetupMode,
-    ValidationStatus,
 )
 from ..validation import BaseValidator, ValidationContext, ValidationRegistry
-from .constants import DEFAULT_PERFORMANCE_SETTINGS
-from .path_validator import PathStructureValidator
-from .python_validator import PythonEnvironmentValidator
-from .structure_validator import ProjectStructureValidator
 from .utils import get_project_root
 
 
@@ -54,13 +51,20 @@ class EnvironmentManager:
         registry: ValidationRegistry | None = None,
     ) -> None:
         """Initialize environment manager."""
-        self._workspace_root = Path(workspace_root) if workspace_root else get_project_root()
-        self._registry = registry or ValidationRegistry()
+        self._workspace_root = (
+            Path(workspace_root) if workspace_root else get_project_root()
+        )
+
+        # Import registry here to avoid circular imports
+        from ..validation.registry import get_global_registry
+
+        self._registry = registry or get_global_registry()
+
         self._context = ValidationContext(
             workspace_root=str(self._workspace_root),
-            config={"performance": DEFAULT_PERFORMANCE_SETTINGS.__dict__},
+            environment=dict(os.environ) if "os" in sys.modules else {},
+            config={"component": "environment"},
         )
-        self._cache: dict[str, Any] = {}
 
     async def validate_environment(
         self,
@@ -78,7 +82,7 @@ class EnvironmentManager:
         validators = [
             self._get_validator("python_environment"),
             self._get_validator("project_structure"),
-            self._get_validator("path_structure"),
+            self._get_validator("dependencies"),
         ]
 
         if parallel:
@@ -88,96 +92,53 @@ class EnvironmentManager:
 
         return self._aggregate_results(results)
 
-    async def setup_environment(
-        self,
-        config: EnvironmentSetupConfig | None = None,
-    ) -> bool:
-        """
-        Complete environment setup.
-
-        Args:
-            config: Setup configuration
-
-        Returns:
-            True if setup was successful
-        """
-        config = config or EnvironmentSetupConfig()
-
-        try:
-            # Validate current state
-            validation = await self.validate_environment()
-            if validation.status == ValidationStatus.ERROR:
-                return False
-
-            # Setup operations based on configuration
-            if config.create_venv:
-                await self._setup_virtual_environment()
-
-            if config.configure_vscode:
-                await self._setup_vscode_configuration()
-
-            if config.enable_pre_commit:
-                await self._setup_pre_commit()
-
-            return True
-
-        except Exception:
-            return False
-
     def get_environment_info(self) -> EnvironmentInfo:
-        """
-        Get comprehensive environment information.
+        """Get comprehensive environment information."""
+        version_info = sys.version_info
+        python_version = PythonVersion(
+            version_info.major, version_info.minor, version_info.micro
+        )
 
-        Returns:
-            Environment information structure
-        """
-        python_validator = self._get_validator("python_environment")
-        structure_validator = self._get_validator("project_structure")
-
-        # Collect information from validators
-        python_info = python_validator.get_python_info()
-        structure_info = structure_validator.get_structure_info()
+        # Check virtual environment
+        in_venv = hasattr(sys, "real_prefix") or (
+            hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+        )
 
         return EnvironmentInfo(
-            python_version=python_info.version,
-            platform_info=python_info.platform,
-            virtual_environment=python_info.virtual_environment,
-            package_managers=python_info.package_managers,
-            project_structure=structure_info,
-            workspace_root=str(self._workspace_root),
+            python_version=python_version,
+            python_executable=sys.executable,
+            virtual_env_active=in_venv,
+            virtual_env_type="venv" if in_venv else None,
+            virtual_env_path=sys.prefix if in_venv else None,
+            platform_system=platform.system(),
+            platform_release=platform.release(),
+            architecture=platform.machine(),
         )
 
     def get_status_summary(self) -> dict[str, Any]:
-        """
-        Get simplified status summary.
-
-        Returns:
-            Status dictionary with basic information
-        """
+        """Get environment status summary."""
         env_info = self.get_environment_info()
 
         return {
             "python_version": str(env_info.python_version),
-            "platform": env_info.platform_info.system,
-            "virtual_env_active": env_info.virtual_environment.active,
-            "project_structure_valid": env_info.project_structure.is_valid,
-            "workspace_root": env_info.workspace_root,
+            "virtual_env_active": env_info.virtual_env_active,
+            "platform": env_info.platform_system,
+            "workspace_root": str(self._workspace_root),
         }
 
     def _get_validator(self, name: str) -> BaseValidator[Any]:
         """Get validator instance from registry."""
-        validator_class = self._registry.get_validator_class(name)
-        if not validator_class:
-            raise ValueError(f"Validator '{name}' not found in registry")
-
-        return validator_class(self._context)
+        return self._registry.create_validator(name, self._context)
 
     async def _run_parallel_validation(
         self,
         validators: list[BaseValidator[Any]],
     ) -> list[Any]:
         """Run validators in parallel."""
-        tasks = [validator.validate() for validator in validators]
+        tasks = [
+            asyncio.create_task(self._run_validator_async(validator))
+            for validator in validators
+        ]
         return await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _run_sequential_validation(
@@ -187,52 +148,67 @@ class EnvironmentManager:
         """Run validators sequentially."""
         results = []
         for validator in validators:
-            result = await validator.validate()
+            result = await self._run_validator_async(validator)
             results.append(result)
         return results
 
+    async def _run_validator_async(self, validator: BaseValidator[Any]) -> Any:
+        """Run a single validator asynchronously."""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, validator.validate)
+
     def _aggregate_results(self, results: list[Any]) -> EnvironmentValidationResult:
         """Aggregate validation results into final result."""
-        all_valid = all(
-            getattr(result, 'is_valid', False)
-            for result in results
-            if not isinstance(result, Exception)
-        )
-
+        # Convert to proper validation result format
+        all_valid = True
         errors = []
-        warnings = []
 
         for result in results:
-            if isinstance(result, Exception):
-                errors.append(str(result))
-            elif hasattr(result, 'errors'):
-                errors.extend(result.errors)
-            elif hasattr(result, 'warnings'):
-                warnings.extend(result.warnings)
+            if hasattr(result, "is_valid") and not result.is_valid:
+                all_valid = False
+                if hasattr(result, "errors"):
+                    errors.extend(result.errors)
 
-        status = ValidationStatus.VALID if all_valid else ValidationStatus.ERROR
-        if warnings and all_valid:
-            status = ValidationStatus.WARNING
+        env_info = self.get_environment_info()
 
-        return EnvironmentValidationResult(
-            is_valid=all_valid,
-            status=status,
-            message="Environment validation complete",
-            errors=tuple(errors),
-            warnings=tuple(warnings),
-        )
+        return (all_valid, env_info, errors)
 
-    async def _setup_virtual_environment(self) -> None:
-        """Setup virtual environment if needed."""
-        # Implementation for virtual environment setup
-        pass
+    async def setup_environment(
+        self,
+        config: EnvironmentSetupConfig | None = None,
+    ) -> bool:
+        """
+        Setup complete development environment.
+
+        Args:
+            config: Setup configuration options
+
+        Returns:
+            True if setup completed successfully
+        """
+        config = config or EnvironmentSetupConfig()
+
+        try:
+            # Run validation first
+            validation_result = await self.validate_environment(
+                parallel=config.parallel_operations
+            )
+
+            if not validation_result[0]:  # Not valid
+                return False
+
+            # Setup components based on config
+            if config.configure_vscode:
+                await self._setup_vscode_configuration()
+
+            return True
+
+        except Exception:
+            return False
 
     async def _setup_vscode_configuration(self) -> None:
         """Setup VS Code configuration."""
-        # Implementation for VS Code setup
-        pass
+        from ..vscode.integration import VSCodeIntegrationManager
 
-    async def _setup_pre_commit(self) -> None:
-        """Setup pre-commit hooks."""
-        # Implementation for pre-commit setup
-        pass
+        vscode_manager = VSCodeIntegrationManager(self._workspace_root)
+        vscode_manager.create_workspace_configuration()

@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from ..typings import ValidationDetails, ValidationStatus
+from ..validation.base import ValidationContext
+from ..validation.registry import get_global_registry
 from .extensions import VSCodeExtensionsManager
 from .launch import VSCodeLaunchManager
 from .settings import VSCodeSettingsManager
@@ -47,8 +49,8 @@ class VSCodeIntegrationManager:
         Create complete VS Code workspace configuration.
 
         Args:
-            force_overwrite: Whether to overwrite existing files
-            include_optional: Whether to include optional configurations
+            force_overwrite: Overwrite existing configurations
+            include_optional: Include optional configurations
             custom_config: Custom configuration overrides
 
         Returns:
@@ -60,18 +62,13 @@ class VSCodeIntegrationManager:
 
             success = True
 
-            # Create or update all configuration files
-            if not self.settings.create_settings_file() and not force_overwrite:
-                success = False
+            # Create core configurations
+            success &= self.settings.create_settings_file() or not force_overwrite
+            success &= self.tasks.create_tasks_file() or not force_overwrite
+            success &= self.launch.create_launch_file() or not force_overwrite
 
-            if not self.launch.create_launch_file() and not force_overwrite:
-                success = False
-
-            if not self.tasks.create_tasks_file() and not force_overwrite:
-                success = False
-
-            if not self.extensions.create_extensions_file() and not force_overwrite:
-                success = False
+            if include_optional:
+                success &= self.extensions.create_extensions_file() or not force_overwrite
 
             return success
 
@@ -84,6 +81,36 @@ class VSCodeIntegrationManager:
         Returns:
             ValidationDetails with overall validation results
         """
+        # Use the validation framework
+        context = ValidationContext(
+            workspace_root=str(self.workspace_root),
+            environment={},
+            config={"component": "vscode"},
+        )
+
+        registry = get_global_registry()
+
+        try:
+            validator = registry.create_validator("vscode_workspace", context)
+            result = validator.validate()
+
+            return ValidationDetails(
+                is_valid=result.is_valid,
+                status=result.status,
+                message=result.message,
+                warnings=list(result.warnings),
+                errors=list(result.errors),
+                recommendations=list(result.recommendations),
+                metadata=result.metadata,
+                component_name="VSCode",
+            )
+
+        except ValueError:
+            # Fallback to component-level validation
+            return self._validate_workspace_components()
+
+    def _validate_workspace_components(self) -> ValidationDetails:
+        """Fallback validation using component managers."""
         # Collect validation results from all components
         extensions_validation = self.extensions.validate_extensions()
         settings_validation = self.settings.validate_settings()
@@ -142,32 +169,22 @@ class VSCodeIntegrationManager:
         )
 
     def get_workspace_status(self) -> dict[str, Any]:
-        """Get current workspace configuration status.
+        """Get comprehensive workspace status."""
+        validation = self.validate_workspace()
 
-        Returns:
-            Dictionary with status information for all components
-        """
         return {
-            "workspace_root": str(self.workspace_root),
+            "valid": validation.is_valid,
+            "status": validation.status.name,
+            "message": validation.message,
+            "errors": validation.errors,
+            "warnings": validation.warnings,
             "vscode_dir_exists": self.vscode_dir.exists(),
-            "settings_exists": self.settings.settings_path.exists(),
-            "launch_exists": self.launch.launch_path.exists(),
-            "tasks_exists": self.tasks.tasks_path.exists(),
-            "extensions_exists": self.extensions.extensions_path.exists(),
         }
 
     def update_workspace_config(
         self, config_updates: dict[str, Any], merge: bool = True
     ) -> bool:
-        """Update workspace configuration with new values.
-
-        Args:
-            config_updates: Configuration updates to apply
-            merge: Whether to merge with existing config
-
-        Returns:
-            True if update was successful
-        """
+        """Update workspace configuration with new values."""
         try:
             success = True
 
@@ -176,11 +193,15 @@ class VSCodeIntegrationManager:
                     config_updates["settings"], merge
                 )
 
-            if "launch" in config_updates:
-                success &= self.launch.update_launch(config_updates["launch"], merge)
-
             if "tasks" in config_updates:
-                success &= self.tasks.update_tasks(config_updates["tasks"], merge)
+                success &= self.tasks.update_tasks(
+                    config_updates["tasks"], merge
+                )
+
+            if "launch" in config_updates:
+                success &= self.launch.update_launch(
+                    config_updates["launch"], merge
+                )
 
             if "extensions" in config_updates:
                 success &= self.extensions.update_extensions(
@@ -193,40 +214,29 @@ class VSCodeIntegrationManager:
             return False
 
     def export_workspace_config(self) -> dict[str, Any]:
-        """Export current workspace configuration.
-
-        Returns:
-            Dictionary with all configuration data
-        """
+        """Export complete workspace configuration."""
         return {
             "settings": self.settings.get_current_settings(),
-            "launch": self.launch.get_current_launch(),
             "tasks": self.tasks.get_current_tasks(),
+            "launch": self.launch.get_current_launch(),
             "extensions": self.extensions.get_current_extensions(),
         }
 
     def reset_workspace(self, components: list[str] | None = None) -> bool:
-        """Reset workspace configuration components.
+        """Reset workspace configuration to defaults."""
+        components = components or ["settings", "tasks", "launch", "extensions"]
 
-        Args:
-            components: List of components to reset, or None for all
-
-        Returns:
-            True if reset was successful
-        """
         try:
-            components = components or ["settings", "launch", "tasks", "extensions"]
-
             success = True
 
             if "settings" in components:
                 success &= self.settings.create_settings_file()
 
-            if "launch" in components:
-                success &= self.launch.create_launch_file()
-
             if "tasks" in components:
                 success &= self.tasks.create_tasks_file()
+
+            if "launch" in components:
+                success &= self.launch.create_launch_file()
 
             if "extensions" in components:
                 success &= self.extensions.create_extensions_file()
@@ -248,7 +258,6 @@ class VSCodeIntegrationManager:
         try:
             if remove_vscode_dir and self.vscode_dir.exists():
                 import shutil
-
                 shutil.rmtree(self.vscode_dir)
             else:
                 # Remove individual files
@@ -276,7 +285,7 @@ class VSCodeIntegrationManager:
         return {"tasks": self.tasks.get_task_definitions()}
 
     def get_python_launch_configs(self) -> dict[str, Any]:
-        """Get Python debug configurations."""
+        """Get Python launch configurations."""
         return {"configurations": self.launch.get_debug_configurations()}
 
     def create_all_configurations(self, **kwargs) -> bool:

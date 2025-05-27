@@ -59,14 +59,10 @@ def print_footer(success: bool) -> None:
     print("\n" + "=" * 60)
     if success:
         print("✅ Setup completed successfully!")
-        print("Your MCP Python SDK development environment is ready.")
-        print("\nNext steps:")
-        print("1. Open VS Code")
-        print("2. Open this project folder")
-        print("3. Start developing!")
+        print("🚀 Your development environment is ready.")
     else:
         print("❌ Setup failed!")
-        print("Please review the errors above and try again.")
+        print("🔧 Please check the errors above and try again.")
     print("=" * 60 + "\n")
 
 
@@ -140,10 +136,9 @@ def main() -> int:
         log_message(LogLevel.ERROR, f"Setup failed with error: {e}")
         if verbose:
             import traceback
-
             traceback.print_exc()
         return 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    exit(main())

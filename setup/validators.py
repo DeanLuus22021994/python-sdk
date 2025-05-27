@@ -5,6 +5,7 @@ Concrete validators for the MCP Python SDK setup system.
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -262,11 +263,15 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
 
             # Try to check if dependencies are installable
             dependencies = project_data.get("dependencies", [])
-            metadata.update({
-                "dependencies_count": len(dependencies),
-                "has_dev_dependencies": "dev"
-                in pyproject_data.get("project", {}).get("optional-dependencies", {}),
-            })
+            metadata.update(
+                {
+                    "dependencies_count": len(dependencies),
+                    "has_dev_dependencies": "dev"
+                    in pyproject_data.get("project", {}).get(
+                        "optional-dependencies", {}
+                    ),
+                }
+            )
 
         except ImportError:
             warnings.append(
@@ -290,6 +295,174 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
             status = ValidationStatus.VALID
             is_valid = True
             message = "Dependencies configuration is valid"
+
+        return self._create_result(
+            is_valid=is_valid,
+            status=status,
+            message=message,
+            data=metadata,
+            errors=errors,
+            warnings=warnings,
+            recommendations=recommendations,
+        )
+
+
+@register_validator("vscode_workspace")
+class VSCodeWorkspaceValidator(BaseValidator[dict[str, Any]]):
+    """
+    Validates VS Code workspace configuration.
+
+    Follows SRP by focusing on VS Code validation.
+    """
+
+    def get_validator_name(self) -> str:
+        """Get validator name."""
+        return "VS Code Workspace"
+
+    def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
+        """Validate VS Code workspace configuration."""
+        errors: list[str] = []
+        warnings: list[str] = []
+        recommendations: list[str] = []
+        metadata: dict[str, Any] = {}
+
+        workspace_root = Path(self.context.workspace_root)
+        vscode_dir = workspace_root / ".vscode"
+
+        # Check if .vscode directory exists
+        if not vscode_dir.exists():
+            warnings.append(".vscode directory not found")
+            recommendations.append(
+                "Run setup to create VS Code workspace configuration"
+            )
+
+        config_files = ["settings.json", "tasks.json", "launch.json", "extensions.json"]
+        found_configs = []
+        missing_configs = []
+
+        for config_file in config_files:
+            config_path = vscode_dir / config_file
+            if config_path.exists():
+                found_configs.append(config_file)
+
+                # Validate JSON syntax
+                try:
+                    with open(config_path, encoding="utf-8") as f:
+                        json.load(f)
+                except json.JSONDecodeError as e:
+                    errors.append(f"Invalid JSON in {config_file}: {e}")
+            else:
+                missing_configs.append(config_file)
+
+        metadata.update(
+            {
+                "vscode_dir_exists": vscode_dir.exists(),
+                "found_configs": found_configs,
+                "missing_configs": missing_configs,
+            }
+        )
+
+        if missing_configs:
+            warnings.extend(
+                [f"Missing VS Code config: {cfg}" for cfg in missing_configs]
+            )
+
+        # Determine status
+        if errors:
+            status = ValidationStatus.ERROR
+            is_valid = False
+            message = f"VS Code validation failed: {len(errors)} error(s)"
+        elif warnings:
+            status = ValidationStatus.WARNING
+            is_valid = True
+            message = f"VS Code configuration has {len(warnings)} warning(s)"
+        else:
+            status = ValidationStatus.VALID
+            is_valid = True
+            message = "VS Code workspace configuration is valid"
+
+        return self._create_result(
+            is_valid=is_valid,
+            status=status,
+            message=message,
+            data=metadata,
+            errors=errors,
+            warnings=warnings,
+            recommendations=recommendations,
+        )
+
+
+@register_validator("docker_environment")
+class DockerEnvironmentValidator(BaseValidator[dict[str, Any]]):
+    """
+    Validates Docker environment for containerized development.
+
+    Follows SRP by focusing on Docker validation.
+    """
+
+    def get_validator_name(self) -> str:
+        """Get validator name."""
+        return "Docker Environment"
+
+    def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
+        """Validate Docker environment."""
+        errors: list[str] = []
+        warnings: list[str] = []
+        recommendations: list[str] = []
+        metadata: dict[str, Any] = {}
+
+        try:
+            import subprocess
+
+            # Check Docker daemon
+            result = subprocess.run(
+                ["docker", "info"], capture_output=True, text=True, timeout=10
+            )
+
+            if result.returncode == 0:
+                metadata["docker_running"] = True
+
+                # Check Docker Compose
+                compose_result = subprocess.run(
+                    ["docker", "compose", "version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+
+                if compose_result.returncode == 0:
+                    metadata["compose_available"] = True
+                else:
+                    warnings.append("Docker Compose not available")
+                    recommendations.append(
+                        "Install Docker Compose for container orchestration"
+                    )
+
+            else:
+                errors.append("Docker daemon not running")
+                recommendations.append("Start Docker daemon before proceeding")
+
+        except subprocess.TimeoutExpired:
+            errors.append("Docker command timed out")
+        except FileNotFoundError:
+            errors.append("Docker not installed")
+            recommendations.append("Install Docker for containerized development")
+        except Exception as e:
+            errors.append(f"Docker validation error: {e}")
+
+        # Determine status
+        if errors:
+            status = ValidationStatus.ERROR
+            is_valid = False
+            message = f"Docker validation failed: {len(errors)} error(s)"
+        elif warnings:
+            status = ValidationStatus.WARNING
+            is_valid = True
+            message = f"Docker environment has {len(warnings)} warning(s)"
+        else:
+            status = ValidationStatus.VALID
+            is_valid = True
+            message = "Docker environment is ready"
 
         return self._create_result(
             is_valid=is_valid,

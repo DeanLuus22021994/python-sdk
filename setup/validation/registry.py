@@ -5,6 +5,7 @@ Central registry for validator discovery and management.
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -14,6 +15,7 @@ __all__ = [
     "ValidationRegistry",
     "register_validator",
     "get_registered_validators",
+    "get_global_registry",
     "create_validator_factory",
 ]
 
@@ -77,25 +79,23 @@ class ValidationRegistry:
         Unregister a validator.
 
         Args:
-            name: Name of the validator to unregister
+            name: Name of validator to unregister
 
         Returns:
-            True if validator was found and removed
+            True if validator was unregistered, False if not found
         """
         removed = False
         if name in self._local_registry:
             del self._local_registry[name]
             removed = True
-
         if name in self._local_factories:
             del self._local_factories[name]
             removed = True
-
         return removed
 
     def get_validator_class(self, name: str) -> type[BaseValidator[Any]] | None:
         """
-        Get a registered validator class by name.
+        Get validator class by name.
 
         Args:
             name: Name of the validator
@@ -155,9 +155,8 @@ class ValidationRegistry:
     def register_from_global(self) -> None:
         """Register all validators from global registry."""
         for name, validator_class in _validator_registry.items():
-            if name not in self._local_registry:
-                factory = _validator_factories.get(name)
-                self.register_validator(name, validator_class, factory)
+            factory = _validator_factories.get(name)
+            self.register_validator(name, validator_class, factory)
 
     def export_to_global(self) -> None:
         """Export local registry to global registry."""
@@ -247,25 +246,13 @@ def create_validator_factory(
 
 
 def get_global_registry() -> ValidationRegistry:
-    """
-    Get the global validation registry.
-
-    Returns:
-        Global registry instance
-    """
+    """Get the global validation registry."""
     return _global_registry
 
 
 def create_local_registry() -> ValidationRegistry:
-    """
-    Create a new local validation registry.
-
-    Returns:
-        New registry instance
-    """
-    registry = ValidationRegistry()
-    registry.register_from_global()  # Start with global validators
-    return registry
+    """Create a new local validation registry."""
+    return ValidationRegistry()
 
 
 # Auto-discovery support
@@ -274,36 +261,32 @@ def discover_validators(module_name: str) -> int:
     Discover and register validators from a module.
 
     Args:
-        module_name: Name of the module to scan
+        module_name: Module name to discover validators from
 
     Returns:
         Number of validators discovered and registered
     """
-    import importlib
-    import inspect
-
     try:
         module = importlib.import_module(module_name)
-        discovered_count = 0
+        discovered = 0
 
-        for name, obj in inspect.getmembers(module):
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
             if (
-                inspect.isclass(obj)
-                and issubclass(obj, BaseValidator)
-                and obj is not BaseValidator
-                and hasattr(obj, "get_validator_name")
+                isinstance(attr, type)
+                and issubclass(attr, BaseValidator)
+                and attr is not BaseValidator
             ):
-                # Generate validator name from class name
-                validator_name = obj.__name__.lower().replace("validator", "")
 
+                # Auto-register with class name
+                validator_name = attr_name.lower().replace("validator", "")
                 if not _global_registry.is_registered(validator_name):
-                    _global_registry.register_validator(validator_name, obj)
-                    discovered_count += 1
+                    _global_registry.register_validator(validator_name, attr)
+                    discovered += 1
 
-        return discovered_count
-
-    except ImportError as e:
-        raise ValueError(f"Could not import module '{module_name}': {e}")
+        return discovered
+    except ImportError:
+        return 0
 
 
 # Convenience function for bulk registration

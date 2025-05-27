@@ -6,11 +6,12 @@ Core validation components following SOLID principles.
 from __future__ import annotations
 
 import abc
+import hashlib
 import time
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 
-from ..typings import ValidationDetails, ValidationStatus
+from ..typings import ValidationStatus
 
 __all__ = [
     "ValidationResult",
@@ -58,19 +59,6 @@ class ValidationResult(Generic[T]):
     def severity_score(self) -> int:
         """Calculate severity score for result comparison."""
         return len(self.errors) * 3 + len(self.warnings)
-
-    def to_validation_details(self) -> ValidationDetails:
-        """Convert to legacy ValidationDetails format for compatibility."""
-        return ValidationDetails(
-            is_valid=self.is_valid,
-            status=self.status,
-            message=self.message,
-            warnings=list(self.warnings),
-            errors=list(self.errors),
-            recommendations=list(self.recommendations),
-            metadata=self.metadata.copy(),
-            validation_time=self.validation_time,
-        )
 
 
 @dataclass(slots=True)
@@ -126,51 +114,48 @@ class BaseValidator(abc.ABC, Generic[T]):
 
     def validate(self) -> ValidationResult[T]:
         """
-        Execute validation with optional caching.
+        Execute validation with caching support.
 
-        Implements idempotent validation pattern.
+        Returns:
+            ValidationResult with comprehensive validation details
         """
-        cache_key = self._get_cache_key()
-
-        if self.context.cache_enabled and cache_key in self._cache:
-            cached_result = self._cache[cache_key]
-            if self._is_cache_valid(cached_result):
-                return cached_result
+        # Check cache if enabled
+        if self.context.cache_enabled:
+            cache_key = self._get_cache_key()
+            if cache_key in self._cache:
+                cached_result = self._cache[cache_key]
+                if self._is_cache_valid(cached_result):
+                    return cached_result
 
         # Perform validation
         result = self._perform_validation()
 
-        # Cache result if caching is enabled
+        # Cache result if enabled
         if self.context.cache_enabled:
+            cache_key = self._get_cache_key()
             self._cache[cache_key] = result
 
         return result
 
     def is_valid(self) -> bool:
         """Quick validation check without detailed results."""
-        return self.validate().is_valid
+        result = self.validate()
+        return result.is_valid
 
     def clear_cache(self) -> None:
         """Clear validation cache for re-execution."""
         self._cache.clear()
 
     def _get_cache_key(self) -> str:
-        """Generate cache key for validation result."""
-        # Include context hash to invalidate cache when context changes
-        context_hash = hash(
-            (
-                self.context.workspace_root,
-                tuple(sorted(self.context.environment.items())),
-                tuple(sorted(self.context.config.items())),
-            )
-        )
-        return f"{self.get_validator_name()}:{context_hash}"
+        """Generate cache key for this validation context."""
+        context_str = f"{self.context.workspace_root}:{str(self.context.config)}"
+        return hashlib.sha256(context_str.encode()).hexdigest()[:16]
 
     def _is_cache_valid(self, cached_result: ValidationResult[T]) -> bool:
         """Check if cached result is still valid."""
-        # Cache is valid for 5 minutes by default
-        cache_lifetime = self.context.get_config_value("cache_lifetime", 300)
-        return time.time() - cached_result.validation_time < cache_lifetime
+        # Simple time-based cache invalidation (5 minutes)
+        cache_age = time.time() - cached_result.validation_time
+        return cache_age < 300
 
     def _create_result(
         self,
@@ -206,19 +191,19 @@ class CachedValidator(BaseValidator[T]):
     """
 
     def __init__(self, wrapped_validator: BaseValidator[T]) -> None:
-        """Initialize with a validator to wrap."""
+        """Initialize with wrapped validator."""
         super().__init__(wrapped_validator.context)
         self._wrapped = wrapped_validator
 
     def get_validator_name(self) -> str:
-        """Get name from wrapped validator."""
-        return f"Cached_{self._wrapped.get_validator_name()}"
+        """Get validator name from wrapped validator."""
+        return f"Cached({self._wrapped.get_validator_name()})"
 
     def _perform_validation(self) -> ValidationResult[T]:
         """Delegate to wrapped validator."""
         return self._wrapped._perform_validation()
 
     def clear_cache(self) -> None:
-        """Clear cache from both this and wrapped validator."""
+        """Clear both local and wrapped validator caches."""
         super().clear_cache()
         self._wrapped.clear_cache()
