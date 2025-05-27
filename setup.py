@@ -4,7 +4,7 @@ MCP Python SDK Setup
 Modern, idempotent development environment setup with containerization support.
 
 Usage:
-    python setup.py [--docker] [--verbose]
+    python setup.py [--mode MODE] [--workspace PATH] [--verbose] [--validate-only]
 
 Features:
     - Host-based development setup
@@ -14,6 +14,7 @@ Features:
     - Clean architecture following SOLID principles
 """
 
+import asyncio
 import sys
 from pathlib import Path
 from typing import NoReturn
@@ -31,6 +32,9 @@ def ensure_package_structure() -> None:
         PROJECT_ROOT / "setup" / "environment",
         PROJECT_ROOT / "setup" / "host",
         PROJECT_ROOT / "setup" / "docker",
+        PROJECT_ROOT / "setup" / "vscode",
+        PROJECT_ROOT / "setup" / "validation",
+        PROJECT_ROOT / "setup" / "typings",
     ]
 
     for package_dir in package_dirs:
@@ -40,21 +44,34 @@ def ensure_package_structure() -> None:
             init_file.touch()
 
 
+async def run_setup() -> int:
+    """Run the async setup process."""
+    try:
+        from setup.main import main as async_main
+
+        return await async_main()
+    except ImportError as e:
+        print(f"Setup import failed: {e}")
+        print(
+            "Ensure all dependencies are installed and the project structure is correct."
+        )
+        return 1
+    except Exception as e:
+        print(f"Setup failed with unexpected error: {e}")
+        return 1
+
+
 def main() -> NoReturn:
     """Entry point for setup process."""
     ensure_package_structure()
 
     try:
-        from setup.main import main as setup_main
-
-        sys.exit(setup_main())
-    except ImportError as e:
-        print(f"Setup import failed: {e}")
-        print(
-            "Ensure all dependencies are installed and the project "
-            "structure is correct."
-        )
-        sys.exit(1)
+        # Run the async setup process
+        exit_code = asyncio.run(run_setup())
+        sys.exit(exit_code)
+    except KeyboardInterrupt:
+        print("\n⚠️ Setup interrupted by user")
+        sys.exit(130)
     except Exception as e:
         print(f"Setup failed with unexpected error: {e}")
         sys.exit(1)

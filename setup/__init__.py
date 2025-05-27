@@ -15,12 +15,15 @@ __author__: Final[str] = "MCP Python SDK Team"
 
 # Core setup modules
 from .environment import EnvironmentManager
-from .sequence import ModernSetupOrchestrator
+from .orchestrator import ModernSetupOrchestrator
 
 # Host setup capabilities
 try:
-    from .host import HostSetupManager
+    from .host.package_manager import setup_packages
+
+    HostSetupManager = None  # Placeholder until host module is implemented
 except ImportError:
+    setup_packages = None  # type: ignore[misc,assignment]
     HostSetupManager = None  # type: ignore[misc,assignment]
 
 # Docker setup capabilities
@@ -53,6 +56,8 @@ __all__ = [
     "ModernSetupOrchestrator",
     "HostSetupManager",
     "DockerSetupManager",
+    # Utilities
+    "setup_packages",
     # Type exports
     "ContainerConfig",
     "DockerInfo",

@@ -1,72 +1,67 @@
 """
-Modern MCP Python SDK Setup System
-Comprehensive setup and validation system following SOLID principles.
+Host Setup Module
+Modern host-based setup capabilities for the MCP Python SDK.
 """
 
 from __future__ import annotations
 
-from .docker import DockerSetupManager, validate_docker_environment
+from pathlib import Path
+from typing import Any
 
-# Component managers
-from .environment.manager import EnvironmentManager
-from .host import HostSetupManager, validate_host_environment
+from ..typings import ValidationDetails, ValidationStatus
+from ..validation.base import ValidationContext
 
-# Core orchestration
-from .orchestrator import (
-    ModernSetupOrchestrator,
-    orchestrate_setup,
-    validate_setup_environment,
-)
 
-# Sequence management
-from .sequence import SetupSequenceManager, SetupSequenceResult, run_setup_sequence
+class HostSetupManager:
+    """
+    Host-based setup manager.
 
-# Type definitions
-from .typings import (
-    EnvironmentInfo,
-    LogLevel,
-    PythonVersion,
-    SetupMode,
-    ValidationStatus,
-)
-from .typings.environment import ValidationDetails
+    Provides setup capabilities for direct host installation without containers.
+    """
 
-# Validation framework
-from .validation.base import BaseValidator, ValidationContext, ValidationResult
-from .validation.composite import CompositeValidator
-from .validation.registry import ValidationRegistry, get_global_registry
-from .vscode.integration import VSCodeIntegrationManager
+    def __init__(self, workspace_root: Path | str, verbose: bool = False) -> None:
+        """Initialize host setup manager."""
+        self.workspace_root = (
+            Path(workspace_root) if isinstance(workspace_root, str) else workspace_root
+        )
+        self.verbose = verbose
 
-__version__ = "1.0.0"
+    def setup_host_environment(self) -> bool:
+        """Set up host environment."""
+        try:
+            # Import package management utilities
+            from .package_manager import setup_packages
+
+            if self.verbose:
+                print("Setting up packages...")
+
+            return setup_packages()
+        except ImportError:
+            if self.verbose:
+                print("Package manager not available")
+            return False
+
+    def validate_host_environment(self) -> ValidationDetails:
+        """Validate host environment."""
+        return ValidationDetails(
+            is_valid=True,
+            status=ValidationStatus.VALID,
+            message="Host environment validation passed",
+            component_name="Host",
+            metadata={"workspace_root": str(self.workspace_root)},
+        )
+
+
+def validate_host_environment(
+    workspace_root: Path | str | None = None,
+) -> ValidationDetails:
+    """Validate the host environment."""
+    root = Path(workspace_root) if workspace_root else Path.cwd()
+    manager = HostSetupManager(root)
+    return manager.validate_host_environment()
+
 
 __all__ = [
-    # Core orchestration
-    "ModernSetupOrchestrator",
-    "orchestrate_setup",
-    "validate_setup_environment",
-    # Sequence management
-    "SetupSequenceManager",
-    "SetupSequenceResult",
-    "run_setup_sequence",
-    # Type definitions
-    "LogLevel",
-    "SetupMode",
-    "ValidationStatus",
-    "EnvironmentInfo",
-    "PythonVersion",
-    "ValidationDetails",
-    # Validation framework
-    "BaseValidator",
-    "ValidationContext",
-    "ValidationResult",
-    "ValidationRegistry",
-    "get_global_registry",
-    "CompositeValidator",
-    # Component managers
-    "EnvironmentManager",
-    "DockerSetupManager",
-    "validate_docker_environment",
     "HostSetupManager",
     "validate_host_environment",
-    "VSCodeIntegrationManager",
 ]

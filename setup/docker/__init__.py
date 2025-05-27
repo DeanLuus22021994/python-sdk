@@ -5,6 +5,7 @@ Modern Docker configuration and management for the MCP Python SDK setup.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,6 @@ from ..typings import ValidationStatus
 from ..typings.environment import ValidationDetails
 from ..validation.base import ValidationContext
 from ..validation.registry import get_global_registry
-from .config import DockerConfigManager
 
 
 class DockerSetupManager:
@@ -32,8 +32,6 @@ class DockerSetupManager:
         self.verbose = verbose
 
         # Create validation context
-        import os
-
         self.context = ValidationContext(
             workspace_root=str(self.workspace_root),
             environment=dict(os.environ),
@@ -54,9 +52,7 @@ class DockerSetupManager:
 
                 if not validation_result.is_valid:
                     if self.verbose:
-                        print(
-                            f"❌ Docker validation failed: {validation_result.message}"
-                        )
+                        print(f"Docker validation failed: {validation_result.message}")
                     return False
 
                 if self.verbose:
@@ -94,17 +90,50 @@ class DockerSetupManager:
             )
 
         except ValueError:
-            # Fallback validation
-            return ValidationDetails(
-                is_valid=True,
-                status=ValidationStatus.WARNING,
-                message="Docker validator not available",
-                warnings=["Docker validator not registered"],
-                errors=[],
-                recommendations=["Ensure docker validator is properly registered"],
-                metadata={"workspace_root": str(self.workspace_root)},
-                component_name="Docker",
-            )
+            # Fallback validation using basic Docker check
+            try:
+                result = subprocess.run(
+                    ["docker", "--version"], capture_output=True, text=True, timeout=5
+                )
+                docker_available = result.returncode == 0
+
+                return ValidationDetails(
+                    is_valid=docker_available,
+                    status=(
+                        ValidationStatus.VALID
+                        if docker_available
+                        else ValidationStatus.ERROR
+                    ),
+                    message=(
+                        "Docker is available"
+                        if docker_available
+                        else "Docker is not available"
+                    ),
+                    warnings=[] if docker_available else [],
+                    errors=(
+                        []
+                        if docker_available
+                        else ["Docker is not installed or not working"]
+                    ),
+                    recommendations=(
+                        []
+                        if docker_available
+                        else ["Install Docker Desktop or Docker Engine"]
+                    ),
+                    metadata={"workspace_root": str(self.workspace_root)},
+                    component_name="Docker",
+                )
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                return ValidationDetails(
+                    is_valid=False,
+                    status=ValidationStatus.ERROR,
+                    message="Docker validation failed",
+                    warnings=[],
+                    errors=["Docker is not installed or not accessible"],
+                    recommendations=["Install Docker Desktop or Docker Engine"],
+                    metadata={"workspace_root": str(self.workspace_root)},
+                    component_name="Docker",
+                )
 
     def cleanup_environment(self) -> bool:
         """Clean up Docker environment."""
@@ -146,8 +175,8 @@ def validate_docker_environment(
 ) -> ValidationDetails:
     """Validate the Docker environment."""
     root = Path(workspace_root) if workspace_root else Path.cwd()
-    manager = DockerConfigManager(root)
-    return manager.validate_configuration()
+    manager = DockerSetupManager(root)
+    return manager.validate_complete_setup()
 
 
 __all__ = [

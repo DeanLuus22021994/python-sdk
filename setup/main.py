@@ -10,7 +10,8 @@ import asyncio
 import sys
 from pathlib import Path
 
-from . import ModernSetupOrchestrator, SetupMode
+from .orchestrator import ModernSetupOrchestrator
+from .typings import SetupMode
 
 
 async def main() -> int:

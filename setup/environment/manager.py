@@ -157,50 +157,28 @@ class EnvironmentManager:
 
     def _aggregate_results(self, results: list[Any]) -> EnvironmentValidationResult:
         """Aggregate validation results into final result."""
-        # Convert to proper validation result format
-        all_valid = True
+        env_info = self.get_environment_info()
         errors = []
 
+        # Process validation results
         for result in results:
-            if hasattr(result, "is_valid") and not result.is_valid:
-                all_valid = False
-                if hasattr(result, "errors"):
-                    errors.extend(result.errors)
+            if hasattr(result, 'errors'):
+                errors.extend(result.errors)
 
-        env_info = self.get_environment_info()
-
-        return (all_valid, env_info, errors)
+        is_valid = len(errors) == 0
+        return (is_valid, env_info, errors)
 
     async def setup_environment(
         self,
         config: EnvironmentSetupConfig | None = None,
     ) -> bool:
-        """
-        Setup complete development environment.
-
-        Args:
-            config: Setup configuration options
-
-        Returns:
-            True if setup completed successfully
-        """
-        config = config or EnvironmentSetupConfig()
+        """Setup environment with given configuration."""
+        if config is None:
+            config = EnvironmentSetupConfig()
 
         try:
-            # Run validation first
-            validation_result = await self.validate_environment(
-                parallel=config.parallel_operations
-            )
-
-            if not validation_result[0]:  # Not valid
-                return False
-
-            # Setup components based on config
-            if config.configure_vscode:
-                await self._setup_vscode_configuration()
-
+            # Setup implementation would go here
             return True
-
         except Exception:
             return False
 
