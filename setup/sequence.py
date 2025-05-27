@@ -1,118 +1,195 @@
 """
 Setup Sequence Management
-Orchestrates the setup process for the MCP Python SDK
+Modern orchestration system using the validation framework.
 """
 
+from __future__ import annotations
+
+import os
+import time
+from pathlib import Path
 from typing import Any
 
-from .environment import (
-    check_required_paths,
-    validate_python_version,
-)
-from .packages import get_packages_for_platform
+from .typings.enums import SetupMode
+from .validation.base import ValidationContext
+from .validation.composite import CompositeValidator
+from .validation.registry import get_global_registry
+from .validation.reporters import ConsoleReporter, ValidationReport
 
 
-class SetupOrchestrator:
+class ModernSetupOrchestrator:
     """
-    Main orchestrator for the MCP Python SDK setup process.
+    Modern setup orchestrator using the validation framework.
 
-    Follows the Single Responsibility Principle by coordinating
-    different setup components without implementing their logic.
+    Follows SOLID principles:
+    - Single Responsibility: Coordinates setup validation
+    - Open/Closed: Extensible with new validators
+    - Dependency Inversion: Uses validation abstractions
     """
 
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(
+        self,
+        workspace_root: str | Path,
+        mode: SetupMode = SetupMode.HOST,
+        verbose: bool = False,
+    ) -> None:
+        """Initialize orchestrator."""
+        self.workspace_root = Path(workspace_root)
+        self.mode = mode
         self.verbose = verbose
-        self.results: dict[str, Any] = {}
+        self.context = ValidationContext(
+            workspace_root=str(self.workspace_root),
+            environment=dict(os.environ),
+            config={"mode": mode.value, "verbose": verbose},
+            cache_enabled=True,
+            verbose=verbose,
+        )
+        self.reporter = ConsoleReporter()
+        self._setup_validators()
+
+    def _setup_validators(self) -> None:
+        """Set up validators for the setup sequence."""
+        registry = get_global_registry()
+
+        # Create core validators
+        self.validators = [
+            registry.create_validator("python_environment", self.context),
+            registry.create_validator("project_structure", self.context),
+            registry.create_validator("dependencies", self.context),
+        ]
+
+        # Create composite validator
+        self.composite_validator = CompositeValidator(
+            context=self.context,
+            validators=self.validators,
+            fail_fast=False,  # Run all validations to get complete picture
+        )
+
+    def run_setup_validation(self) -> ValidationReport:
+        """
+        Run complete setup validation.
+
+        Returns:
+            Validation report with all results
+        """
+        if self.verbose:
+            print(f"🔍 Running setup validation in {self.mode.value} mode")
+            print(f"📁 Workspace: {self.workspace_root}")
+
+        start_time = time.time()
+        # Run validation
+        self.composite_validator.validate()
+
+        # Get individual results
+        individual_results = self.composite_validator.get_validator_results()
+
+        execution_time = time.time() - start_time
+
+        # Create validation report
+        report = ValidationReport(
+            results=tuple(individual_results.values()),
+            metadata={
+                "execution_time": execution_time,
+                "mode": self.mode.value,
+                "workspace_root": str(self.workspace_root),
+            },
+        )
+
+        return report
 
     def run_complete_setup(self) -> bool:
         """
-        Run the complete setup sequence.
+        Run the complete setup sequence with reporting.
 
         Returns:
-            True if all setup steps completed successfully
+            True if setup is successful
         """
-        try:
-            # Validate environment
-            python_valid, python_msg = validate_python_version()
-            self.results["python_validation"] = {
-                "valid": python_valid,
-                "message": python_msg,
-            }
+        print("🚀 Starting MCP Python SDK Setup")
+        print("=" * 50)
 
-            if not python_valid:
-                print(f"❌ Python validation failed: {python_msg}")
-                return False
+        # Run validation
+        report = self.run_setup_validation()  # Generate and display report
+        report_text = self.reporter.format_report(report)
+        print(report_text)
 
-            # Check required paths
-            paths_valid, missing_paths = check_required_paths()
-            self.results["paths_validation"] = {
-                "valid": paths_valid,
-                "missing": missing_paths,
-            }
+        # Check if setup is successful
+        success = report.valid_count > 0 and report.error_count == 0
 
-            if not paths_valid:
-                print(f"❌ Required paths missing: {missing_paths}")
-                return False
+        if success:
+            print("\n✅ Setup validation completed successfully!")
+            if report.warning_count > 0:
+                print(f"⚠️  Note: {report.warning_count} warning(s) found")
+        else:
+            print(f"\n❌ Setup validation failed with {report.error_count} error(s)")
 
-            # Validate packages
-            platform_packages = get_packages_for_platform()
-            self.results["platform_packages"] = platform_packages
+        return success
 
-            if self.verbose:
-                print(f"✅ Platform packages: {len(platform_packages)} available")
+    def get_validation_summary(self) -> dict[str, Any]:
+        """Get summary of validation results."""
+        report = self.run_setup_validation()
+        return report.execution_summary
 
-            return True
 
-        except Exception as e:
-            print(f"❌ Setup failed with error: {e}")
-            self.results["error"] = str(e)
-            return False
+# Legacy compatibility functions
+def validate_python_version() -> tuple[bool, str]:
+    """
+    Legacy function for Python version validation.
 
-    def get_setup_results(self) -> dict[str, Any]:
-        """Get detailed setup results."""
-        return self.results.copy()
+    Returns:
+        Tuple of (is_valid, message)
+    """
+    workspace_root = Path.cwd()
+    context = ValidationContext(
+        workspace_root=str(workspace_root),
+        environment=dict(os.environ),
+    )
+
+    registry = get_global_registry()
+    validator = registry.create_validator("python_environment", context)
+    result = validator.validate()
+
+    return result.is_valid, result.message
+
+
+def check_required_paths() -> tuple[bool, list[str]]:
+    """
+    Legacy function for path validation.
+
+    Returns:
+        Tuple of (is_valid, missing_paths)
+    """
+    workspace_root = Path.cwd()
+    context = ValidationContext(
+        workspace_root=str(workspace_root),
+        environment=dict(os.environ),
+    )
+
+    registry = get_global_registry()
+    validator = registry.create_validator("project_structure", context)
+    result = validator.validate()
+
+    missing_paths = []
+    if result.data and "missing_required" in result.data:
+        missing_paths = result.data["missing_required"]
+
+    return result.is_valid, missing_paths
 
 
 def run_setup_sequence() -> bool:
     """
-    Run the complete setup sequence for the MCP Python SDK.
+    Run the complete setup sequence (legacy interface).
 
     Returns:
         True if all setup steps completed successfully
     """
-    print("🚀 Starting MCP Python SDK Setup")
-    print("=" * 50)
+    workspace_root = Path.cwd()
+    orchestrator = ModernSetupOrchestrator(
+        workspace_root=workspace_root,
+        mode=SetupMode.HOST,
+        verbose=False,
+    )
 
-    success = True
-
-    # Step 1: Validate Python version
-    print("\nStep 1: Validating Python environment")
-    python_valid, python_msg = validate_python_version()
-    if python_valid:
-        print(f"✅ {python_msg}")
-    else:
-        print(f"❌ {python_msg}")
-        success = False
-
-    # Step 2: Check required paths
-    print("\nStep 2: Checking project structure")
-    paths_valid, missing_paths = check_required_paths()
-    if paths_valid:
-        print("✅ All required project paths exist")
-    else:
-        print(f"❌ Missing required paths: {missing_paths}")
-        success = False
-
-    # Step 3: Check platform packages
-    print("\nStep 3: Checking platform packages")
-    try:
-        platform_packages = get_packages_for_platform()
-        print(f"✅ Platform packages available: {len(platform_packages)}")
-    except Exception as e:
-        print(f"❌ Package check failed: {e}")
-        success = False
-
-    return success
+    return orchestrator.run_complete_setup()
 
 
 if __name__ == "__main__":
