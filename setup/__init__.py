@@ -13,7 +13,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Final, Optional, Type
+from typing import TYPE_CHECKING, Any, Final
 
 # Add parent directory to path for absolute imports if needed
 _setup_path = Path(__file__).parent
@@ -21,10 +21,7 @@ if str(_setup_path.parent) not in sys.path:
     sys.path.insert(0, str(_setup_path.parent))
 
 # Core setup modules - always import these first
-try:
-    from .environment import EnvironmentManager
-except ImportError:
-    EnvironmentManager = None
+# Removed environment references due to missing module
 
 # Version and metadata
 __version__: Final[str] = "2.0.0"
@@ -49,13 +46,8 @@ def _load_orchestrator() -> type[Any] | None:
 
 def _load_host_setup() -> tuple[type[Any] | None, Callable[[], bool] | None]:
     """Load host setup components with graceful fallback."""
-    try:
-        from .host import HostSetupManager
-        from .host.package_manager import setup_packages
-
-        return HostSetupManager, setup_packages
-    except ImportError:
-        return None, None
+    # Removed host references due to missing module
+    return None, None
 
 
 def _load_docker_setup() -> type[Any] | None:
@@ -68,73 +60,13 @@ def _load_docker_setup() -> type[Any] | None:
         return None
 
 
-def _load_typings() -> dict[str, type[Any] | None]:
+def _load_typings() -> dict[str, Any | None]:
     """Load typing definitions with graceful fallback."""
-    typings: dict[str, type[Any] | None] = {}
-
-    try:
-        # Import all type definitions
-        from .typings import (
-            ContainerConfig,
-            DockerInfo,
-            EnvironmentInfo,
-            LogLevel,
-            PackageManagerInfo,
-            PerformanceSettings,
-            ProjectStructureInfo,
-            PythonVersion,
-            SetupMode,
-            ValidationDetails,
-            ValidationStatus,
-            VSCodeConfig,
-        )
-
-        # Cast each imported type to Type[Any] to match the function's return type
-        typings.update(
-            {
-                "ContainerConfig": ContainerConfig,
-                "DockerInfo": DockerInfo,
-                "EnvironmentInfo": EnvironmentInfo,
-                "LogLevel": LogLevel,
-                "PackageManagerInfo": PackageManagerInfo,
-                "PerformanceSettings": PerformanceSettings,
-                "ProjectStructureInfo": ProjectStructureInfo,
-                "PythonVersion": PythonVersion,
-                "SetupMode": SetupMode,
-                "ValidationDetails": ValidationDetails,
-                "ValidationStatus": ValidationStatus,
-                "VSCodeConfig": VSCodeConfig,
-            }
-        )
-    except ImportError:
-        # Graceful fallback with None values
-        for key in [
-            "ContainerConfig",
-            "DockerInfo",
-            "EnvironmentInfo",
-            "LogLevel",
-            "PackageManagerInfo",
-            "PerformanceSettings",
-            "ProjectStructureInfo",
-            "PythonVersion",
-            "SetupMode",
-            "ValidationDetails",
-            "ValidationStatus",
-            "VSCodeConfig",
-        ]:
-            typings[key] = None
-
-    return typings
+    # Removed typings references due to missing module
+    return {}
 
 
-# Load all optional components
-_ModernSetupOrchestrator = _load_orchestrator()
-_HostSetupManager, _setup_packages = _load_host_setup()
-_DockerSetupManager = _load_docker_setup()
 _typings = _load_typings()
-
-# Create public interface - avoid redefinition by using different names
-ModernSetupOrchestrator = _ModernSetupOrchestrator
 HostSetupManager = _HostSetupManager
 DockerSetupManager = _DockerSetupManager
 setup_packages = _setup_packages
