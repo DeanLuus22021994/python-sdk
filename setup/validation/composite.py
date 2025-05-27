@@ -248,7 +248,7 @@ class ParallelCompositeValidator(CompositeValidator):
         combined_metadata: dict[str, Any] = {}
 
         for validation_result in completed_validations:
-            if isinstance(validation_result, Exception):
+            if isinstance(validation_result, BaseException):
                 error_msg = f"Parallel validation failed: {validation_result}"
                 all_errors.append(error_msg)
                 continue
