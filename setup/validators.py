@@ -207,6 +207,10 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
         errors: list[str] = []
         warnings: list[str] = []
         recommendations: list[str] = []
+        metadata: dict[str, Any] = {
+            "dependencies_count": 0,
+            "has_dev_dependencies": False,
+        }
 
         workspace_root = Path(self.context.workspace_root)
         pyproject_path = workspace_root / "pyproject.toml"
@@ -217,6 +221,7 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
                 is_valid=False,
                 status=ValidationStatus.ERROR,
                 message="Dependencies validation failed: pyproject.toml missing",
+                data=metadata,
                 errors=errors,
             )
 
@@ -257,20 +262,20 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
 
             # Try to check if dependencies are installable
             dependencies = project_data.get("dependencies", [])
-            metadata = {
+            metadata.update({
                 "dependencies_count": len(dependencies),
                 "has_dev_dependencies": "dev"
                 in pyproject_data.get("project", {}).get("optional-dependencies", {}),
-            }
+            })
 
         except ImportError:
             warnings.append(
                 "tomllib not available (Python 3.11+), using basic validation"
             )
-            metadata = {"validation_limited": True}
+            metadata.update({"validation_limited": True})
         except Exception as e:
             errors.append(f"Error reading pyproject.toml: {e}")
-            metadata = {"read_error": str(e)}
+            metadata.update({"read_error": str(e)})
 
         # Determine overall status
         if errors:
@@ -294,5 +299,4 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
             errors=errors,
             warnings=warnings,
             recommendations=recommendations,
-            **metadata,
         )

@@ -105,10 +105,10 @@ class ModernSetupOrchestrator:
             True if setup is successful
         """
         print("🚀 Starting MCP Python SDK Setup")
-        print("=" * 50)
+        print("=" * 50)  # Run validation
+        report = self.run_setup_validation()
 
-        # Run validation
-        report = self.run_setup_validation()  # Generate and display report
+        # Generate and display report
         report_text = self.reporter.format_report(report)
         print(report_text)
 
@@ -127,7 +127,14 @@ class ModernSetupOrchestrator:
     def get_validation_summary(self) -> dict[str, Any]:
         """Get summary of validation results."""
         report = self.run_setup_validation()
-        return report.execution_summary
+        return {
+            "total_validations": report.total_validations,
+            "valid_count": report.valid_count,
+            "invalid_count": report.invalid_count,
+            "error_count": report.error_count,
+            "warning_count": report.warning_count,
+            "overall_success": report.valid_count > 0 and report.error_count == 0,
+        }
 
 
 # Legacy compatibility functions
