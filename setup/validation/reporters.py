@@ -494,7 +494,8 @@ class HTMLReporter(ValidationReporter):
         for result in report.results:
             result_class = "valid" if result.is_valid else "invalid"
             html_parts.append(f'<div class="result {result_class}">')
-            html_parts.append(f"<h3>{result.message}</h3>")            if result.errors:
+            html_parts.append(f"<h3>{result.message}</h3>")
+            if result.errors:
                 html_parts.append("<ul class='errors'>")
                 html_parts.extend(f"<li>❌ {error}</li>" for error in result.errors)
                 html_parts.append("</ul>")
