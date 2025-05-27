@@ -114,7 +114,7 @@ class DockerSetupManager:
         try:
             validator = self.registry.create_validator("docker_environment", context)
             result = validator.validate()
-              return ValidationDetails(
+            return ValidationDetails(
                 is_valid=result.is_valid,
                 status=ValidationStatus.VALID if result.is_valid else ValidationStatus.ERROR,
                 message=result.message or "Docker validation completed",
