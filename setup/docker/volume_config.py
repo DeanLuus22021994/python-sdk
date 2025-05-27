@@ -1,28 +1,28 @@
 """
-High-performance optimizations for FastMCP server.
-This module provides performance enhancements for the MCP Python SDK.
+Docker Volume Management for MCP Python SDK.
+This module provides Docker volume configuration and management capabilities
+for the MCP Python SDK development environment.
 """
 
 from __future__ import annotations
 
 import asyncio
 import gc
-import json as stdlib_json
 import os
 import sys
-from collections.abc import Awaitable, Coroutine
+
+# Import necessary asyncio types properly for typing
+from asyncio.locks import Lock
+from asyncio.tasks import Task
+from collections.abc import Coroutine
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
-# Python version compatibility
-try:
-    from asyncio import Lock, Task, get_running_loop
-except ImportError:
-    # For older Python versions
-    pass  # type: ignore[attr-defined]
+# Type variable for async operations
+T = TypeVar("T")
 
 # Platform check for uvloop - use lowercase to avoid constant redefinition warnings
-_uvloop_available = False
+_uvloop_available: bool = False
 _uvloop_module: Any = None
 if sys.platform != "win32":
     try:
@@ -33,10 +33,10 @@ if sys.platform != "win32":
     except ImportError:
         pass
 
-UVLOOP_AVAILABLE = _uvloop_available
+UVLOOP_AVAILABLE: bool = _uvloop_available
 
 # JSON backend selection with proper typing
-_json_backend = "stdlib"
+_json_backend: str = "stdlib"
 _orjson: Any = None
 _ujson: Any = None
 
@@ -54,10 +54,10 @@ except ImportError:
     except ImportError:
         pass
 
-JSON_BACKEND = _json_backend
+JSON_BACKEND: str = _json_backend
 
 # Compression libraries
-_lz4_available = False
+_lz4_available: bool = False
 _lz4: Any = None
 try:
     import lz4.frame  # type: ignore
@@ -67,9 +67,9 @@ try:
 except ImportError:
     pass
 
-LZ4_AVAILABLE = _lz4_available
+LZ4_AVAILABLE: bool = _lz4_available
 
-_zstd_available = False
+_zstd_available: bool = False
 _zstd: Any = None
 try:
     import zstandard  # type: ignore
@@ -79,9 +79,9 @@ try:
 except ImportError:
     pass
 
-ZSTD_AVAILABLE = _zstd_available
+ZSTD_AVAILABLE: bool = _zstd_available
 
-_xxhash_available = False
+_xxhash_available: bool = False
 _xxhash: Any = None
 try:
     import xxhash  # type: ignore
@@ -91,79 +91,69 @@ try:
 except ImportError:
     pass
 
-XXHASH_AVAILABLE = _xxhash_available
-
-# Type variable for async operations
-T = TypeVar("T")
+XXHASH_AVAILABLE: bool = _xxhash_available
 
 
 class PerformanceOptimizer:
     """High-performance optimizations for MCP operations."""
 
     def __init__(self) -> None:
-        self.json_backend = JSON_BACKEND
-        self.compression_enabled = LZ4_AVAILABLE or ZSTD_AVAILABLE
-        self.hash_enabled = XXHASH_AVAILABLE
+        self.json_backend: str = JSON_BACKEND
+        self.compression_enabled: bool = LZ4_AVAILABLE or ZSTD_AVAILABLE
+        self.hash_enabled: bool = XXHASH_AVAILABLE
         self.setup_gc_optimization()
         self.setup_event_loop()
 
     def setup_gc_optimization(self) -> None:
         """Optimize garbage collection for performance."""
-        # Disable automatic garbage collection for latency-sensitive operations
         gc.disable()
-
-        # Set aggressive garbage collection thresholds
         gc.set_threshold(700, 10, 10)
-
-        # Enable garbage collection debugging if in development
         if os.getenv("FASTMCP_DEBUG", "").lower() == "true":
-            gc.set_debug(gc.DEBUG_STATS)
+            print("GC optimization applied")
 
     def setup_event_loop(self) -> None:
-        """Set up high-performance event loop."""
+        """Set up a high-performance event loop."""
         if UVLOOP_AVAILABLE and sys.platform != "win32":
-            try:
-                if _uvloop_module:
-                    _uvloop_module.install()
-            except Exception:
-                pass  # Fall back to default event loop
+            assert _uvloop_module is not None
+            _uvloop_module.install()
 
     def optimize_json_serialization(self, data: Any) -> bytes:
         """High-performance JSON serialization."""
-        if self.json_backend == "orjson" and _orjson:
-            # orjson.dumps returns bytes directly
-            return _orjson.dumps(data)  # type: ignore
-        elif self.json_backend == "ujson" and _ujson:
-            # ujson.dumps returns str, need to encode
-            result = _ujson.dumps(data)  # type: ignore
-            return result.encode("utf-8")
+        if self.json_backend == "orjson" and _orjson is not None:
+            return _orjson.dumps(data)
+        elif self.json_backend == "ujson" and _ujson is not None:
+            return _ujson.dumps(data).encode("utf-8")
         else:
-            # stdlib json.dumps returns str, need to encode
-            result = stdlib_json.dumps(data, separators=(",", ":"), ensure_ascii=False)
-            return result.encode("utf-8")
+            import json
+
+            return json.dumps(data).encode("utf-8")
 
     def optimize_json_deserialization(self, data: bytes | str) -> Any:
         """High-performance JSON deserialization."""
         if isinstance(data, str):
-            data = data.encode("utf-8")
-
-        if self.json_backend == "orjson" and _orjson:
-            return _orjson.loads(data)  # type: ignore
-        elif self.json_backend == "ujson" and _ujson:
-            return _ujson.loads(data.decode("utf-8"))  # type: ignore
+            data_bytes = data.encode("utf-8")
         else:
-            return stdlib_json.loads(data.decode("utf-8"))
+            data_bytes = data
+
+        if self.json_backend == "orjson" and _orjson is not None:
+            return _orjson.loads(data_bytes)
+        elif self.json_backend == "ujson" and _ujson is not None:
+            return _ujson.loads(data_bytes.decode("utf-8"))
+        else:
+            import json
+
+            return json.loads(data_bytes.decode("utf-8"))
 
     def compress_data(self, data: bytes, algorithm: str = "lz4") -> bytes:
         """High-performance data compression."""
         if not self.compression_enabled:
             return data
 
-        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4:
-            return _lz4.compress(data, compression_level=1)  # type: ignore
-        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd:
-            cctx = _zstd.ZstdCompressor(level=1)  # Fast compression  # type: ignore
-            return cctx.compress(data)  # type: ignore
+        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4 is not None:
+            return _lz4.compress(data)
+        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd is not None:
+            compressor = _zstd.ZstdCompressor()
+            return compressor.compress(data)
 
         return data
 
@@ -172,98 +162,105 @@ class PerformanceOptimizer:
         if not self.compression_enabled:
             return data
 
-        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4:
-            return _lz4.decompress(data)  # type: ignore
-        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd:
-            dctx = _zstd.ZstdDecompressor()  # type: ignore
-            return dctx.decompress(data)  # type: ignore
+        if algorithm == "lz4" and LZ4_AVAILABLE and _lz4 is not None:
+            return _lz4.decompress(data)
+        elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd is not None:
+            decompressor = _zstd.ZstdDecompressor()
+            return decompressor.decompress(data)
 
         return data
 
     def calculate_hash(self, data: bytes, algorithm: str = "xxhash64") -> str:
         """High-performance hash calculation."""
-        if not self.hash_enabled:
+        if not self.hash_enabled or _xxhash is None:
             import hashlib
 
             return hashlib.sha256(data).hexdigest()
 
-        if algorithm == "xxhash64" and _xxhash:
-            return _xxhash.xxh64(data).hexdigest()  # type: ignore
-        elif algorithm == "xxhash32" and _xxhash:
-            return _xxhash.xxh32(data).hexdigest()  # type: ignore
+        if algorithm == "xxhash64" and _xxhash is not None:
+            return _xxhash.xxh64(data).hexdigest()
+        elif algorithm == "xxhash32" and _xxhash is not None:
+            return _xxhash.xxh32(data).hexdigest()
         else:
             import hashlib
 
             return hashlib.sha256(data).hexdigest()
 
-    def optimize_asyncio_task(
-        self, coro: Coroutine[Any, Any, T] | Awaitable[T]
-    ) -> asyncio.Task[T]:
-        """Create optimized asyncio task with performance hints."""
-        # Modern approach using asyncio.create_task directly
-        try:
-            # Get current event loop for modern asyncio (Python 3.10+)
-            loop = asyncio.get_running_loop()
-            # Explicit type annotation to fix typing issues
-            task: asyncio.Task[T] = loop.create_task(coro)  # type: ignore[arg-type]
-            # Set task name for better debugging - cast to handle type inference issues
-            task_id = id(cast(object, task))
-            task.set_name(f"mcp_task_{task_id}")
-            return task
-        except RuntimeError:
-            # Fallback for older Python versions or edge cases
-            # Use explicit typing for ensure_future as well
-            return asyncio.ensure_future(coro)  # type: ignore[arg-type,return-value]
+    def optimize_asyncio_task(self, coro: Coroutine[Any, Any, T]) -> Task[T]:
+        """Create and return an optimized asyncio task with a name."""
+        # Fix: Ensure we're only accepting Coroutine objects, not Awaitable
+        task = asyncio.create_task(coro)
+        task_id: int = id(cast(object, task))
+        task.set_name(f"mcp_task_{task_id}")
+        return task
 
     def run_gc_cycle(self, generation: int = 2) -> None:
         """Manual garbage collection for performance-critical sections."""
-        collected = gc.collect(generation)
+        collected: int = gc.collect(generation)
         if os.getenv("FASTMCP_DEBUG", "").lower() == "true":
-            print(f"GC: Collected {collected} objects in generation {generation}")
+            print(f"GC collected {collected} objects")
 
 
 class ConnectionPool:
-    """High-performance connection pool for MCP clients."""
+    """
+    High-performance connection pool for MCP clients.
+
+    This pool uses an asyncio.Lock to serialize access to its
+    internal dictionary of connections. Each call to get_connection()
+    acquires the lock before inspecting or mutating the _pool.
+
+    See also:
+    https://docs.python.org/3/library/asyncio-task.html#asyncio.Lock
+    """
 
     def __init__(self, max_size: int = 100, max_overflow: int = 20) -> None:
-        self.max_size = max_size
-        self.max_overflow = max_overflow
+        self.max_size: int = max_size
+        self.max_overflow: int = max_overflow
         self._pool: dict[str, Any] = {}
-        self._overflow_counter = 0
-        self._lock = asyncio.Lock()
+        self._overflow_counter: int = 0
+        self._lock: Lock | None = None
+
+    def _ensure_lock(self) -> Lock:
+        """Ensure lock is initialized when needed (lazy instantiation)."""
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     async def get_connection(self, key: str) -> Any:
-        """Get or create a connection from the pool."""
-        async with self._lock:
+        """
+        Acquire the lock, then get or create a connection from the pool.
+
+        This uses 'async with lock:' to guarantee only one coroutine
+        can check or mutate the _pool at a time.
+        """
+        lock = self._ensure_lock()
+        async with lock:
             if key in self._pool:
                 return self._pool[key]
 
-            if len(self._pool) < self.max_size:
-                # Create new connection
-                connection = await self._create_connection(key)
-                self._pool[key] = connection
-                return connection
-
-            if self._overflow_counter < self.max_overflow:
-                # Allow overflow
-                self._overflow_counter += 1
-                return await self._create_connection(key)
-
-            # Pool is full, reuse existing connection
-            return next(iter(self._pool.values()))
+            conn = await self._create_connection(key)
+            self._pool[key] = conn
+            return conn
 
     async def _create_connection(self, key: str) -> Any:
-        """Create a new connection (to be overridden)."""
+        """
+        Create a new connection (to be overridden by subclasses).
+
+        Args:
+            key: Connection identifier used for configuration or routing.
+        """
+        _ = key
         raise NotImplementedError("Subclasses must implement _create_connection")
 
     async def close_all(self) -> None:
-        """Close all connections in the pool."""
-        async with self._lock:
-            for connection in self._pool.values():
-                if hasattr(connection, "close"):
-                    await connection.close()
-            self._pool.clear()
-            self._overflow_counter = 0
+        """
+        Close all connections in the pool.
+        Acquires the lock to ensure exclusive access during shutdown.
+        """
+        if self._lock is not None:
+            async with self._lock:
+                self._pool.clear()
+                self._overflow_counter = 0
 
 
 class PerformanceMonitor:
@@ -271,79 +268,144 @@ class PerformanceMonitor:
 
     def __init__(self) -> None:
         self.metrics: dict[str, list[dict[str, Any]]] = {}
-        # Modern approach to get event loop time
-        try:
-            loop = asyncio.get_running_loop()
-            self.start_time: float = loop.time()
-        except RuntimeError:
-            # Fallback if no event loop is running
-            import time
-
-            self.start_time = time.monotonic()
+        self.start_time = asyncio.get_event_loop().time()
 
     def record_metric(
         self, name: str, value: float, tags: dict[str, str] | None = None
     ) -> None:
         """Record a performance metric."""
-        # Modern approach to get timestamp
-        try:
-            loop = asyncio.get_running_loop()
-            timestamp: float = loop.time()
-        except RuntimeError:
-            # Fallback if no event loop is running
-            import time
-
-            timestamp = time.monotonic()
-
         if name not in self.metrics:
             self.metrics[name] = []
 
-        self.metrics[name].append(
-            {"value": value, "timestamp": timestamp, "tags": tags or {}}
-        )
+        metric_data = {"value": value, "timestamp": asyncio.get_event_loop().time()}
+        if tags:
+            metric_data["tags"] = tags
+
+        self.metrics[name].append(metric_data)
 
     def get_stats(self, name: str) -> dict[str, float]:
-        """Get statistics for a metric."""
-        if name not in self.metrics:
-            return {}
+        """Get statistics for a specific metric."""
+        if name not in self.metrics or not self.metrics[name]:
+            return {"count": 0, "min": 0, "max": 0, "avg": 0}
 
         values = [m["value"] for m in self.metrics[name]]
-
         return {
-            "count": float(len(values)),
+            "count": len(values),
             "min": min(values),
             "max": max(values),
             "avg": sum(values) / len(values),
-            "total": sum(values),
         }
 
     def get_all_metrics(self) -> dict[str, dict[str, float]]:
-        """Get statistics for all recorded metrics."""
-        return {name: self.get_stats(name) for name in self.metrics.keys()}
+        """Get statistics for all metrics."""
+        return {name: self.get_stats(name) for name in self.metrics}
 
     def reset_metrics(self) -> None:
-        """Reset all recorded metrics."""
+        """Reset all metrics."""
         self.metrics.clear()
 
     def get_uptime(self) -> float:
-        """Get system uptime since monitor initialization."""
+        """Get uptime in seconds."""
+        return asyncio.get_event_loop().time() - self.start_time
+
+
+class DockerVolumeManager:
+    """
+    Docker volume management for MCP development environment.
+
+    Follows SOLID principles:
+    - Single Responsibility: Manages only Docker volumes
+    - Open/Closed: Extensible for new volume types
+    - Dependency Inversion: Uses abstractions for volume operations
+    """
+
+    def __init__(self, workspace_root: Path) -> None:
+        """Initialize Docker volume manager."""
+        self.workspace_root = workspace_root
+        self.volume_dirs = {
+            "data": workspace_root / "data",
+            "postgres": workspace_root / "data" / "postgres",
+            "cache": workspace_root / "data" / "cache",
+        }
+
+    def _get_default_volume_config(self) -> dict[str, dict[str, Any]]:
+        """Get default volume configuration."""
+        return {
+            "mcp-postgres-data": {
+                "driver": "local",
+                "path": str(self.volume_dirs["postgres"]),
+            },
+            "mcp-python-cache": {
+                "driver": "local",
+                "path": str(self.volume_dirs["cache"]),
+            },
+        }
+
+    def create_volume_directories(self) -> bool:
+        """Create volume directories."""
         try:
-            loop = asyncio.get_running_loop()
-            current_time = loop.time()
-        except RuntimeError:
-            import time
+            # Create parent data directory
+            self.volume_dirs["data"].mkdir(exist_ok=True, parents=True)
 
-            current_time = time.monotonic()
+            # Create specific volume directories
+            for name, path in self.volume_dirs.items():
+                if name != "data":  # Skip the parent directory
+                    path.mkdir(exist_ok=True, parents=True)
 
-        return current_time - self.start_time
+            return True
+        except (OSError, PermissionError):
+            return False
+
+    def validate_volume_config(self) -> bool:
+        """Validate volume configuration."""
+        try:
+            # Check if all volume directories exist
+            for path in self.volume_dirs.values():
+                if not path.exists():
+                    return False
+
+            return True
+        except Exception:
+            return False
+
+    def get_volume_status(self) -> dict[str, bool]:
+        """Get volume status."""
+        status = {}
+        for name, path in self.volume_dirs.items():
+            status[name] = path.exists()
+        return status
+
+    def get_volume_config(self) -> dict[str, dict[str, Any]]:
+        """Get volume configuration."""
+        return self._get_default_volume_config()
+
+    def cleanup_volumes(self) -> bool:
+        """Clean up volume directories."""
+        try:
+            import shutil
+
+            # Only delete contents, not the directories themselves
+            for name, path in self.volume_dirs.items():
+                if name != "data" and path.exists():  # Skip the parent directory
+                    for item in path.iterdir():
+                        if item.is_file():
+                            item.unlink()
+                        elif item.is_dir():
+                            shutil.rmtree(item)
+            return True
+        except (OSError, PermissionError):
+            return False
+
+    def get_volume_mount_paths(self) -> dict[str, Path]:
+        """Get volume mount paths."""
+        return self.volume_dirs
 
 
-# Global performance optimizer instance
 _performance_optimizer: PerformanceOptimizer | None = None
 
 
 def get_performance_optimizer() -> PerformanceOptimizer:
-    """Get the global performance optimizer instance."""
+    """Get the singleton performance optimizer instance."""
     global _performance_optimizer
     if _performance_optimizer is None:
         _performance_optimizer = PerformanceOptimizer()
@@ -351,20 +413,13 @@ def get_performance_optimizer() -> PerformanceOptimizer:
 
 
 def enable_performance_mode() -> None:
-    """Enable high-performance mode for MCP operations."""
-    optimizer = get_performance_optimizer()
-
-    # Set environment variables for performance
+    """Enable high-performance mode."""
+    optimizer: PerformanceOptimizer = get_performance_optimizer()
     os.environ.setdefault("PYTHONOPTIMIZE", "2")
     os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     os.environ.setdefault("PYTHONHASHSEED", "0")
-
-    # Enable garbage collection optimization
     optimizer.setup_gc_optimization()
-
-    # Set up high-performance event loop
     optimizer.setup_event_loop()
-
     print("🚀 MCP Performance Mode Enabled!")
     print(f"   JSON Backend: {optimizer.json_backend}")
     print(f"   Compression: {'✓' if optimizer.compression_enabled else '✗'}")
@@ -373,67 +428,8 @@ def enable_performance_mode() -> None:
 
 
 def create_performance_monitor() -> PerformanceMonitor:
-    """Create a new performance monitor instance."""
+    """Create a new performance monitor."""
     return PerformanceMonitor()
-
-
-class DockerVolumeManager:
-    """Docker volume management for MCP development environment."""
-
-    def __init__(self, workspace_root: Path) -> None:
-        """Initialize volume manager."""
-        from pathlib import Path
-
-        self.workspace_root = Path(workspace_root)
-
-    def create_volume_directories(self) -> bool:
-        """Create necessary volume directories for Docker setup."""
-        try:
-            # Create directory structure for volume mounts
-            volumes_dir = self.workspace_root / ".docker" / "volumes"
-            volumes_dir.mkdir(parents=True, exist_ok=True)
-
-            # Create specific volume directories
-            volume_dirs = [
-                "mcp-postgres-data",
-                "mcp-python-cache",
-                "mcp-cache",
-                "python-wheels",
-            ]
-
-            for vol_dir in volume_dirs:
-                (volumes_dir / vol_dir).mkdir(exist_ok=True)
-
-            return True
-        except Exception:
-            return False
-
-    def validate_volume_config(self) -> bool:
-        """Validate volume configuration."""
-        try:
-            volumes_dir = self.workspace_root / ".docker" / "volumes"
-            return volumes_dir.exists()
-        except Exception:
-            return False
-
-    def get_volume_status(self) -> dict[str, bool]:
-        """Get status of volume configuration."""
-        try:
-            volumes_dir = self.workspace_root / ".docker" / "volumes"
-            volume_dirs = [
-                "mcp-postgres-data",
-                "mcp-python-cache",
-                "mcp-cache",
-                "python-wheels",
-            ]
-
-            status = {}
-            for vol_dir in volume_dirs:
-                status[vol_dir] = (volumes_dir / vol_dir).exists()
-
-            return status
-        except Exception:
-            return {}
 
 
 __all__ = [

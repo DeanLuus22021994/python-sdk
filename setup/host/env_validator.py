@@ -3,8 +3,8 @@ Host Environment Validator
 Modern host system validation with comprehensive checks.
 """
 
-import os
 import platform
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -45,44 +45,50 @@ class HostEnvironmentValidator:
             # System requirements validation
             system_valid = self._validate_system_requirements()
             if not system_valid:
-                errors.append("System requirements not met")
+                errors.append("System does not meet minimum requirements")
+                recommendations.append("Upgrade system to meet minimum requirements")
 
             # Python installation validation
             python_valid = self._validate_python_installation()
             if not python_valid:
-                errors.append("Python installation issues detected")
+                errors.append("Python installation has issues")
+                recommendations.append("Install or update Python to version 3.10+")
 
             # Development tools validation
             tools_valid = self._validate_development_tools()
             if not tools_valid:
-                warnings.append("Some development tools are missing")
-                recommendations.append("Install missing development tools")
+                warnings.append("Missing some development tools")
+                recommendations.append("Install recommended development tools")
 
             # Performance checks
             perf_issues = self._check_performance_indicators()
             if perf_issues:
                 warnings.extend(perf_issues)
-                recommendations.append("Consider system optimizations")
+                recommendations.append("Consider performance optimizations")
 
             # Security validation
             security_issues = self._validate_security_settings()
             if security_issues:
                 warnings.extend(security_issues)
-                recommendations.append("Review security settings")
+                recommendations.append("Address security concerns")
 
             # Determine overall status
             if errors:
                 status = ValidationStatus.ERROR
                 is_valid = False
-                message = f"Host validation failed: {len(errors)} error(s)"
+                message = (
+                    f"Host environment validation failed with {len(errors)} errors"
+                )
             elif warnings:
                 status = ValidationStatus.WARNING
                 is_valid = True
-                message = f"Host validation passed with {len(warnings)} warning(s)"
+                message = (
+                    f"Host environment validation passed with {len(warnings)} warnings"
+                )
             else:
                 status = ValidationStatus.VALID
                 is_valid = True
-                message = "Host environment is fully validated"
+                message = "Host environment validation passed successfully"
 
             return ValidationDetails(
                 is_valid=is_valid,
@@ -134,7 +140,7 @@ class HostEnvironmentValidator:
                 return False
 
             # Check Python version (modernized version check)
-            if sys.version_info < (3, 11):
+            if sys.version_info < (3, 10):
                 return False
 
             # Check critical modules
@@ -176,15 +182,15 @@ class HostEnvironmentValidator:
         try:
             # Check if running on slow storage
             if self._is_slow_storage():
-                issues.append("Project appears to be on slow storage (HDD/network)")
+                issues.append("Project is on potentially slow storage")
 
             # Check available memory
             if self._is_low_memory():
-                issues.append("System has limited available memory")
+                issues.append("System has limited memory available")
 
             # Check CPU performance indicators
             if self._is_low_performance_cpu():
-                issues.append("CPU may impact development performance")
+                issues.append("CPU may not be optimal for development")
 
         except Exception:
             issues.append("Could not assess performance indicators")
@@ -198,11 +204,11 @@ class HostEnvironmentValidator:
         try:
             # Check if running as admin/root (security risk)
             if self._is_running_privileged():
-                issues.append("Running with elevated privileges (security risk)")
+                issues.append("Running with elevated privileges is a security risk")
 
             # Check for insecure paths in workspace
             if self._has_insecure_paths():
-                issues.append("Workspace contains potentially insecure paths")
+                issues.append("Workspace has potentially insecure paths")
 
         except Exception:
             pass
@@ -213,8 +219,6 @@ class HostEnvironmentValidator:
         """Check available disk space with platform compatibility."""
         try:
             # Modern cross-platform approach using shutil
-            import shutil
-
             total, used, free = shutil.disk_usage(self.workspace_root)
             return free > 1024 * 1024 * 1024  # 1GB minimum
 
@@ -259,9 +263,7 @@ class HostEnvironmentValidator:
             # Simple heuristic: check if workspace is on network drive
             workspace_str = str(self.workspace_root)
             if platform.system() == "Windows":
-                return workspace_str.startswith("\\\\") or workspace_str.startswith(
-                    "//"
-                )
+                return workspace_str.startswith("\\\\") or ":" not in workspace_str[:2]
             return "/mnt/" in workspace_str or "/media/" in workspace_str
         except Exception:
             return False
@@ -272,11 +274,8 @@ class HostEnvironmentValidator:
             import psutil  # type: ignore[import-untyped]
 
             memory = psutil.virtual_memory()
-            # Consider low if less than 8GB total or less than 2GB available
-            return (
-                memory.total < 8 * 1024 * 1024 * 1024
-                or memory.available < 2 * 1024 * 1024 * 1024
-            )
+            # Less than 8GB is considered low for development
+            return memory.total < 8 * 1024 * 1024 * 1024
         except ImportError:
             return False
         except Exception:
@@ -287,9 +286,8 @@ class HostEnvironmentValidator:
         try:
             import psutil  # type: ignore[import-untyped]
 
-            cpu_count = psutil.cpu_count()
-            # Consider low performance if less than 4 cores
-            return cpu_count < 4 if cpu_count else False
+            # Less than 4 cores is considered low for development
+            return psutil.cpu_count(logical=True) < 4
         except ImportError:
             return False
         except Exception:
@@ -299,14 +297,13 @@ class HostEnvironmentValidator:
         """Check if running with elevated privileges."""
         try:
             if platform.system() == "Windows":
+                # Check for admin rights on Windows
                 import ctypes
 
                 return ctypes.windll.shell32.IsUserAnAdmin() != 0
             else:
-                # Use hasattr check for cross-platform compatibility
-                if hasattr(os, "geteuid"):
-                    return os.geteuid() == 0  # type: ignore[attr-defined]
-                return False
+                # Check for root on Unix-like systems
+                return os.geteuid() == 0  # type: ignore
         except Exception:
             return False
 
@@ -314,9 +311,19 @@ class HostEnvironmentValidator:
         """Check for potentially insecure paths."""
         try:
             workspace_str = str(self.workspace_root)
-            # Check for common insecure locations
-            insecure_patterns = ["/tmp/", "\\Temp\\", "/var/tmp/"]
-            return any(pattern in workspace_str for pattern in insecure_patterns)
+            # Check for world-writable directories in path
+            if platform.system() != "Windows":
+                path_parts = workspace_str.split("/")
+                for i in range(1, len(path_parts)):
+                    path = "/" + "/".join(path_parts[1 : i + 1])
+                    if os.path.exists(path):
+                        try:
+                            mode = os.stat(path).st_mode
+                            if mode & 0o002:  # World-writable
+                                return True
+                        except Exception:
+                            pass
+            return False
         except Exception:
             return False
 
@@ -351,16 +358,16 @@ class HostEnvironmentValidator:
         try:
             import psutil  # type: ignore[import-untyped]
 
+            memory = psutil.virtual_memory()
             info["resources"] = {
-                "cpu_count": psutil.cpu_count(),
-                "memory_gb": round(psutil.virtual_memory().total / (1024**3), 2),
-                "disk_free_gb": round(
-                    psutil.disk_usage(str(self.workspace_root)).free / (1024**3), 2
-                ),
+                "memory_total": memory.total,
+                "memory_available": memory.available,
+                "cpu_count": psutil.cpu_count(logical=True),
+                "cpu_usage": psutil.cpu_percent(interval=0.1),
             }
         except ImportError:
-            info["resources"] = {"status": "psutil not available"}
+            info["resources"] = {"available": False}
         except Exception:
-            info["resources"] = {"status": "resource check failed"}
+            info["resources"] = {"error": True}
 
         return info
