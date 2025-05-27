@@ -15,7 +15,7 @@ __author__: Final[str] = "MCP Python SDK Team"
 
 # Core setup modules
 from .environment import EnvironmentManager
-from .sequence import SetupOrchestrator
+from .sequence import ModernSetupOrchestrator
 
 # Host setup capabilities
 try:
@@ -50,7 +50,7 @@ __all__ = [
     "__author__",
     # Core managers
     "EnvironmentManager",
-    "SetupOrchestrator",
+    "ModernSetupOrchestrator",
     "HostSetupManager",
     "DockerSetupManager",
     # Type exports
