@@ -96,10 +96,10 @@ class ConfigManager(Protocol):
         Load configuration from file.
 
         Args:
-            path: Path to configuration file
+            path: Configuration file path
 
         Returns:
-            Loaded configuration dictionary
+            Configuration dictionary
         """
         ...
 
@@ -109,7 +109,7 @@ class ConfigManager(Protocol):
 
         Args:
             config: Configuration to save
-            path: Path to save configuration
+            path: Target file path
 
         Returns:
             True if save was successful
@@ -142,13 +142,13 @@ class EnvironmentProvider(Protocol):
         Get comprehensive environment information.
 
         Returns:
-            Environment information object
+            Environment information structure
         """
         ...
 
     def validate_environment(self) -> Any:
         """
-        Validate current environment for compatibility.
+        Validate current environment for setup requirements.
 
         Returns:
             Environment validation results

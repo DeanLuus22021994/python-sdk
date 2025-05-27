@@ -4,12 +4,17 @@ from importlib import util
 from pathlib import Path
 
 try:
-    from setup.environment import get_project_root
+    from ..environment.path_utils import get_project_root
 except ImportError:
 
     def get_project_root() -> Path:
         """Get project root directory."""
-        return Path(__file__).parent.parent.parent
+        current = Path(__file__).resolve()
+        while current.parent != current:
+            if (current / "pyproject.toml").exists() or (current / "setup.py").exists():
+                return current
+            current = current.parent
+        return Path.cwd()
 
 
 def validate_mcp_structure() -> tuple[bool, str]:
@@ -17,13 +22,13 @@ def validate_mcp_structure() -> tuple[bool, str]:
     project_root = get_project_root()
     mcp_path = project_root / "src" / "mcp"
     if not mcp_path.exists():
-        return False, "✗ MCP source directory not found"
+        return False, "✗ MCP package structure not found"
 
     shared_path = mcp_path / "shared"
     if not shared_path.exists():
-        return False, "✗ MCP shared module directory not found"
+        return False, "✗ MCP shared module not found"
 
-    return True, "✓ MCP SDK structure validated"
+    return True, "✓ MCP package structure validated"
 
 
 def validate_performance_module() -> tuple[bool, str]:

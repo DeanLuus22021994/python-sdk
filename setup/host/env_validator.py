@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..types import ValidationDetails, ValidationStatus
+from ..typings import ValidationDetails, ValidationStatus
 
 if TYPE_CHECKING:
     pass

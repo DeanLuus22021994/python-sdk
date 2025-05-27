@@ -23,20 +23,22 @@ except ImportError:
         "ujson",
         "xxhash",
         "zstandard",
+        "docker",
+        "pyyaml",
     ]
 
     def get_platform_package_status() -> dict[str, bool]:
-        """Get platform-specific package availability status."""
-        return {pkg: True for pkg in REQUIRED_PACKAGES}
+        """Fallback platform package status."""
+        return {}
 
-    def normalize_package_name(package: str) -> str:
-        """Normalize package name for consistent handling."""
-        return package.lower().replace("_", "-")
+    def normalize_package_name(name: str) -> str:
+        """Fallback package name normalization."""
+        return name.lower().replace("_", "-")
 
 
 def install_package(package: str) -> tuple[bool, str]:
     """
-    Install a package using the best available package manager.
+    Install a Python package using the best available package manager.
 
     Args:
         package: Package name to install
@@ -45,36 +47,36 @@ def install_package(package: str) -> tuple[bool, str]:
         Tuple of (success, message)
     """
     try:
-        # Try uv first (fastest)
+        # Try uv first (modern fast package manager)
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "uv", "add", package],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=300,
             )
             if result.returncode == 0:
-                return True, f"Successfully installed {package} with uv"
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+                return True, f"✓ Package {package} installed successfully with uv"
+        except FileNotFoundError:
             pass
 
-        # Fall back to pip
+        # Fallback to pip
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install", package],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=300,
         )
 
         if result.returncode == 0:
-            return True, f"Successfully installed {package} with pip"
+            return True, f"✓ Package {package} installed successfully with pip"
         else:
-            return False, f"Failed to install {package}: {result.stderr}"
+            return False, f"✗ Failed to install {package}: {result.stderr}"
 
     except subprocess.TimeoutExpired:
-        return False, f"Installation of {package} timed out"
+        return False, f"✗ Installation of {package} timed out"
     except Exception as e:
-        return False, f"Installation failed: {e}"
+        return False, f"✗ Error installing {package}: {e}"
 
 
 def verify_import(package: str) -> tuple[bool, str]:
@@ -85,26 +87,35 @@ def verify_import(package: str) -> tuple[bool, str]:
         package: Package name to verify
 
     Returns:
-        Tuple of (success, message)
+        Tuple of (can_import, message)
     """
+    normalized_name = normalize_package_name(package)
+
+    # Map of package names to import names
+    import_map = {
+        "asyncpg": "asyncpg",
+        "httpx-sse": "httpx_sse",
+        "sse-starlette": "sse_starlette",
+        "pydantic-ai": "pydantic_ai",
+        "pgvector": "pgvector",
+        "orjson": "orjson",
+        "lz4": "lz4",
+        "ujson": "ujson",
+        "xxhash": "xxhash",
+        "zstandard": "zstandard",
+        "docker": "docker",
+        "pyyaml": "yaml",
+    }
+
+    import_name = import_map.get(normalized_name, normalized_name)
+
     try:
-        # Map package names to import names
-        import_mapping = {
-            "pydantic-ai": "pydantic_ai",
-            "httpx-sse": "httpx_sse",
-            "sse-starlette": "sse_starlette",
-        }
-
-        import_name = import_mapping.get(package, package)
-
-        # Try to import the package
         __import__(import_name)
-        return True, f"Package {package} imports successfully"
-
+        return True, f"✓ Package {package} imports successfully"
     except ImportError as e:
-        return False, f"Cannot import {package}: {e}"
+        return False, f"✗ Cannot import {package}: {e}"
     except Exception as e:
-        return False, f"Import verification failed: {e}"
+        return False, f"✗ Error importing {package}: {e}"
 
 
 def setup_packages() -> bool:
@@ -112,47 +123,54 @@ def setup_packages() -> bool:
     Set up all required packages for the MCP Python SDK.
 
     Returns:
-        True if all packages were installed successfully
+        True if all packages were set up successfully
     """
+    print("📦 Setting up required packages...")
+
+    # Check platform-specific packages
+    platform_status = get_platform_package_status()
+
+    # Combine required packages with platform-specific ones
+    all_packages = REQUIRED_PACKAGES.copy()
+    all_packages.extend(
+        [pkg for pkg, available in platform_status.items() if available]
+    )
+
     success_count = 0
-    total_packages = len(REQUIRED_PACKAGES)
+    total_packages = len(all_packages)
 
-    print(f"Installing {total_packages} required packages...")
-
-    for package in REQUIRED_PACKAGES:
+    for package in all_packages:
         print(f"  Installing {package}...")
 
-        # Check if already installed and working
-        can_import, _ = verify_import(package)
+        # First check if already available
+        can_import, import_msg = verify_import(package)
         if can_import:
-            print(f"    ✓ {package} already available")
+            print(f"    {import_msg}")
             success_count += 1
             continue
 
-        # Install the package
-        installed, message = install_package(package)
+        # Try to install
+        installed, install_msg = install_package(package)
+        print(f"    {install_msg}")
+
         if installed:
-            # Verify the installation
-            can_import, import_message = verify_import(package)
-            if can_import:
-                print(f"    ✓ {package} installed and verified")
+            # Verify after installation
+            can_import_after, verify_msg = verify_import(package)
+            if can_import_after:
                 success_count += 1
+                print(f"    {verify_msg}")
             else:
-                print(f"    ⚠ {package} installed but cannot import: {import_message}")
-        else:
-            print(f"    ✗ Failed to install {package}: {message}")
+                print(f"    ⚠️ Package installed but verification failed: {verify_msg}")
 
-    success_rate = (success_count / total_packages) * 100
     print(
-        f"\nPackage setup completed: {success_count}/{total_packages} ({success_rate:.1f}%)"
+        f"\n📦 Package setup complete: {success_count}/{total_packages} packages ready"
     )
-
     return success_count == total_packages
 
 
 def check_package_availability(package: str) -> bool:
     """
-    Check if a package is available for installation.
+    Check if a package is available for import.
 
     Args:
         package: Package name to check
@@ -160,30 +178,8 @@ def check_package_availability(package: str) -> bool:
     Returns:
         True if package is available
     """
-    try:
-        # Try to get package info from PyPI
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "show", package],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-
-        if result.returncode == 0:
-            return True
-
-        # If not installed, try to search
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "search", package],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-
-        return result.returncode == 0
-
-    except Exception:
-        return False
+    can_import, _ = verify_import(package)
+    return can_import
 
 
 def get_installed_packages() -> list[str]:
@@ -208,11 +204,10 @@ def get_installed_packages() -> list[str]:
                     package_name = line.split("==")[0]
                     packages.append(package_name)
             return packages
+        return []
 
-    except Exception:
-        pass
-
-    return []
+    except (subprocess.TimeoutExpired, Exception):
+        return []
 
 
 def get_package_manager_info() -> dict[str, Any]:
@@ -236,40 +231,37 @@ def get_package_manager_info() -> dict[str, Any]:
             managers["pip"] = {
                 "available": True,
                 "version": result.stdout.strip(),
+                "executable": f"{sys.executable} -m pip",
             }
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         managers["pip"] = {"available": False}
 
     # Check uv
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "uv", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=10,
+            ["uv", "--version"], capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
             managers["uv"] = {
                 "available": True,
-                "version": result.stdout.strip(),
+                "version": result.stdout.strip().split()[-1],
+                "executable": "uv",
             }
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         managers["uv"] = {"available": False}
 
     # Check poetry
     try:
         result = subprocess.run(
-            ["poetry", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=10,
+            ["poetry", "--version"], capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
             managers["poetry"] = {
                 "available": True,
                 "version": result.stdout.strip(),
+                "executable": "poetry",
             }
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         managers["poetry"] = {"available": False}
 
     return managers
@@ -280,16 +272,16 @@ def get_preferred_package_manager() -> str:
     Get the preferred package manager for the current environment.
 
     Returns:
-        Name of preferred package manager
+        Name of the preferred package manager
     """
     managers = get_package_manager_info()
 
     # Prefer uv > poetry > pip
-    if managers.get("uv", {}).get("available"):
+    if managers.get("uv", {}).get("available", False):
         return "uv"
-    elif managers.get("poetry", {}).get("available"):
+    elif managers.get("poetry", {}).get("available", False):
         return "poetry"
-    elif managers.get("pip", {}).get("available"):
+    elif managers.get("pip", {}).get("available", False):
         return "pip"
     else:
-        return "pip"  # Default fallback
+        return "pip"  # Fallback
