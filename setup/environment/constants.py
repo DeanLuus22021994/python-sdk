@@ -1,72 +1,28 @@
 """
-Constants and Configuration Values
-Centralized constants for the MCP Python SDK setup with type safety and immutability.
+Environment Constants and Configuration
+Type-safe constants following modern Python practices.
 """
 
-from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Final, NamedTuple
+from typing import Final
 
+from ..typings import PerformanceSettings, PythonVersion
 
-class PythonVersion(NamedTuple):
-    """Type-safe Python version representation."""
+# Python version requirements
+MIN_PYTHON_VERSION: Final[PythonVersion] = PythonVersion(3, 10, 0)
+RECOMMENDED_PYTHON_VERSION: Final[PythonVersion] = PythonVersion(3, 11, 0)
+MAX_TESTED_PYTHON_VERSION: Final[PythonVersion] = PythonVersion(3, 13, 0)
 
-    major: int
-    minor: int
-
-    def __str__(self) -> str:
-        return f"{self.major}.{self.minor}"
-
-    def compare_to(self, other: "PythonVersion") -> int:
-        """Compare versions safely without overriding tuple methods."""
-        if (self.major, self.minor) < (other.major, other.minor):
-            return -1
-        elif (self.major, self.minor) > (other.major, other.minor):
-            return 1
-        else:
-            return 0
-
-
-@dataclass(frozen=True)
-class PerformanceSettings:
-    """Performance configuration for setup operations."""
-
-    parallel_operations: bool = True
-    max_workers: int = 4
-    cache_enabled: bool = True
-    cache_ttl_seconds: int = 3600
-    enable_parallel_validation: bool = True
-    timeout_seconds: float = 30.0
-    cache_size: int = 128
-
-
-@dataclass(frozen=True)
-class ContainerConfig:
-    """Container runtime configuration."""
-
-    base_image: str = "python:3.11-slim"
-    work_dir: str = "/app"
-    expose_port: int = 8000
-    health_check_interval: int = 30
-
-
-# Python version requirements with type safety
-MIN_PYTHON_VERSION: Final[PythonVersion] = PythonVersion(3, 10)
-RECOMMENDED_PYTHON_VERSION: Final[PythonVersion] = PythonVersion(3, 11)
-MAX_TESTED_PYTHON_VERSION: Final[PythonVersion] = PythonVersion(3, 13)
-
-# Project structure requirements - immutable collections
+# Project structure requirements
 REQUIRED_PROJECT_PATHS: Final[tuple[str, ...]] = (
     "src/mcp",
     "pyproject.toml",
-    ".vscode",
     "setup",
 )
 
-# Optional project paths for enhanced development
 OPTIONAL_PROJECT_PATHS: Final[tuple[str, ...]] = (
     "docs",
     "tests",
+    ".vscode",
     ".devcontainer",
     "docker-compose.yml",
     "Dockerfile",
@@ -75,7 +31,7 @@ OPTIONAL_PROJECT_PATHS: Final[tuple[str, ...]] = (
     "README.md",
 )
 
-# Package requirements with exact versions for reproducibility
+# Core package requirements
 CORE_PACKAGES: Final[tuple[str, ...]] = (
     "pydantic>=2.0.0",
     "anyio>=4.0.0",
@@ -83,7 +39,7 @@ CORE_PACKAGES: Final[tuple[str, ...]] = (
     "jsonschema>=4.17.0",
 )
 
-# Development packages for enhanced workflow
+# Development packages
 DEV_PACKAGES: Final[tuple[str, ...]] = (
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -94,68 +50,28 @@ DEV_PACKAGES: Final[tuple[str, ...]] = (
     "pre-commit>=3.0.0",
 )
 
-# VS Code extension recommendations
-RECOMMENDED_EXTENSIONS: Final[tuple[str, ...]] = (
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "ms-python.black-formatter",
-    "charliermarsh.ruff",
-    "ms-python.mypy-type-checker",
-    "ms-vscode.vscode-json",
-    "tamasfe.even-better-toml",
-    "redhat.vscode-yaml",
-    "yzhang.markdown-all-in-one",
-    "ms-azuretools.vscode-docker",
+# Performance settings
+DEFAULT_PERFORMANCE_SETTINGS: Final[PerformanceSettings] = PerformanceSettings(
+    parallel_operations=True,
+    max_workers=4,
+    cache_enabled=True,
+    cache_ttl_seconds=3600,
+    enable_parallel_validation=True,
+    timeout_seconds=30.0,
+    cache_size=128,
 )
 
-# Default performance settings instance
-PERFORMANCE_SETTINGS: Final[PerformanceSettings] = PerformanceSettings()
-
-# VS Code performance settings - Properly typed for VS Code configuration
-VS_CODE_PERFORMANCE_SETTINGS: Final[
-    Mapping[str, str | int | bool | Mapping[str, bool]]
-] = {
-    "python.analysis.userFileIndexingLimit": 5000,
-    "files.watcherExclude": {
-        "**/__pycache__/**": True,
-        "**/.git/objects/**": True,
-        "**/.git/subtree-cache/**": True,
-        "**/node_modules/**": True,
-        "**/.pytest_cache/**": True,
-        "**/.mypy_cache/**": True,
-        "**/.ruff_cache/**": True,
-        "**/.venv/**": True,
-        "**/venv/**": True,
-        "**/build/**": True,
-        "**/dist/**": True,
-        "**/.coverage/**": True,
-        "**/.tox/**": True,
-        "**/htmlcov/**": True,
-    },
-    "search.exclude": {
-        "**/.venv": True,
-        "**/venv": True,
-        "**/__pycache__": True,
-        "**/*.pyc": True,
-        "**/.pytest_cache": True,
-        "**/.mypy_cache": True,
-        "**/.ruff_cache": True,
-        "**/build": True,
-        "**/dist": True,
-        "**/*.egg-info": True,
-        "**/.coverage": True,
-        "**/.tox": True,
-        "**/htmlcov": True,
-        "**/uv.lock": True,
-    },
+# Environment validation timeouts
+VALIDATION_TIMEOUTS: Final[dict[str, float]] = {
+    "python_check": 5.0,
+    "path_validation": 2.0,
+    "package_manager": 10.0,
+    "virtual_env": 3.0,
 }
 
-# Default container configuration instance
-DEFAULT_CONTAINER_CONFIG: Final[ContainerConfig] = ContainerConfig()
-
-# Docker requirements
-DOCKER_MIN_VERSION: Final[tuple[int, int, int]] = (20, 10, 0)
-REQUIRED_DOCKER_IMAGES: Final[tuple[str, ...]] = (
-    "postgres:14-alpine",
-    "python:3.11-slim",
-)
+# Cache configuration
+CACHE_CONFIG: Final[dict[str, int]] = {
+    "max_size": 128,
+    "ttl_seconds": 300,
+    "cleanup_interval": 3600,
+}
