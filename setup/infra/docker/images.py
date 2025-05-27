@@ -6,9 +6,9 @@ Handles Docker image building and management for the MCP Python SDK.
 import subprocess
 from pathlib import Path
 
-from ..environment.utils import get_project_root
-from ..typings import ValidationStatus
-from ..typings.environment import ValidationDetails
+from ...config.utils import get_project_root
+from ...typings import ValidationStatus
+from ...typings.environment import ValidationDetails
 
 
 class DockerImageManager:

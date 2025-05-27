@@ -9,8 +9,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from ..typings import ValidationDetails, ValidationStatus
-from ..validation.base import ValidationContext
+from ...typings import ValidationDetails, ValidationStatus
+from ...validation.base import ValidationContext
 
 
 class HostSetupManager:

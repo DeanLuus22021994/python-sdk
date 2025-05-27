@@ -10,10 +10,10 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from ..typings import ValidationStatus
-from ..typings.environment import ValidationDetails
-from ..validation.base import ValidationContext
-from ..validation.registry import get_global_registry
+from ...typings import ValidationStatus
+from ...typings.environment import ValidationDetails
+from ...validation.base import ValidationContext
+from ...validation.registry import get_global_registry
 
 
 class DockerSetupManager:

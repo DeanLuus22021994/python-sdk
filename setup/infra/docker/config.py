@@ -8,7 +8,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ..typings import ContainerConfig, DockerInfo
+from ...typings import ContainerConfig, DockerInfo
 
 
 class DockerConfigManager:
@@ -52,7 +52,9 @@ class DockerConfigManager:
         """Get Docker environment information."""
         docker_available = self._check_docker_available()
         docker_version = self._get_docker_version() if docker_available else None
-        compose_available = self._check_compose_available() if docker_available else False
+        compose_available = (
+            self._check_compose_available() if docker_available else False
+        )
         compose_version = self._get_compose_version() if compose_available else None
 
         return DockerInfo(
@@ -66,13 +68,14 @@ class DockerConfigManager:
         """Check if Docker is available."""
         try:
             result = subprocess.run(
-                ["docker", "version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["docker", "version"], capture_output=True, text=True, timeout=5
             )
             return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        except (
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            subprocess.SubprocessError,
+        ):
             return False
 
     def _get_docker_version(self) -> tuple[int, int, int] | None:
@@ -82,18 +85,23 @@ class DockerConfigManager:
                 ["docker", "version", "--format", "{{.Server.Version}}"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             if result.returncode == 0:
                 version_str = result.stdout.strip()
                 # Parse version string like "24.0.6" into tuple
-                parts = version_str.split('.')
+                parts = version_str.split(".")
                 if len(parts) >= 2:
                     major = int(parts[0])
                     minor = int(parts[1])
                     patch = int(parts[2]) if len(parts) > 2 else 0
                     return (major, minor, patch)
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError, ValueError):
+        except (
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            subprocess.SubprocessError,
+            ValueError,
+        ):
             pass
         return None
 
@@ -105,7 +113,7 @@ class DockerConfigManager:
                 ["docker", "compose", "version"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             if result.returncode == 0:
                 return True
@@ -115,10 +123,14 @@ class DockerConfigManager:
                 ["docker-compose", "--version"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        except (
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            subprocess.SubprocessError,
+        ):
             return False
 
     def _get_compose_version(self) -> str | None:
@@ -128,11 +140,15 @@ class DockerConfigManager:
                 ["docker", "compose", "version", "--short"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             if result.returncode == 0:
                 return result.stdout.strip()
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        except (
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            subprocess.SubprocessError,
+        ):
             pass
         return None
 

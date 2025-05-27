@@ -6,7 +6,7 @@ Manages Docker volume configuration and validation.
 from pathlib import Path
 from typing import Any
 
-from ..environment.utils import get_project_root
+from ...config.utils import get_project_root
 
 
 class DockerVolumeManager:

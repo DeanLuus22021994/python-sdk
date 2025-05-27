@@ -59,11 +59,12 @@ async def run_with_timeout(
         stdout, stderr = await asyncio.wait_for(
             process.communicate(), timeout=timeout
         )
-
+        # Ensure returncode is typed correctly (process.returncode can be None)
         return CommandResult(
-            returncode=process.returncode,
+            returncode=0 if process.returncode is None else int(process.returncode),
             stdout=stdout.decode() if stdout else None,
             stderr=stderr.decode() if stderr else None,
+        )
         )
 
     except asyncio.TimeoutError:

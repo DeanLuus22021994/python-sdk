@@ -5,7 +5,7 @@ import sys
 from typing import Any
 
 try:
-    from ..packages import (
+    from ...packages import (
         REQUIRED_PACKAGES,
         get_platform_package_status,
         normalize_package_name,
