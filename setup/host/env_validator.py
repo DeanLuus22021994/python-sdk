@@ -143,7 +143,9 @@ class HostEnvironmentValidator:
             if not sys.executable:
                 return False
 
-            # Python 3.10+ is required, no need to check as we wouldn't run otherwise
+            # Check Python version (modernized version check)
+            if sys.version_info < (3, 10):
+                return False
 
             # Check critical modules
             critical_modules = ["ssl", "sqlite3", "json", "pathlib"]
@@ -221,7 +223,7 @@ class HostEnvironmentValidator:
         """Check available disk space with platform compatibility."""
         try:
             # Modern cross-platform approach using shutil
-            _, _, free = shutil.disk_usage(self.workspace_root)
+            total, used, free = shutil.disk_usage(self.workspace_root)
             return free > 1024 * 1024 * 1024  # 1GB minimum
 
         except Exception:
