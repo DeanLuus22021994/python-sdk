@@ -21,13 +21,13 @@ from .sequence import SetupOrchestrator
 try:
     from .host import HostSetupManager
 except ImportError:
-    HostSetupManager = None
+    HostSetupManager = None  # type: ignore[misc,assignment]
 
 # Docker setup capabilities
 try:
     from .docker import DockerSetupManager
 except ImportError:
-    DockerSetupManager = None
+    DockerSetupManager = None  # type: ignore[misc,assignment]
 
 # Type exports for better IDE support
 from .typings import (

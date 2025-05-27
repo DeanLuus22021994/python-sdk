@@ -369,8 +369,7 @@ class DockerConfig:
 
         if self.exposed_ports:
             lines.append("")
-            for port in self.exposed_ports:
-                lines.append(f"EXPOSE {port}")
+            lines.extend([f"EXPOSE {port}" for port in self.exposed_ports])
 
         lines.extend(
             [

@@ -193,9 +193,9 @@ def validate_docker_environment_compat() -> tuple[bool, str]:
             return True, "Docker environment is properly configured"
         else:
             # Try to get specific error messages
-            daemon_msg = info.get("daemon_message", "Docker daemon issue")
-            version_msg = info.get("version_message", "Docker version issue")
-            compose_msg = info.get("compose_message", "Docker Compose issue")
+            daemon_msg = str(info.get("daemon_message", "Docker daemon issue"))
+            version_msg = str(info.get("version_message", "Docker version issue"))
+            compose_msg = str(info.get("compose_message", "Docker Compose issue"))
 
             if not info.get("daemon_running", False):
                 return False, daemon_msg

@@ -31,9 +31,9 @@ except ImportError:
         """Fallback platform package status."""
         return {}
 
-    def normalize_package_name(name: str) -> str:
+    def normalize_package_name(package: str) -> str:
         """Fallback package name normalization."""
-        return name.lower().replace("_", "-")
+        return package.lower().replace("_", "-")
 
 
 def install_package(package: str) -> tuple[bool, str]:

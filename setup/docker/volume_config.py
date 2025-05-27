@@ -14,6 +14,13 @@ from collections.abc import Awaitable, Coroutine
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
+# Python version compatibility
+try:
+    from asyncio import Lock, Task, get_running_loop
+except ImportError:
+    # For older Python versions
+    pass  # type: ignore[attr-defined]
+
 # Platform check for uvloop - use lowercase to avoid constant redefinition warnings
 _uvloop_available = False
 _uvloop_module: Any = None

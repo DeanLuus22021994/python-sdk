@@ -131,8 +131,7 @@ def get_package_dependencies(packages: list[str]) -> dict[str, set[str]]:
         packages: List of package names
 
     Returns:
-        Dictionary mapping package names to their dependencies
-    """
+        Dictionary mapping package names to their dependencies"""
     dependencies: dict[str, set[str]] = defaultdict(set)
 
     for package in packages:
@@ -143,14 +142,13 @@ def get_package_dependencies(packages: list[str]) -> dict[str, set[str]]:
                 text=True,
                 check=True,
             )
-
             for line in result.stdout.split("\n"):
                 if line.startswith("Requires:"):
                     deps = line.split(":", 1)[1].strip()
                     if deps and deps != "":
-                        dependencies[package] = set(
+                        dependencies[package] = {
                             dep.strip() for dep in deps.split(",") if dep.strip()
-                        )
+                        }
                     break
 
         except (subprocess.CalledProcessError, FileNotFoundError):
