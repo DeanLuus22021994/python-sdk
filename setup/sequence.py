@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import validators  # Import to trigger validator registration
 from .typings.enums import SetupMode
 from .validation.base import ValidationContext
 from .validation.composite import CompositeValidator
@@ -49,6 +50,9 @@ class ModernSetupOrchestrator:
 
     def _setup_validators(self) -> None:
         """Set up validators for the setup sequence."""
+        # Import validators to ensure registration
+        _ = validators  # Force import evaluation
+
         registry = get_global_registry()
 
         # Create core validators
