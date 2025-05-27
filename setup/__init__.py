@@ -49,71 +49,39 @@ _VSCodeConfig: type[Any] | None = None
 
 
 def _load_orchestrator() -> type[Any] | None:
-    """Load the ModernSetupOrchestrator with fallback handling."""
+    """Load orchestrator with graceful fallback."""
     try:
         from .orchestrator import ModernSetupOrchestrator
 
         return ModernSetupOrchestrator
     except ImportError:
-        try:
-            from setup.orchestrator import ModernSetupOrchestrator
-
-            return ModernSetupOrchestrator
-        except ImportError:
-            return None
+        return None
 
 
 def _load_host_setup() -> tuple[type[Any] | None, Callable[[], bool] | None]:
-    """Load host setup capabilities with fallback handling."""
-    host_manager = None
-    setup_packages_func = None
-
+    """Load host setup components with graceful fallback."""
     try:
-        from .host.package_manager import setup_packages as sp
+        from .host import HostSetupManager
+        from .host.package_manager import setup_packages
 
-        setup_packages_func = sp
+        return HostSetupManager, setup_packages
     except ImportError:
-        try:
-            from setup.host.package_manager import setup_packages as sp
-
-            setup_packages_func = sp
-        except ImportError:
-            pass
-
-    return host_manager, setup_packages_func
+        return None, None
 
 
 def _load_docker_setup() -> type[Any] | None:
-    """Load Docker setup capabilities with fallback handling."""
+    """Load Docker setup components with graceful fallback."""
     try:
         from .docker import DockerSetupManager
 
         return DockerSetupManager
     except ImportError:
-        try:
-            from setup.docker import DockerSetupManager
-
-            return DockerSetupManager
-        except ImportError:
-            return None
+        return None
 
 
 def _load_typings() -> dict[str, type[Any] | None]:
-    """Load typing definitions with fallback handling."""
-    typings_map = {
-        "ContainerConfig": None,
-        "DockerInfo": None,
-        "EnvironmentInfo": None,
-        "LogLevel": None,
-        "PackageManagerInfo": None,
-        "PerformanceSettings": None,
-        "ProjectStructureInfo": None,
-        "PythonVersion": None,
-        "SetupMode": None,
-        "ValidationDetails": None,
-        "ValidationStatus": None,
-        "VSCodeConfig": None,
-    }
+    """Load typing definitions with graceful fallback."""
+    typings = {}
 
     try:
         from .typings import (
@@ -131,7 +99,7 @@ def _load_typings() -> dict[str, type[Any] | None]:
             VSCodeConfig,
         )
 
-        typings_map.update(
+        typings.update(
             {
                 "ContainerConfig": ContainerConfig,
                 "DockerInfo": DockerInfo,
@@ -148,43 +116,24 @@ def _load_typings() -> dict[str, type[Any] | None]:
             }
         )
     except ImportError:
-        try:
-            from setup.typings import (
-                ContainerConfig,
-                DockerInfo,
-                EnvironmentInfo,
-                LogLevel,
-                PackageManagerInfo,
-                PerformanceSettings,
-                ProjectStructureInfo,
-                PythonVersion,
-                SetupMode,
-                ValidationDetails,
-                ValidationStatus,
-                VSCodeConfig,
-            )
+        # Graceful fallback with None values
+        for key in [
+            "ContainerConfig",
+            "DockerInfo",
+            "EnvironmentInfo",
+            "LogLevel",
+            "PackageManagerInfo",
+            "PerformanceSettings",
+            "ProjectStructureInfo",
+            "PythonVersion",
+            "SetupMode",
+            "ValidationDetails",
+            "ValidationStatus",
+            "VSCodeConfig",
+        ]:
+            typings[key] = None
 
-            typings_map.update(
-                {
-                    "ContainerConfig": ContainerConfig,
-                    "DockerInfo": DockerInfo,
-                    "EnvironmentInfo": EnvironmentInfo,
-                    "LogLevel": LogLevel,
-                    "PackageManagerInfo": PackageManagerInfo,
-                    "PerformanceSettings": PerformanceSettings,
-                    "ProjectStructureInfo": ProjectStructureInfo,
-                    "PythonVersion": PythonVersion,
-                    "SetupMode": SetupMode,
-                    "ValidationDetails": ValidationDetails,
-                    "ValidationStatus": ValidationStatus,
-                    "VSCodeConfig": VSCodeConfig,
-                }
-            )
-        except ImportError:
-            # Keep defaults (all None)
-            pass
-
-    return typings_map
+    return typings
 
 
 # Load all optional components

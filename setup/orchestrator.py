@@ -34,37 +34,27 @@ class SetupSequenceResult:
 
 
 class ModernSetupOrchestrator:
-    """
-    Modern setup orchestrator implementing comprehensive setup coordination.
-
-    Follows SOLID principles:
-    - Single Responsibility: Orchestrates setup operations
-    - Open/Closed: Extensible through validator registry
-    - Liskov Substitution: Uses validation abstractions
-    - Interface Segregation: Focused interface for setup operations
-    - Dependency Inversion: Depends on abstractions
-    """
+    """Modern setup orchestrator implementing comprehensive setup coordination."""
 
     def __init__(
         self,
         workspace_root: Path | str | None = None,
         verbose: bool = False,
     ) -> None:
-        """Initialize modern setup orchestrator."""
-        self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
-        self.verbose = verbose
+        from .environment.utils import get_project_root
 
+        self.workspace_root = (
+            Path(workspace_root) if workspace_root else get_project_root()
+        )
+        self.verbose = verbose
+        self.registry = get_global_registry()
+
+        # Create validation context
         self.context = ValidationContext(
             workspace_root=str(self.workspace_root),
             environment=dict(os.environ),
             config={"verbose": verbose},
         )
-
-        try:
-            self.registry = get_global_registry()
-        except ImportError:
-            # Graceful fallback when validation registry is not available
-            self.registry = None
 
     async def orchestrate_complete_setup(
         self,
@@ -72,132 +62,108 @@ class ModernSetupOrchestrator:
     ) -> SetupSequenceResult:
         """Orchestrate complete setup process."""
         if self.verbose:
-            print(f"🚀 Starting {mode.value} setup orchestration...")
+            print(f"🚀 Starting setup orchestration in {mode} mode...")
 
         errors: list[str] = []
         warnings: list[str] = []
+        metadata: dict[str, Any] = {
+            "mode": mode.value if hasattr(mode, "value") else str(mode),
+            "workspace_root": str(self.workspace_root),
+        }
 
         try:
             # Phase 1: Environment validation
             if self.verbose:
-                print("🔍 Validating environment...")
+                print("📋 Phase 1: Environment validation...")
 
-            validation_result = await self.validate_environment()
-            if not validation_result.is_valid:
-                errors.extend(validation_result.errors)
-                warnings.extend(validation_result.warnings)
+            validation = await self.validate_environment()
+            if not validation.is_valid:
+                errors.extend(validation.errors)
+                return SetupSequenceResult(False, mode, errors, warnings, metadata)
 
             # Phase 2: Environment setup
             if self.verbose:
-                print("🔧 Setting up environment...")
+                print("🔧 Phase 2: Environment setup...")
 
             env_success = await self._setup_environment()
             if not env_success:
                 errors.append("Environment setup failed")
 
-            # Phase 3: Tools setup (if requested)
-            if mode in (SetupMode.DEVELOPMENT, SetupMode.HYBRID):
-                if self.verbose:
-                    print("🛠️ Setting up development tools...")
-
-                tools_success = await self._setup_tools()
-                if not tools_success:
-                    warnings.append("Some development tools setup failed")
-
-            success = len(errors) == 0
-
+            # Phase 3: Tools setup
             if self.verbose:
-                status = "✅ SUCCESS" if success else "❌ FAILED"
-                print(f"Setup orchestration completed: {status}")
+                print("🛠️  Phase 3: Tools setup...")
 
-            return SetupSequenceResult(
-                success=success,
-                mode=mode,
-                errors=errors,
-                warnings=warnings,
-                metadata={
-                    "workspace_root": str(self.workspace_root),
-                    "mode": mode.value,
-                },
-            )
+            tools_success = await self._setup_tools()
+            if not tools_success:
+                errors.append("Tools setup failed")
+
+            success = env_success and tools_success
+            if self.verbose:
+                status = "✅ Success" if success else "❌ Failed"
+                print(f"🏁 Setup orchestration completed: {status}")
+
+            return SetupSequenceResult(success, mode, errors, warnings, metadata)
 
         except Exception as e:
-            errors.append(f"Setup orchestration failed: {str(e)}")
-            return SetupSequenceResult(
-                success=False,
-                mode=mode,
-                errors=errors,
-                warnings=warnings,
-            )
+            errors.append(f"Setup orchestration failed: {e}")
+            return SetupSequenceResult(False, mode, errors, warnings, metadata)
 
     async def validate_environment(self) -> ValidationDetails:
-        """Validate environment using registered validators."""
+        """Validate complete environment."""
         try:
-            if self.registry:
-                validator = self.registry.create_validator(
-                    "python_environment", self.context
-                )
-                result = validator.validate()
+            # Use environment manager for validation
+            from .environment import EnvironmentManager
 
-                return ValidationDetails(
-                    is_valid=result.is_valid,
-                    status=result.status,
-                    message=result.message,
-                    warnings=list(getattr(result, "warnings", [])),
-                    errors=list(getattr(result, "errors", [])),
-                    recommendations=list(getattr(result, "recommendations", [])),
-                    metadata=getattr(result, "metadata", {}),
-                    component_name="Environment",
-                )
-            else:
-                # Fallback validation
-                return ValidationDetails(
-                    is_valid=True,
-                    status=ValidationStatus.WARNING,
-                    message="Validation registry not available - using basic validation",
-                    warnings=["Advanced validation not available"],
-                    errors=[],
-                    recommendations=[
-                        "Install validation dependencies for comprehensive checks"
-                    ],
-                    metadata={"workspace_root": str(self.workspace_root)},
-                    component_name="Environment",
-                )
+            manager = EnvironmentManager(self.workspace_root)
+            return manager.validate_complete_environment()
 
         except Exception as e:
             return ValidationDetails(
                 is_valid=False,
                 status=ValidationStatus.ERROR,
-                message=f"Environment validation failed: {str(e)}",
-                errors=[str(e)],
-                warnings=[],
-                recommendations=["Check environment setup and try again"],
+                message=f"Environment validation failed: {e}",
                 component_name="Environment",
-                metadata={"workspace_root": str(self.workspace_root)},
+                errors=[str(e)],
             )
 
     async def _setup_environment(self) -> bool:
-        """Setup environment phase."""
+        """Setup environment components."""
         try:
-            # Basic environment setup
-            return True
-        except Exception:
+            from .environment import EnvironmentManager
+
+            manager = EnvironmentManager(self.workspace_root)
+            return manager.setup_environment()
+
+        except Exception as e:
+            if self.verbose:
+                print(f"Environment setup error: {e}")
             return False
 
     async def _setup_tools(self) -> bool:
-        """Setup development tools phase."""
+        """Setup development tools."""
         try:
-            # Basic tools setup
-            return True
-        except Exception:
+            # Setup VS Code if available
+            from .vscode.integration import VSCodeIntegrationManager
+
+            vscode_manager = VSCodeIntegrationManager(self.workspace_root)
+            vscode_success = vscode_manager.create_workspace_configuration()
+
+            if self.verbose and vscode_success:
+                print("✅ VS Code configuration created")
+
+            return vscode_success
+
+        except Exception as e:
+            if self.verbose:
+                print(f"Tools setup error: {e}")
             return False
 
     def get_orchestration_status(self) -> dict[str, Any]:
-        """Get orchestration status."""
+        """Get current orchestration status."""
         return {
             "workspace_root": str(self.workspace_root),
-            "registry_available": self.registry is not None,
             "verbose": self.verbose,
+            "registry_validators": self.registry.list_validators(),
         }
 
 

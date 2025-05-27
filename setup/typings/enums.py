@@ -1,8 +1,5 @@
 """
 Enumeration types for the MCP Python SDK setup system.
-
-This module contains all enum definitions used for categorization, status tracking,
-and configuration options throughout the setup system.
 """
 
 from __future__ import annotations
@@ -30,6 +27,9 @@ class SetupMode(Enum):
 
     DEVELOPMENT = "development"
     """Development mode with enhanced debugging and tooling."""
+
+    PRODUCTION = "production"
+    """Production mode with optimized settings."""
 
     def __str__(self) -> str:
         return self.value

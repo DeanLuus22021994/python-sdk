@@ -1,14 +1,12 @@
 """
 Data classes for environment and system information.
-
-This module contains data classes that represent various aspects of the
-development environment, including Python version, environment details,
-and system information.
 """
 
 from __future__ import annotations
 
-import time
+import os
+import platform
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
@@ -25,12 +23,7 @@ __all__ = [
 
 
 class PythonVersion(NamedTuple):
-    """
-    Python version representation with modern comparison methods.
-
-    Uses NamedTuple for immutability and built-in comparison support
-    without overriding incompatible methods.
-    """
+    """Python version representation with modern comparison methods."""
 
     major: int
     minor: int
@@ -42,12 +35,7 @@ class PythonVersion(NamedTuple):
         return f"{self.major}.{self.minor}"
 
     def compare_to(self, other: PythonVersion) -> int:
-        """
-        Compare versions without overriding incompatible NamedTuple methods.
-
-        Returns:
-            -1 if self < other, 0 if equal, 1 if self > other
-        """
+        """Compare versions without overriding incompatible NamedTuple methods."""
         self_tuple = (self.major, self.minor, self.patch)
         other_tuple = (other.major, other.minor, other.patch)
 
@@ -64,22 +52,25 @@ class PythonVersion(NamedTuple):
 
     @property
     def is_supported(self) -> bool:
-        """Check if this Python version is supported by the SDK."""
-        # Support Python 3.10+
-        return (self.major, self.minor) >= (3, 10)
+        """Check if this Python version is supported."""
+        return self.major >= 3 and self.minor >= 10
 
     @property
     def version_tuple(self) -> tuple[int, int, int]:
-        """Get version as a tuple for easy comparison."""
+        """Get version as tuple."""
         return (self.major, self.minor, self.patch)
 
     @classmethod
     def from_string(cls, version_str: str) -> PythonVersion:
-        """Create PythonVersion from string like '3.11.0'."""
+        """Create PythonVersion from string representation."""
         parts = version_str.split(".")
+        if len(parts) < 2:
+            raise ValueError(f"Invalid version string: {version_str}")
+
         major = int(parts[0])
         minor = int(parts[1])
         patch = int(parts[2]) if len(parts) > 2 else 0
+
         return cls(major, minor, patch)
 
 
@@ -101,12 +92,17 @@ class EnvironmentInfo:
     environment_variables: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Validate environment information after initialization."""
-        if not self.python_executable:
-            raise ValueError("python_executable cannot be empty")
-
-        if self.virtual_env_active and not self.virtual_env_path:
-            self.virtual_env_path = "unknown"
+        """Initialize additional environment information."""
+        if not self.platform_system:
+            self.platform_system = platform.system()
+        if not self.platform_release:
+            self.platform_release = platform.release()
+        if not self.architecture:
+            self.architecture = platform.machine()
+        if not self.python_path:
+            self.python_path = sys.path.copy()
+        if not self.environment_variables:
+            self.environment_variables = dict(os.environ)
 
     @property
     def is_virtual_env(self) -> bool:
@@ -114,72 +110,52 @@ class EnvironmentInfo:
         return self.virtual_env_active
 
     @property
-    def env_summary(self) -> str:
-        """Get environment summary string."""
-        venv_info = (
-            f" (venv: {self.virtual_env_type})" if self.virtual_env_active else ""
+    def environment_summary(self) -> str:
+        """Get summary of environment."""
+        return (
+            f"Python {self.python_version} on {self.platform_system} "
+            f"({self.architecture})"
         )
-        return f"Python {self.python_version} on {self.platform_system}{venv_info}"
 
 
 @dataclass(slots=True)
 class ValidationDetails:
-    """Detailed validation results with comprehensive error tracking."""
+    """Detailed validation results with comprehensive information."""
 
     is_valid: bool
     status: ValidationStatus
     message: str
-    warnings: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-    recommendations: list[str] = field(default_factory=list)
-    metadata: dict[str, object] = field(default_factory=dict)
-
-    # Additional validation context
     component_name: str = ""
-    validation_time: float = field(default_factory=time.time)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+    metadata: dict[str, str | int | bool | None] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Ensure validation details are consistent."""
+        """Validate the validation details."""
         if self.is_valid and self.status == ValidationStatus.ERROR:
+            # Fix inconsistent state
             self.is_valid = False
-
-    def add_warning(self, warning: str) -> None:
-        """Add a warning to the validation details."""
-        self.warnings.append(warning)
-
-    def add_error(self, error: str) -> None:
-        """Add an error to the validation details."""
-        self.errors.append(error)
-        self.is_valid = False
-        if self.status == ValidationStatus.VALID:
-            self.status = ValidationStatus.ERROR
-
-    def add_recommendation(self, recommendation: str) -> None:
-        """Add a recommendation to the validation details."""
-        self.recommendations.append(recommendation)
 
     @property
     def has_errors(self) -> bool:
-        """Check if validation has errors."""
+        """Check if there are any errors."""
         return len(self.errors) > 0
 
     @property
     def has_warnings(self) -> bool:
-        """Check if validation has warnings."""
+        """Check if there are any warnings."""
         return len(self.warnings) > 0
 
-    def get_summary(self) -> str:
-        """Get validation summary string."""
-        status_text = self.status.name.lower()
-        error_count = len(self.errors)
-        warning_count = len(self.warnings)
+    @property
+    def error_count(self) -> int:
+        """Get number of errors."""
+        return len(self.errors)
 
-        if error_count > 0:
-            return f"{status_text} ({error_count} error(s), {warning_count} warning(s))"
-        elif warning_count > 0:
-            return f"{status_text} ({warning_count} warning(s))"
-        else:
-            return status_text
+    @property
+    def warning_count(self) -> int:
+        """Get number of warnings."""
+        return len(self.warnings)
 
 
 @dataclass(slots=True)
@@ -220,9 +196,8 @@ class ProjectStructureInfo:
     def get_structure_summary(self) -> str:
         """Get structure summary string."""
         return (
-            f"Project at {self.root_path.name}: "
-            f"{self.file_count} files, {self.directory_count} dirs, "
-            f"{self.python_file_count} Python files"
+            f"Files: {self.file_count}, Directories: {self.directory_count}, "
+            f"Python files: {self.python_file_count}"
         )
 
 
@@ -246,14 +221,12 @@ class PackageManagerInfo:
 
     def __post_init__(self) -> None:
         """Initialize package manager info."""
-        if not any(
-            [
-                self.pip_available,
-                self.conda_available,
-                self.uv_available,
-                self.poetry_available,
-            ]
-        ):
+        if not any([
+            self.pip_available,
+            self.conda_available,
+            self.uv_available,
+            self.poetry_available,
+        ]):
             raise ValueError("At least one package manager must be available")
 
     def get_available_managers(self) -> list[str]:
@@ -274,20 +247,15 @@ class PackageManagerInfo:
         """Check if modern package managers (uv, poetry) are available."""
         return self.uv_available or self.poetry_available
 
-    def get_install_command(self, package: str) -> str:
-        """Get install command for the preferred manager."""
-        if self.preferred_manager == "uv":
-            return f"uv add {package}"
-        elif self.preferred_manager == "poetry":
-            return f"poetry add {package}"
-        elif self.preferred_manager == "conda":
-            return f"conda install {package}"
+    def get_best_manager(self) -> str:
+        """Get the best available package manager."""
+        if self.uv_available:
+            return "uv"
+        elif self.poetry_available:
+            return "poetry"
+        elif self.pip_available:
+            return "pip"
+        elif self.conda_available:
+            return "conda"
         else:
-            return f"pip install {package}"
-
-    def get_manager_summary(self) -> str:
-        """Get package manager summary string."""
-        available = self.get_available_managers()
-        return (
-            f"Available: {', '.join(available)} (preferred: {self.preferred_manager})"
-        )
+            return self.preferred_manager
