@@ -47,9 +47,28 @@ def ensure_package_structure() -> None:
 async def run_setup() -> int:
     """Run the async setup process."""
     try:
-        from setup.main import main as async_main
+        # Try to use the main async function from __main__.py first
+        try:
+            from setup.__main__ import main as async_main
 
-        return await async_main()
+            return await async_main()
+        except ImportError:
+            # Fallback to the orchestrator directly
+            from setup.orchestrator import ModernSetupOrchestrator
+
+            print("🚀 Starting MCP Python SDK Setup...")
+            orchestrator = ModernSetupOrchestrator(verbose=True)
+
+            # Run setup orchestration
+            result = orchestrator.orchestrate_setup()
+
+            if result:
+                print("✅ Setup completed successfully!")
+                return 0
+            else:
+                print("❌ Setup failed. Check logs for details.")
+                return 1
+
     except ImportError as e:
         print(f"Setup import failed: {e}")
         print(
