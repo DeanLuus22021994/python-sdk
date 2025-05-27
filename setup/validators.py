@@ -6,6 +6,7 @@ Concrete validators for the MCP Python SDK setup system.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -412,8 +413,6 @@ class DockerEnvironmentValidator(BaseValidator[dict[str, Any]]):
         metadata: dict[str, Any] = {}
 
         try:
-            import subprocess
-
             # Check Docker daemon
             result = subprocess.run(
                 ["docker", "info"], capture_output=True, text=True, timeout=10
