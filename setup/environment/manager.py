@@ -15,10 +15,12 @@ from typing import Any
 
 from ..typings import (
     EnvironmentInfo,
+    EnvironmentValidationResult,
     PythonVersion,
     SetupMode,
 )
-from ..validation.base import BaseValidator, ValidationContext, ValidationRegistry
+from ..validation.base import BaseValidator, ValidationContext
+from ..validation.registry import ValidationRegistry, get_global_registry
 from .utils import get_project_root
 
 
@@ -26,7 +28,7 @@ from .utils import get_project_root
 class EnvironmentSetupConfig:
     """Configuration for environment setup operations."""
 
-    setup_mode: SetupMode = SetupMode.HOST
+    setup_mode: SetupMode = SetupMode.DEVELOPMENT
     create_venv: bool = True
     install_dev_packages: bool = True
     configure_vscode: bool = True
@@ -54,14 +56,8 @@ class EnvironmentManager:
         self._workspace_root = (
             Path(workspace_root) if workspace_root else get_project_root()
         )
+        self._registry = registry or get_global_registry()
 
-        # Import registry here to avoid circular imports
-        if registry is None:
-            from ..validation.registry import get_global_registry
-
-            registry = get_global_registry()
-
-        self._registry = registry
         self._context = ValidationContext(
             workspace_root=str(self._workspace_root),
             environment=dict(os.environ),
@@ -71,7 +67,7 @@ class EnvironmentManager:
     async def validate_environment(
         self,
         parallel: bool = True,
-    ) -> tuple[bool, Any, list[str]]:
+    ) -> EnvironmentValidationResult:
         """
         Comprehensive environment validation.
 
@@ -79,7 +75,7 @@ class EnvironmentManager:
             parallel: Enable parallel validation for performance
 
         Returns:
-            Tuple of (is_valid, environment_info, errors)
+            Complete validation result
         """
         validators = [
             self._get_validator("python_environment"),
@@ -159,7 +155,7 @@ class EnvironmentManager:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, validator.validate)
 
-    def _aggregate_results(self, results: list[Any]) -> tuple[bool, Any, list[str]]:
+    def _aggregate_results(self, results: list[Any]) -> EnvironmentValidationResult:
         """Aggregate validation results into final result."""
         # Convert to proper validation result format
         all_valid = True

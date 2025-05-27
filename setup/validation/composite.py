@@ -1,297 +1,188 @@
 """
 Composite Validation Framework
-Implements the Composite pattern for combining multiple validators.
+Provides composite validation capabilities for complex validation scenarios.
 """
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Sequence
 from typing import Any
 
 from ..typings.enums import ValidationStatus
 from .base import BaseValidator, ValidationContext, ValidationResult
+from .reporters import ValidationReport
 
 __all__ = [
     "CompositeValidator",
-    "SequentialCompositeValidator",
-    "ParallelCompositeValidator",
 ]
 
 
-class CompositeValidator(BaseValidator[dict[str, Any]]):
+class CompositeValidator:
     """
-    Composite validator that combines multiple validators.
+    Composite validator that manages multiple validators.
 
-    Implements the Composite pattern to treat groups of validators
-    as a single validator interface.
+    Implements the Composite pattern for complex validation scenarios.
+    Follows SOLID principles:
+    - Single Responsibility: Orchestrates validation execution
+    - Open/Closed: Extensible with new validators
+    - Dependency Inversion: Uses validator abstractions
     """
 
     def __init__(
         self,
         context: ValidationContext,
-        validators: Sequence[BaseValidator[Any]],
+        validators: list[BaseValidator[Any]] | None = None,
         fail_fast: bool = False,
     ) -> None:
-        """
-        Initialize composite validator.
-
-        Args:
-            context: Validation context
-            validators: List of validators to compose
-            fail_fast: Stop on first validation failure
-        """
-        super().__init__(context)
-        self.validators = list(validators)
+        """Initialize composite validator."""
+        self.context = context
+        self.validators = validators or []
         self.fail_fast = fail_fast
-        self._validator_results: dict[str, ValidationResult[Any]] = {}
+        self._results: dict[str, ValidationResult[Any]] = {}
 
-    def get_validator_name(self) -> str:
-        """Get composite validator name."""
-        validator_names = [v.get_validator_name() for v in self.validators]
-        return f"Composite({', '.join(validator_names)})"
+    def add_validator(self, validator: BaseValidator[Any]) -> None:
+        """Add a validator to the composite."""
+        self.validators.append(validator)
 
-    def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
-        """Perform validation on all composed validators."""
-        if not self.validators:
-            return self._create_result(
-                is_valid=True,
-                status=ValidationStatus.VALID,
-                message="No validators to execute",
-                data={},
-            )
+    def remove_validator(self, validator_name: str) -> bool:
+        """Remove a validator by name."""
+        for i, validator in enumerate(self.validators):
+            if validator.get_validator_name() == validator_name:
+                del self.validators[i]
+                # Also remove from results if exists
+                if validator_name in self._results:
+                    del self._results[validator_name]
+                return True
+        return False
 
-        # Run all validators
-        all_errors = []
-        all_warnings = []
-        all_recommendations = []
+    def validate(self) -> ValidationResult[dict[str, Any]]:
+        """
+        Execute all validators and return composite result.
+
+        Returns:
+            Composite validation result
+        """
+        self._results.clear()
+
         all_valid = True
-
-        validator_data = {}
+        aggregated_errors: list[str] = []
+        aggregated_warnings: list[str] = []
+        aggregated_recommendations: list[str] = []
+        aggregated_metadata: dict[str, Any] = {}
 
         for validator in self.validators:
             try:
                 result = validator.validate()
                 validator_name = validator.get_validator_name()
+                self._results[validator_name] = result
 
-                # Store individual result
-                self._validator_results[validator_name] = result
-
-                # Collect data
-                if result.data is not None:
-                    validator_data[validator_name] = result.data
-
-                # Collect issues
+                # Aggregate results
                 if not result.is_valid:
                     all_valid = False
-                    all_errors.extend(result.errors)
 
-                    if self.fail_fast:
-                        break
+                aggregated_errors.extend(result.errors)
+                aggregated_warnings.extend(result.warnings)
+                aggregated_recommendations.extend(result.recommendations)
 
-                all_warnings.extend(result.warnings)
-                all_recommendations.extend(result.recommendations)
+                # Add validator-specific metadata
+                aggregated_metadata[validator_name] = result.metadata
+
+                # Fail fast if requested and validation failed
+                if self.fail_fast and not result.is_valid:
+                    break
 
             except Exception as e:
-                error_msg = f"Validator {validator.get_validator_name()} failed: {e}"
-                all_errors.append(error_msg)
+                # Handle validator execution errors
                 all_valid = False
+                validator_name = validator.get_validator_name()
+                error_msg = f"Validator '{validator_name}' failed: {str(e)}"
+                aggregated_errors.append(error_msg)
+
+                # Create error result for this validator
+                self._results[validator_name] = ValidationResult(
+                    is_valid=False,
+                    status=ValidationStatus.ERROR,
+                    message=error_msg,
+                    errors=(error_msg,),
+                )
 
                 if self.fail_fast:
                     break
 
-        # Determine overall status
-        if all_errors:
+        # Create composite result
+        if aggregated_errors:
             status = ValidationStatus.ERROR
-        elif all_warnings:
+            message = f"Composite validation failed: {len(aggregated_errors)} error(s)"
+        elif aggregated_warnings:
             status = ValidationStatus.WARNING
+            message = f"Composite validation passed with {len(aggregated_warnings)} warning(s)"
         else:
             status = ValidationStatus.VALID
+            message = "All validations passed successfully"
 
-        message = self._create_summary_message(
-            all_valid, len(all_errors), len(all_warnings)
-        )
-
-        return self._create_result(
+        return ValidationResult(
             is_valid=all_valid,
             status=status,
             message=message,
-            data=validator_data,
-            errors=all_errors,
-            warnings=all_warnings,
-            recommendations=all_recommendations,
-            validators_executed=len(self.validators),
-            successful_validators=sum(
-                1 for r in self._validator_results.values() if r.is_valid
-            ),
+            data=aggregated_metadata,
+            errors=tuple(aggregated_errors),
+            warnings=tuple(aggregated_warnings),
+            recommendations=tuple(aggregated_recommendations),
+            metadata={
+                "validators_executed": len(self._results),
+                "total_validators": len(self.validators),
+                "fail_fast": self.fail_fast,
+            },
         )
 
     def get_validator_results(self) -> dict[str, ValidationResult[Any]]:
-        """Get results from individual validators."""
-        return self._validator_results.copy()
+        """Get individual validator results."""
+        return self._results.copy()
 
-    def get_validator_result(self, validator_name: str) -> ValidationResult[Any] | None:
-        """Get result from a specific validator."""
-        return self._validator_results.get(validator_name)
+    def get_failed_validators(self) -> list[str]:
+        """Get names of validators that failed."""
+        return [
+            name for name, result in self._results.items()
+            if not result.is_valid
+        ]
 
-    def _create_summary_message(
-        self, all_valid: bool, error_count: int, warning_count: int
-    ) -> str:
-        """Create summary message for validation results."""
-        if all_valid and error_count == 0:
-            if warning_count > 0:
-                return f"Validation passed with {warning_count} warnings"
-            else:
-                return "All validations passed successfully"
-        else:
-            return f"Validation failed with {error_count} errors and {warning_count} warnings"
+    def get_successful_validators(self) -> list[str]:
+        """Get names of validators that passed."""
+        return [
+            name for name, result in self._results.items()
+            if result.is_valid
+        ]
 
+    def clear_results(self) -> None:
+        """Clear validation results."""
+        self._results.clear()
 
-class SequentialCompositeValidator(CompositeValidator):
-    """
-    Sequential composite validator that runs validators one after another.
+    def is_valid(self) -> bool:
+        """Quick check if all validations passed."""
+        return all(result.is_valid for result in self._results.values())
 
-    Useful when validators have dependencies or when resources are limited.
-    """
+    def has_warnings(self) -> bool:
+        """Check if any validations have warnings."""
+        return any(len(result.warnings) > 0 for result in self._results.values())
 
-    def get_validator_name(self) -> str:
-        """Get sequential composite validator name."""
-        return f"Sequential{super().get_validator_name()}"
+    def get_summary(self) -> dict[str, Any]:
+        """Get validation summary."""
+        total = len(self.validators)
+        executed = len(self._results)
+        successful = len(self.get_successful_validators())
+        failed = len(self.get_failed_validators())
 
-    def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
-        """Run validators sequentially (default behavior)."""
-        return super()._perform_validation()
+        return {
+            "total_validators": total,
+            "executed_validators": executed,
+            "successful_validators": successful,
+            "failed_validators": failed,
+            "overall_valid": self.is_valid(),
+            "has_warnings": self.has_warnings(),
+        }
 
-
-class ParallelCompositeValidator(CompositeValidator):
-    """
-    Parallel composite validator that runs validators concurrently.
-
-    Improves performance when validators are independent.
-    """
-
-    def __init__(
-        self,
-        context: ValidationContext,
-        validators: Sequence[BaseValidator[Any]],
-        max_concurrency: int = 4,
-    ) -> None:
-        """
-        Initialize parallel composite validator.
-
-        Args:
-            context: Validation context
-            validators: List of validators to execute
-            max_concurrency: Maximum number of concurrent validators
-        """
-        super().__init__(context, validators, fail_fast=False)
-        self.max_concurrency = max_concurrency
-
-    def get_validator_name(self) -> str:
-        """Get parallel composite validator name."""
-        return f"Parallel{super().get_validator_name()}"
-
-    def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
-        """Run validators in parallel using asyncio."""
-        try:
-            # Try to use existing event loop
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If loop is running, we need to run in a new thread
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(
-                        asyncio.run, self._run_parallel_validation()
-                    )
-                    return future.result()
-            else:
-                return loop.run_until_complete(self._run_parallel_validation())
-        except Exception:
-            # Fallback to sequential validation
-            return super()._perform_validation()
-
-    async def _run_parallel_validation(self) -> ValidationResult[dict[str, Any]]:
-        """Run validators in parallel asynchronously."""
-        if not self.validators:
-            return self._create_result(
-                is_valid=True,
-                status=ValidationStatus.VALID,
-                message="No validators to execute",
-                data={},
-            )
-
-        # Create semaphore to limit concurrency
-        semaphore = asyncio.Semaphore(self.max_concurrency)
-
-        async def run_validator(
-            validator: BaseValidator[Any],
-        ) -> tuple[str, ValidationResult[Any]]:
-            """Run a single validator with semaphore."""
-            async with semaphore:
-                # Run validator in thread pool since validate() is synchronous
-                loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(None, validator.validate)
-                return validator.get_validator_name(), result
-
-        # Create tasks for all validators
-        tasks = [run_validator(validator) for validator in self.validators]
-
-        # Wait for all tasks to complete
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Process results
-        all_errors = []
-        all_warnings = []
-        all_recommendations = []
-        all_valid = True
-        validator_data = {}
-
-        for result in results:
-            if isinstance(result, Exception):
-                all_errors.append(f"Validator execution failed: {result}")
-                all_valid = False
-                continue
-
-            validator_name, validation_result = result
-            self._validator_results[validator_name] = validation_result
-
-            # Collect data
-            if validation_result.data is not None:
-                validator_data[validator_name] = validation_result.data
-
-            # Collect issues
-            if not validation_result.is_valid:
-                all_valid = False
-
-            all_errors.extend(validation_result.errors)
-            all_warnings.extend(validation_result.warnings)
-            all_recommendations.extend(validation_result.recommendations)
-
-        # Determine overall status
-        if all_errors:
-            status = ValidationStatus.ERROR
-        elif all_warnings:
-            status = ValidationStatus.WARNING
-        else:
-            status = ValidationStatus.VALID
-
-        message = self._create_summary_message(
-            all_valid, len(all_errors), len(all_warnings)
-        )
-
-        return self._create_result(
-            is_valid=all_valid,
-            status=status,
-            message=message,
-            data=validator_data,
-            errors=all_errors,
-            warnings=all_warnings,
-            recommendations=all_recommendations,
-            validators_executed=len(self.validators),
-            successful_validators=sum(
-                1 for r in self._validator_results.values() if r.is_valid
-            ),
-            execution_mode="parallel",
-            max_concurrency=self.max_concurrency,
+    def create_report(self) -> ValidationReport:
+        """Create a validation report from results."""
+        return ValidationReport(
+            results=tuple(self._results.values()),
+            metadata=self.get_summary(),
         )
