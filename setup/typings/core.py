@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, Union
 
 if TYPE_CHECKING:
     from .enums import LogLevel
@@ -63,6 +63,6 @@ PackageManagerDict: TypeAlias = dict[str, bool | str | None]
 """Type alias for package manager information dictionaries."""
 
 EnvironmentDict: TypeAlias = dict[
-    str, str | int | bool | "PythonVersion" | dict[str, Any]
+    str, Union[str, int, bool, "PythonVersion", dict[str, Any]]
 ]
 """Type alias for environment information dictionaries."""
