@@ -32,6 +32,7 @@ from .core import (
 from .enums import LogLevel, SetupMode, ValidationStatus
 from .environment import (
     EnvironmentInfo,
+    PackageManagerInfo,
     ProjectStructureInfo,
     PythonVersion,
     ValidationDetails,
@@ -45,9 +46,8 @@ from .protocols import (
 )
 from .tools import DockerConfig, DockerInfo, VSCodeConfig, VSCodeExtension
 
-__version__ = "1.0.0"
 __all__ = [
-    # From core
+    # Core types
     "PathLike",
     "JsonValue",
     "ValidationResult",
@@ -59,22 +59,25 @@ __all__ = [
     "VSCodeSettingsDict",
     "PackageManagerDict",
     "EnvironmentDict",
-    # From enums
+    # Enums
     "SetupMode",
     "LogLevel",
     "ValidationStatus",
-    # From config
+    # Configuration
     "PerformanceSettings",
     "ContainerConfig",
-    # From environment
+    # Environment
     "PythonVersion",
     "EnvironmentInfo",
     "ValidationDetails",
     "ProjectStructureInfo",
-    # From tools
+    "PackageManagerInfo",
+    # Tools
+    "VSCodeExtension",
     "VSCodeConfig",
+    "DockerInfo",
     "DockerConfig",
-    # From protocols
+    # Protocols
     "Validator",
     "SetupManager",
     "ConfigManager",
