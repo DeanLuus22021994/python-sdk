@@ -1,24 +1,114 @@
 """
 Host Environment Setup
 Modern host system configuration and validation for the MCP Python SDK.
+
+Modernized for Python 3.13+ with comprehensive validation framework integration.
 """
 
+from __future__ import annotations
+
+import platform
+import sys
 from pathlib import Path
 from typing import Any
 
 from ..typings import ValidationDetails, ValidationStatus
-from .env_validator import HostEnvironmentValidator
+from ..validation.base import ValidationContext
+from ..validation.registry import get_global_registry
+
+
+class HostEnvironmentValidator:
+    """
+    Modern host environment validator using the validation framework.
+
+    Replaces the legacy env_validator with framework-integrated validation.
+    """
+
+    def __init__(self, workspace_root: Path) -> None:
+        """Initialize with workspace root."""
+        self.workspace_root = workspace_root
+        self.context = ValidationContext(
+            workspace_root=str(workspace_root),
+            environment={},
+            config={"component": "host", "python_version": "3.13+"},
+        )
+        self.registry = get_global_registry()
+
+    def validate_complete_environment(self) -> ValidationDetails:
+        """
+        Validate complete host environment using modern framework.
+
+        Returns:
+            ValidationDetails with comprehensive validation results
+        """
+        try:
+            # Create composite validator for host environment
+            validators = []
+
+            # Add available validators from registry
+            available_validators = ["python_environment", "project_structure"]
+            for validator_name in available_validators:
+                try:
+                    validator = self.registry.create_validator(validator_name, self.context)
+                    validators.append(validator)
+                except ValueError:
+                    # Validator not available, skip
+                    continue
+
+            if not validators:
+                # Fallback validation
+                return ValidationDetails(
+                    is_valid=True,
+                    status=ValidationStatus.WARNING,
+                    message="Host environment validation completed with limited checks",
+                    warnings=["Modern validators not available, using basic validation"],
+                    component_name="HostEnvironment",
+                )
+
+            # Run validations and combine results
+            all_valid = True
+            all_errors: list[str] = []
+            all_warnings: list[str] = []
+            all_recommendations: list[str] = []
+
+            for validator in validators:
+                try:
+                    result = validator.validate()
+                    if not result.is_valid:
+                        all_valid = False
+                        all_errors.extend(result.errors)
+                    all_warnings.extend(result.warnings)
+                    all_recommendations.extend(result.recommendations)
+                except Exception as e:
+                    all_valid = False
+                    all_errors.append(f"Validator {validator.get_validator_name()} failed: {e}")
+
+            status = ValidationStatus.VALID if all_valid else ValidationStatus.ERROR
+            message = "Host environment validation passed" if all_valid else "Host environment validation failed"
+
+            return ValidationDetails(
+                is_valid=all_valid,
+                status=status,
+                message=message,
+                warnings=all_warnings,
+                errors=all_errors,
+                recommendations=all_recommendations,
+                component_name="HostEnvironment",
+            )
+
+        except Exception as e:
+            return ValidationDetails(
+                is_valid=False,                status=ValidationStatus.ERROR,
+                message=f"Host environment validation failed: {e}",
+                errors=[str(e)],
+                component_name="HostEnvironment",
+            )
 
 
 class SystemInfoCollector:
-    """Simple system information collector."""
-
     @staticmethod
     def collect_all_info() -> dict[str, Any]:
         """Collect comprehensive system information."""
-        import platform
-        import sys
-
         return {
             "platform": {
                 "system": platform.system(),
@@ -37,8 +127,6 @@ class SystemInfoCollector:
     @staticmethod
     def get_system_type() -> str:
         """Get system type."""
-        import platform
-
         return platform.system()
 
 

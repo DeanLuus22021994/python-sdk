@@ -201,13 +201,14 @@ class ParallelCompositeValidator(CompositeValidator):
             context: Validation context
             validators: List of validators to execute
             max_concurrency: Maximum number of concurrent validators
-        """
-        super().__init__(context, validators, fail_fast=False)
+        """        super().__init__(context, validators, fail_fast=False)
         self.max_concurrency = max_concurrency
 
     def get_validator_name(self) -> str:
         """Get parallel composite validator name."""
-        return f"Parallel{super().get_validator_name()}"    def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
+        return f"Parallel{super().get_validator_name()}"
+
+    def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
         """Execute validators in parallel using asyncio."""
         try:
             # Try to get the current event loop
