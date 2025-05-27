@@ -9,8 +9,10 @@ import argparse
 import asyncio
 import sys
 from pathlib import Path
+from typing import Any
 
 from .typings import SetupMode
+from .typings.environment import ValidationDetails
 
 # Import orchestrator with proper error handling and fallback
 try:
@@ -30,13 +32,18 @@ except ImportError:
             self.workspace_root = workspace_root or Path.cwd()
             self.verbose = verbose
 
-        async def validate_environment(self) -> dict[str, Any]:
+        async def validate_environment(self) -> ValidationDetails:
             """Mock validation that always passes."""
-            return {
-                "is_valid": True,
-                "errors": [],
-                "message": "Using fallback validation",
-            }
+            from .typings import ValidationStatus
+            return ValidationDetails(
+                is_valid=True,
+                status=ValidationStatus.WARNING,
+                message="Using fallback validation",
+                warnings=["Using fallback orchestrator - some features may be limited"],
+                errors=[],
+                recommendations=["Install complete setup dependencies"],
+                component_name="Fallback",
+            )
 
         async def orchestrate_complete_setup(self, mode: SetupMode) -> dict[str, Any]:
             """Mock setup that reports orchestrator unavailable."""
@@ -52,7 +59,7 @@ except ImportError:
 
 
 async def main() -> int:
-    """Main setup function."""
+    """Main setup function following modern standardization principles."""
     parser = argparse.ArgumentParser(
         description="MCP Python SDK Setup System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -98,35 +105,33 @@ async def main() -> int:
             verbose=args.verbose,
         )
 
-        if args.validate_only:
-            print("🔍 Validating environment...")
-            validation_result = await orchestrator.validate_environment()
-
-            # Handle both dict and ValidationDetails return types
-            if hasattr(validation_result, "is_valid"):
-                is_valid = validation_result.is_valid
-                errors = getattr(validation_result, "errors", [])
-            else:
-                is_valid = validation_result.get("is_valid", False)
-                errors = validation_result.get("errors", [])
-
-            if is_valid:
+        if args.validate_only:            print("🔍 Validating environment...")
+            validation_result = await orchestrator.validate_environment()# Standardized handling using only ValidationDetails type
+            if validation_result.is_valid:
                 print("✅ Environment validation passed")
+                if validation_result.warnings and args.verbose:
+                    for warning in validation_result.warnings:
+                        print(f"  ⚠️ {warning}")
                 return 0
             else:
                 print("❌ Environment validation failed")
-                for error in errors:
+                for error in validation_result.errors:
                     print(f"  • {error}")
+                if validation_result.recommendations and args.verbose:
+                    print("  Recommendations:")
+                    for rec in validation_result.recommendations:
+                        print(f"    - {rec}")
                 return 1
         else:
             print(f"🚀 Starting {mode.value} setup...")
             result = await orchestrator.orchestrate_complete_setup(mode)
 
-            # Handle both dict and SetupSequenceResult return types
+            # Handle SetupSequenceResult return type with fallback for dict
             if hasattr(result, "success"):
                 success = result.success
                 errors = getattr(result, "errors", [])
             else:
+                # Fallback for dict return type (from MockOrchestrator)
                 success = result.get("success", False)
                 errors = result.get("errors", [])
 
