@@ -92,10 +92,11 @@ class DockerSetupManager:
         except ValueError:
             # Fallback validation using basic Docker check
             try:
-                result = subprocess.run(
+                # Fixed: Use proper variable name for subprocess result
+                docker_process = subprocess.run(
                     ["docker", "--version"], capture_output=True, text=True, timeout=5
                 )
-                docker_available = result.returncode == 0
+                docker_available = docker_process.returncode == 0
 
                 return ValidationDetails(
                     is_valid=docker_available,

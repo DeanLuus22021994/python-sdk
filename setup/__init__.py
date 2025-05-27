@@ -8,23 +8,32 @@ Modern, modular setup system for the MCP Python SDK with support for:
 - Clean architecture following SOLID principles
 """
 
-from typing import Final
+from typing import Any, Final, Type
 
 __version__: Final[str] = "2.0.0"
 __author__: Final[str] = "MCP Python SDK Team"
 
 # Core setup modules
 from .environment import EnvironmentManager
-from .orchestrator import ModernSetupOrchestrator
+
+# Import orchestrator with proper error handling
+try:
+    from .orchestrator import ModernSetupOrchestrator
+except ImportError:
+    # Fallback if orchestrator module is not available
+    ModernSetupOrchestrator = None  # type: ignore[misc,assignment]
 
 # Host setup capabilities
 try:
     from .host.package_manager import setup_packages
 
-    HostSetupManager = None  # Placeholder until host module is implemented
+    # Proper type annotation for HostSetupManager
+    HostSetupManager: type[Any] | None = (
+        None  # Placeholder until host module is implemented
+    )
 except ImportError:
     setup_packages = None  # type: ignore[misc,assignment]
-    HostSetupManager = None  # type: ignore[misc,assignment]
+    HostSetupManager: type[Any] | None = None  # type: ignore[misc,assignment]
 
 # Docker setup capabilities
 try:

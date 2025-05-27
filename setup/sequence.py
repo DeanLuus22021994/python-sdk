@@ -79,14 +79,9 @@ class SetupSequenceManager:
 
             if not validation_result.is_valid():
                 errors.append("Validation phase failed")
-                for (
-                    validator_name,
-                    result,
-                ) in validation_result.get_validator_results().items():
+                for validator_name, result in validation_result.get_validator_results().items():
                     if not result.is_valid:
-                        errors.extend(
-                            [f"{validator_name}: {error}" for error in result.errors]
-                        )
+                        errors.extend([f"{validator_name}: {error}" for error in result.errors])
 
             # Get warnings from composite validator results
             for result in validation_result.get_validator_results().values():
@@ -161,8 +156,10 @@ class SetupSequenceManager:
         try:
             from .environment.manager import EnvironmentManager
 
-            manager = EnvironmentManager(self.workspace_root)
-            return True  # Placeholder for actual environment setup
+            env_manager = EnvironmentManager(self.workspace_root)
+            # Use the manager for actual environment setup
+            success = await env_manager.setup_environment()
+            return success
         except Exception as e:
             if self.verbose:
                 print(f"Environment setup failed: {e}")
@@ -196,8 +193,8 @@ async def run_setup_sequence(
     verbose: bool = False,
 ) -> SetupSequenceResult:
     """Run the complete setup sequence."""
-    manager = SetupSequenceManager(workspace_root, mode, verbose)
-    return await manager.execute_complete_setup()
+    sequence_manager = SetupSequenceManager(workspace_root, mode, verbose)
+    return await sequence_manager.execute_complete_setup()
 
 
 __all__ = [

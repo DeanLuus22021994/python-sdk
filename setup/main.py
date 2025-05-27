@@ -10,8 +10,15 @@ import asyncio
 import sys
 from pathlib import Path
 
-from .orchestrator import ModernSetupOrchestrator
 from .typings import SetupMode
+
+# Import orchestrator with proper error handling
+try:
+    from .orchestrator import ModernSetupOrchestrator
+except ImportError:
+    print("❌ Setup orchestrator module not available")
+    print("Please ensure all setup dependencies are properly installed")
+    sys.exit(1)
 
 
 async def main() -> int:

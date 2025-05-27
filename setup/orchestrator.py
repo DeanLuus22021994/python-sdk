@@ -5,7 +5,6 @@ Provides unified orchestration for all setup operations following SOLID principl
 
 from __future__ import annotations
 
-import asyncio
 import os
 from pathlib import Path
 from typing import Any
@@ -117,9 +116,9 @@ class ModernSetupOrchestrator:
 
     def _print_orchestration_summary(self, result: SetupSequenceResult) -> None:
         """Print orchestration summary."""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🎯 SETUP ORCHESTRATION SUMMARY")
-        print("="*60)
+        print("=" * 60)
 
         status_icon = "✅" if result.success else "❌"
         print(f"{status_icon} Status: {'SUCCESS' if result.success else 'FAILED'}")
@@ -136,7 +135,7 @@ class ModernSetupOrchestrator:
             for warning in result.warnings:
                 print(f"  • {warning}")
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
 
 
 # Convenience functions for backward compatibility
