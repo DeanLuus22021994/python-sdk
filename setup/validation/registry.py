@@ -13,7 +13,6 @@ from .base import BaseValidator, ValidationContext
 __all__ = [
     "ValidationRegistry",
     "register_validator",
-    "get_registered_validators",
     "get_global_registry",
 ]
 
@@ -52,6 +51,15 @@ class ValidationRegistry:
         if name not in self._factories:
             raise ValueError(f"Unknown validator: {name}")
         return self._factories[name](context)
+
+    def get_validator(
+        self, name: str, context: ValidationContext
+    ) -> BaseValidator[Any] | None:
+        """Get a validator instance, returning None if not found."""
+        try:
+            return self.create_validator(name, context)
+        except ValueError:
+            return None
 
     def list_validators(self) -> list[str]:
         """List registered validator names."""

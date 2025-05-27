@@ -98,9 +98,7 @@ class ModernSetupOrchestrator:
 
             env_success = await self._setup_environment()
             if not env_success:
-                errors.append("Environment setup failed")
-
-            # Phase 3: Tools setup
+                errors.append("Environment setup failed")            # Phase 3: Tools setup
             if self.verbose:
                 print("🛠️  Phase 3: Tools setup...")
 
@@ -117,7 +115,9 @@ class ModernSetupOrchestrator:
 
         except Exception as e:
             errors.append(f"Setup orchestration failed: {e}")
-            return SetupSequenceResult(False, mode, errors, warnings, metadata)    async def validate_environment(self) -> ValidationDetails:
+            return SetupSequenceResult(False, mode, errors, warnings, metadata)
+
+    async def validate_environment(self) -> ValidationDetails:
         """Validate complete environment."""
         try:
             # Use validation registry for validation
