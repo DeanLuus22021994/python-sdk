@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import gc
+import json as stdlib_json
 import os
 import sys
+import time
 
 # Import necessary asyncio types properly for typing
 from asyncio.locks import Lock
@@ -109,24 +111,24 @@ class PerformanceOptimizer:
         gc.disable()
         gc.set_threshold(700, 10, 10)
         if os.getenv("FASTMCP_DEBUG", "").lower() == "true":
-            print("GC optimization applied")
+            gc.set_debug(gc.DEBUG_STATS)
 
     def setup_event_loop(self) -> None:
         """Set up a high-performance event loop."""
         if UVLOOP_AVAILABLE and sys.platform != "win32":
-            assert _uvloop_module is not None
-            _uvloop_module.install()
+            if _uvloop_module is not None:
+                _uvloop_module.install()
 
     def optimize_json_serialization(self, data: Any) -> bytes:
         """High-performance JSON serialization."""
         if self.json_backend == "orjson" and _orjson is not None:
             return _orjson.dumps(data)
         elif self.json_backend == "ujson" and _ujson is not None:
-            return _ujson.dumps(data).encode("utf-8")
+            result: str = _ujson.dumps(data)
+            return result.encode("utf-8")
         else:
-            import json
-
-            return json.dumps(data).encode("utf-8")
+            result = stdlib_json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+            return result.encode("utf-8")
 
     def optimize_json_deserialization(self, data: bytes | str) -> Any:
         """High-performance JSON deserialization."""
@@ -140,9 +142,7 @@ class PerformanceOptimizer:
         elif self.json_backend == "ujson" and _ujson is not None:
             return _ujson.loads(data_bytes.decode("utf-8"))
         else:
-            import json
-
-            return json.loads(data_bytes.decode("utf-8"))
+            return stdlib_json.loads(data_bytes.decode("utf-8"))
 
     def compress_data(self, data: bytes, algorithm: str = "lz4") -> bytes:
         """High-performance data compression."""
@@ -150,9 +150,9 @@ class PerformanceOptimizer:
             return data
 
         if algorithm == "lz4" and LZ4_AVAILABLE and _lz4 is not None:
-            return _lz4.compress(data)
+            return _lz4.compress(data, compression_level=1)
         elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd is not None:
-            compressor = _zstd.ZstdCompressor()
+            compressor = _zstd.ZstdCompressor(level=1)
             return compressor.compress(data)
 
         return data
@@ -188,8 +188,8 @@ class PerformanceOptimizer:
 
     def optimize_asyncio_task(self, coro: Coroutine[Any, Any, T]) -> Task[T]:
         """Create and return an optimized asyncio task with a name."""
-        # Fix: Ensure we're only accepting Coroutine objects, not Awaitable
-        task = asyncio.create_task(coro)
+        # Create a task from the coroutine - fixed type annotation
+        task: Task[T] = asyncio.create_task(coro)
         task_id: int = id(cast(object, task))
         task.set_name(f"mcp_task_{task_id}")
         return task
@@ -238,9 +238,19 @@ class ConnectionPool:
             if key in self._pool:
                 return self._pool[key]
 
-            conn = await self._create_connection(key)
-            self._pool[key] = conn
-            return conn
+            # Check if we can create a new connection within the pool size limit
+            if len(self._pool) < self.max_size:
+                conn = await self._create_connection(key)
+                self._pool[key] = conn
+                return conn
+
+            # Check if we can create an overflow connection
+            if self._overflow_counter < self.max_overflow:
+                self._overflow_counter += 1
+                return await self._create_connection(key)
+
+            # If we've reached both limits, return an existing connection as fallback
+            return next(iter(self._pool.values()))
 
     async def _create_connection(self, key: str) -> Any:
         """
@@ -259,6 +269,9 @@ class ConnectionPool:
         """
         if self._lock is not None:
             async with self._lock:
+                for connection in self._pool.values():
+                    if hasattr(connection, "close") and callable(connection.close):
+                        await connection.close()
                 self._pool.clear()
                 self._overflow_counter = 0
 
@@ -268,7 +281,7 @@ class PerformanceMonitor:
 
     def __init__(self) -> None:
         self.metrics: dict[str, list[dict[str, Any]]] = {}
-        self.start_time = asyncio.get_event_loop().time()
+        self.start_time: float = time.monotonic()
 
     def record_metric(
         self, name: str, value: float, tags: dict[str, str] | None = None
@@ -277,23 +290,27 @@ class PerformanceMonitor:
         if name not in self.metrics:
             self.metrics[name] = []
 
-        metric_data = {"value": value, "timestamp": asyncio.get_event_loop().time()}
-        if tags:
-            metric_data["tags"] = tags
+        # Fixed: Use proper typing and avoid duplicate append
+        metric_data: dict[str, Any] = {
+            "value": value,
+            "timestamp": time.monotonic(),
+            "tags": tags or {},
+        }
 
         self.metrics[name].append(metric_data)
 
     def get_stats(self, name: str) -> dict[str, float]:
         """Get statistics for a specific metric."""
         if name not in self.metrics or not self.metrics[name]:
-            return {"count": 0, "min": 0, "max": 0, "avg": 0}
+            return {"count": 0.0, "min": 0.0, "max": 0.0, "avg": 0.0, "total": 0.0}
 
-        values = [m["value"] for m in self.metrics[name]]
+        values: list[float] = [m["value"] for m in self.metrics[name]]
         return {
-            "count": len(values),
+            "count": float(len(values)),
             "min": min(values),
             "max": max(values),
             "avg": sum(values) / len(values),
+            "total": sum(values),
         }
 
     def get_all_metrics(self) -> dict[str, dict[str, float]]:
@@ -306,7 +323,8 @@ class PerformanceMonitor:
 
     def get_uptime(self) -> float:
         """Get uptime in seconds."""
-        return asyncio.get_event_loop().time() - self.start_time
+        current_time: float = time.monotonic()
+        return current_time - self.start_time
 
 
 class DockerVolumeManager:
@@ -321,7 +339,7 @@ class DockerVolumeManager:
 
     def __init__(self, workspace_root: Path) -> None:
         """Initialize Docker volume manager."""
-        self.workspace_root = workspace_root
+        self.workspace_root = Path(workspace_root)
         self.volume_dirs = {
             "data": workspace_root / "data",
             "postgres": workspace_root / "data" / "postgres",
@@ -370,7 +388,7 @@ class DockerVolumeManager:
 
     def get_volume_status(self) -> dict[str, bool]:
         """Get volume status."""
-        status = {}
+        status: dict[str, bool] = {}
         for name, path in self.volume_dirs.items():
             status[name] = path.exists()
         return status

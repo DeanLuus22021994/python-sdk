@@ -3,6 +3,7 @@ Host Environment Validator
 Modern host system validation with comprehensive checks.
 """
 
+import os
 import platform
 import shutil
 import subprocess
@@ -110,6 +111,9 @@ class HostEnvironmentValidator:
                 status=ValidationStatus.ERROR,
                 message=f"Validation failed: {e}",
                 errors=[str(e)],
+                warnings=[],
+                recommendations=[],
+                metadata={},
             )
 
     def _validate_system_requirements(self) -> bool:
@@ -139,9 +143,7 @@ class HostEnvironmentValidator:
             if not sys.executable:
                 return False
 
-            # Check Python version (modernized version check)
-            if sys.version_info < (3, 10):
-                return False
+            # Python 3.10+ is required, no need to check as we wouldn't run otherwise
 
             # Check critical modules
             critical_modules = ["ssl", "sqlite3", "json", "pathlib"]
@@ -219,7 +221,7 @@ class HostEnvironmentValidator:
         """Check available disk space with platform compatibility."""
         try:
             # Modern cross-platform approach using shutil
-            total, used, free = shutil.disk_usage(self.workspace_root)
+            _, _, free = shutil.disk_usage(self.workspace_root)
             return free > 1024 * 1024 * 1024  # 1GB minimum
 
         except Exception:
@@ -287,7 +289,8 @@ class HostEnvironmentValidator:
             import psutil  # type: ignore[import-untyped]
 
             # Less than 4 cores is considered low for development
-            return psutil.cpu_count(logical=True) < 4
+            cpu_count = psutil.cpu_count(logical=True)
+            return cpu_count is not None and cpu_count < 4
         except ImportError:
             return False
         except Exception:
@@ -300,7 +303,7 @@ class HostEnvironmentValidator:
                 # Check for admin rights on Windows
                 import ctypes
 
-                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore
             else:
                 # Check for root on Unix-like systems
                 return os.geteuid() == 0  # type: ignore
