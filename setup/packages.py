@@ -3,8 +3,8 @@ Package Configuration
 Centralized package definitions and management for the MCP Python SDK setup
 """
 
-import importlib.util
-import platform
+import subprocess
+import sys
 from collections import defaultdict
 from functools import lru_cache
 
@@ -20,13 +20,13 @@ REQUIRED_PACKAGES: list[str] = [
     "ujson",
     "xxhash",
     "zstandard",
-    "docker",  # Docker SDK for Python
-    "pyyaml",  # YAML handling
+    "docker",
+    "pyyaml",
 ]
 
 # Platform-specific packages with their supported platforms
 PLATFORM_PACKAGES: dict[str, list[str]] = {
-    "uvloop": ["linux", "darwin"],  # Unix-like systems only
+    "uvloop": ["linux", "darwin"],
 }
 
 # Development packages (optional)
@@ -46,75 +46,63 @@ PERF_PACKAGES: list[str] = [
 
 
 @lru_cache(maxsize=128)
-def get_packages_for_platform(
-    include_dev: bool = False, include_performance: bool = False
-) -> list[str]:
+def get_packages_for_platform(platform: str | None = None) -> list[str]:
     """
-    Get all packages that should be installed for the current platform.
+    Get packages appropriate for the current or specified platform.
 
     Args:
-        include_dev: Whether to include development packages
-        include_performance: Whether to include performance optimization packages
+        platform: Platform name (linux, darwin, win32). If None, uses current platform.
 
     Returns:
-        List of package names to install
+        List of package names suitable for the platform
     """
+    if platform is None:
+        platform = sys.platform
+
     packages = REQUIRED_PACKAGES.copy()
-    current_platform = platform.system().lower()
 
     # Add platform-specific packages
     for package, supported_platforms in PLATFORM_PACKAGES.items():
-        if current_platform in supported_platforms:
+        if platform in supported_platforms:
             packages.append(package)
-
-    # Add development packages if requested
-    if include_dev:
-        packages.extend(DEV_PACKAGES)
-
-    # Add performance packages if requested
-    if include_performance:
-        packages.extend(PERF_PACKAGES)
 
     return packages
 
 
 def get_platform_package_status() -> dict[str, bool]:
     """
-    Get the installation status of platform-specific packages.
+    Get status of platform-specific packages.
 
     Returns:
-        Dictionary mapping package names to whether they should be installed
+        Dictionary mapping package names to availability status
     """
-    current_platform = platform.system().lower()
-    return {
-        package: current_platform in supported_platforms
-        for package, supported_platforms in PLATFORM_PACKAGES.items()
-    }
+    status = {}
+    current_platform = sys.platform
+
+    for package, supported_platforms in PLATFORM_PACKAGES.items():
+        status[package] = current_platform in supported_platforms
+
+    return status
 
 
 def normalize_package_name(package: str) -> str:
     """
-    Normalize package name for import (replace hyphens with underscores).
+    Normalize package name for import checking.
 
     Args:
-        package: The package name as it appears in pip
+        package: Package name to normalize
 
     Returns:
-        The package name as it should be imported
+        Normalized package name
     """
-    # Special mappings for packages with different import names
-    special_mappings = {
-        "pyyaml": "yaml",
+    # Handle common package name to import name mappings
+    name_mappings = {
         "httpx-sse": "httpx_sse",
-        "sse-starlette": "sse_starlette",
         "pydantic-ai": "pydantic_ai",
-        "pytest-asyncio": "pytest_asyncio",
+        "sse-starlette": "sse_starlette",
     }
 
-    if package in special_mappings:
-        return special_mappings[package]
-
-    return package.replace("-", "_")
+    return name_mappings.get(package, package.replace("-", "_"))
 
 
 def check_package_installed(package: str) -> bool:
@@ -122,59 +110,51 @@ def check_package_installed(package: str) -> bool:
     Check if a package is installed.
 
     Args:
-        package: The package name
+        package: Package name to check
 
     Returns:
-        True if the package is installed, False otherwise
+        True if package is installed, False otherwise
     """
-    module_name = normalize_package_name(package)
-    return importlib.util.find_spec(module_name) is not None
+    try:
+        normalized_name = normalize_package_name(package)
+        __import__(normalized_name)
+        return True
+    except ImportError:
+        return False
 
 
 def get_package_dependencies(packages: list[str]) -> dict[str, set[str]]:
     """
-    Get dependencies for the given packages.
+    Get dependencies for a list of packages.
 
     Args:
         packages: List of package names
 
     Returns:
-        Dictionary mapping package names to sets of dependency package names
+        Dictionary mapping package names to their dependencies
     """
-    try:
-        import pkg_resources
-
-        dependencies = defaultdict(set)
-        for package in packages:
-            try:
-                dist = pkg_resources.get_distribution(package)
-                for req in dist.requires():
-                    dependencies[package].add(req.project_name)
-            except pkg_resources.DistributionNotFound:
-                pass
-        return dependencies
-    except ImportError:
-        # pkg_resources not available, return empty dependencies
-        return {package: set() for package in packages}
-
-
-def get_missing_packages(packages: list[str]) -> tuple[list[str], list[str]]:
-    """
-    Check which packages are missing and which are installed.
-
-    Args:
-        packages: List of package names to check
-
-    Returns:
-        Tuple of (missing_packages, installed_packages)
-    """
-    missing = []
-    installed = []
+    dependencies: dict[str, set[str]] = defaultdict(set)
 
     for package in packages:
-        if check_package_installed(package):
-            installed.append(package)
-        else:
-            missing.append(package)
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "show", package],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
 
-    return missing, installed
+            for line in result.stdout.split("\n"):
+                if line.startswith("Requires:"):
+                    deps = line.split(":", 1)[1].strip()
+                    if deps and deps != "":
+                        dependencies[package] = set(
+                            dep.strip() for dep in deps.split(",") if dep.strip()
+                        )
+                    break
+
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # Package not installed or pip not available
+            continue
+
+    return dict(dependencies)

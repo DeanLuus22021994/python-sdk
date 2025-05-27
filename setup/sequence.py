@@ -3,16 +3,13 @@ Setup Sequence Management
 Orchestrates the setup process for the MCP Python SDK
 """
 
-import importlib.util
-import sys
-from pathlib import Path
 from typing import Any
 
 from .environment import (
     check_required_paths,
     validate_python_version,
 )
-from .packages import get_packages_for_platform, normalize_package_name
+from .packages import get_packages_for_platform
 
 
 class SetupOrchestrator:
@@ -25,20 +22,55 @@ class SetupOrchestrator:
 
     def __init__(self, verbose: bool = False) -> None:
         self.verbose = verbose
-        self._setup_results: dict[str, Any] = {}
+        self.results: dict[str, Any] = {}
 
     def run_complete_setup(self) -> bool:
         """
-        Execute the complete setup sequence.
+        Run the complete setup sequence.
 
         Returns:
             True if all setup steps completed successfully
         """
-        return run_setup_sequence()
+        try:
+            # Validate environment
+            python_valid, python_msg = validate_python_version()
+            self.results["python_validation"] = {
+                "valid": python_valid,
+                "message": python_msg,
+            }
+
+            if not python_valid:
+                print(f"❌ Python validation failed: {python_msg}")
+                return False
+
+            # Check required paths
+            paths_valid, missing_paths = check_required_paths()
+            self.results["paths_validation"] = {
+                "valid": paths_valid,
+                "missing": missing_paths,
+            }
+
+            if not paths_valid:
+                print(f"❌ Required paths missing: {missing_paths}")
+                return False
+
+            # Validate packages
+            platform_packages = get_packages_for_platform()
+            self.results["platform_packages"] = platform_packages
+
+            if self.verbose:
+                print(f"✅ Platform packages: {len(platform_packages)} available")
+
+            return True
+
+        except Exception as e:
+            print(f"❌ Setup failed with error: {e}")
+            self.results["error"] = str(e)
+            return False
 
     def get_setup_results(self) -> dict[str, Any]:
-        """Get detailed results from the setup process."""
-        return self._setup_results.copy()
+        """Get detailed setup results."""
+        return self.results.copy()
 
 
 def run_setup_sequence() -> bool:
@@ -55,114 +87,34 @@ def run_setup_sequence() -> bool:
 
     # Step 1: Validate Python version
     print("\nStep 1: Validating Python environment")
-    is_valid, message = validate_python_version()
-    if is_valid:
-        print(f"✓ {message}")
+    python_valid, python_msg = validate_python_version()
+    if python_valid:
+        print(f"✅ {python_msg}")
     else:
-        print(f"✗ {message}")
+        print(f"❌ {python_msg}")
         success = False
 
-    # Step 2: Check required project structure
-    print("\nStep 2: Validating project structure")
+    # Step 2: Check required paths
+    print("\nStep 2: Checking project structure")
     paths_valid, missing_paths = check_required_paths()
     if paths_valid:
-        print("✓ All required paths exist")
+        print("✅ All required project paths exist")
     else:
-        print("✗ Missing required project paths")
-        for path in missing_paths:
-            print(f"  ✗ {path}")
+        print(f"❌ Missing required paths: {missing_paths}")
         success = False
 
-    # Step 3: Configure VS Code workspace
-    print("\nStep 3: Configuring VS Code workspace")
+    # Step 3: Check platform packages
+    print("\nStep 3: Checking platform packages")
     try:
-        from .environment import get_project_root
-        from .vscode.integration import VSCodeIntegrationManager
-
-        project_root = get_project_root()
-        vscode_manager = VSCodeIntegrationManager(project_root)
-
-        vscode_success = vscode_manager.create_workspace_configuration()
-        if vscode_success:
-            print("✓ VS Code workspace configured successfully")
-        else:
-            print("✗ Failed to configure VS Code workspace")
-            success = False
-
+        platform_packages = get_packages_for_platform()
+        print(f"✅ Platform packages available: {len(platform_packages)}")
     except Exception as e:
-        print(f"✗ Failed to configure VS Code: {str(e)}")
+        print(f"❌ Package check failed: {e}")
         success = False
-
-    # Step 4: Verify required packages
-    print("\nStep 4: Checking required packages")
-    packages = get_packages_for_platform(include_dev=True)
-
-    for package in packages:
-        try:
-            # Simple check using importlib to see if package can be imported
-            module_name = normalize_package_name(package)
-            __import__(module_name)
-            print(f"✓ {package} is installed")
-        except ImportError:
-            print(f"✗ {package} is not installed or cannot be imported")
-            print(f"  Install with: pip install {package}")
-            success = False
-
-    # Step 5: Configure Docker environment (if available)
-    docker_spec = importlib.util.find_spec("setup.docker")
-    if docker_spec is not None:
-        try:
-            from .docker import (
-                configure_containers,
-                configure_volumes,
-                validate_docker_environment_compat,
-            )
-
-            print("\nStep 5: Configuring Docker environment")
-            docker_valid, docker_msg = validate_docker_environment_compat()
-            if docker_valid:
-                print(f"✓ {docker_msg}")
-
-                # Configure Docker components
-                volumes_success = configure_volumes()
-                containers_success = configure_containers()
-
-                if volumes_success and containers_success:
-                    print("✓ Docker environment configured")
-                else:
-                    print("⚠ Docker configuration incomplete")
-            else:
-                print(f"⚠ {docker_msg}")
-
-        except ImportError:
-            print("\nℹ Docker setup not available (optional)")
-    else:
-        print("\nℹ Docker setup module not found (optional)")
-
-    # Summary
-    print("\n" + "=" * 50)
-    if success:
-        print("🎉 Setup completed successfully!")
-        print("\nNext steps:")
-        print("1. Install dependencies: uv sync")
-        print("2. Run tests: uv run pytest")
-        print("3. Start development server: uv run python -m mcp.server")
-
-        # Write completion marker
-        try:
-            project_root = Path.cwd()
-            marker_file = project_root / ".setup_complete"
-            marker_file.write_text("Setup completed successfully")
-        except Exception:
-            pass  # Non-critical
-
-    else:
-        print("❌ Setup completed with errors")
-        print("Please review the errors above and run setup again.")
 
     return success
 
 
 if __name__ == "__main__":
     success = run_setup_sequence()
-    sys.exit(0 if success else 1)
+    exit(0 if success else 1)

@@ -7,122 +7,65 @@ from pathlib import Path
 from typing import Any
 
 from .environment.constants import (
-    PERFORMANCE_SETTINGS,
     REQUIRED_PROJECT_PATHS,
 )
 from .environment.path_utils import get_project_root
 from .environment.python_validator import (
     get_environment_info,
-    validate_python_environment,
     validate_python_version,
 )
-from .types import SetupMode, ValidationDetails, ValidationStatus
+from .typings import SetupMode, ValidationDetails, ValidationStatus
 from .vscode.integration import VSCodeIntegrationManager
 
 
 class EnvironmentManager:
     """
-    Comprehensive environment management for MCP Python SDK setup.
+    Comprehensive environment management for the MCP Python SDK setup.
 
-    Coordinates Python environment validation, project structure verification,
-    and VS Code workspace configuration.
+    Coordinates environment validation, configuration, and optimization
+    for development environments.
     """
 
-    def __init__(
-        self, workspace_root: Path | None = None, verbose: bool = False
-    ) -> None:
-        """
-        Initialize environment manager.
-
-        Args:
-            workspace_root: Root directory of the workspace (auto-detected if None)
-            verbose: Enable verbose logging
-        """
-        self.workspace_root = Path(workspace_root or get_project_root()).resolve()
-        self.verbose = verbose
+    def __init__(self, workspace_root: Path, mode: SetupMode = SetupMode.HOST) -> None:
+        self.workspace_root = Path(workspace_root).resolve()
+        self.mode = mode
         self.vscode_manager = VSCodeIntegrationManager(self.workspace_root)
 
-    def setup_environment(self, mode: SetupMode = SetupMode.HOST) -> bool:
-        """
-        Set up complete development environment.
+    def validate_complete_environment(self) -> ValidationDetails:
+        """Validate the complete development environment."""
+        # Use python validator from environment module
+        python_valid, python_msg = validate_python_version()
 
-        Args:
-            mode: Setup mode (host, docker, or hybrid)
-
-        Returns:
-            True if setup completed successfully
-        """
-        try:
-            success = True
-
-            if self.verbose:
-                print(f"Setting up environment in {mode.value} mode")
-
-            # Validate Python environment
-            python_validation = validate_python_environment()
-            if not python_validation.get("valid", False):
-                print("❌ Python environment validation failed")
-                success = False
-
-            return success
-
-        except Exception as e:
-            if self.verbose:
-                print(f"Environment setup failed: {e}")
-            return False
-
-    def validate_environment(self) -> ValidationDetails:
-        """
-        Validate complete development environment.
-
-        Returns:
-            ValidationDetails with comprehensive validation results
-        """
-        try:
-            warnings: list[str] = []
-            errors: list[str] = []
-            recommendations: list[str] = []
-
-            # Validate Python
-            python_valid, python_msg = validate_python_version()
-            if not python_valid:
-                errors.append(python_msg)
-
-            # Validate project structure
-            paths_valid, missing_paths = check_required_paths()
-            if not paths_valid:
-                errors.extend(
-                    [f"Missing required path: {path}" for path in missing_paths]
-                )
-
-            # Determine overall status
-            if errors:
-                status = ValidationStatus.ERROR
-                is_valid = False
-            elif warnings:
-                status = ValidationStatus.WARNING
-                is_valid = True
-            else:
-                status = ValidationStatus.VALID
-                is_valid = True
-
+        if python_valid:
             return ValidationDetails(
-                is_valid=is_valid,
-                status=status,
-                message="Environment validation complete",
-                warnings=warnings,
-                errors=errors,
-                recommendations=recommendations,
-                metadata={"workspace_root": str(self.workspace_root)},
+                is_valid=True,
+                status=ValidationStatus.VALID,
+                message=python_msg,
+                component_name="Environment",
             )
-
-        except Exception as e:
+        else:
             return ValidationDetails(
                 is_valid=False,
                 status=ValidationStatus.ERROR,
-                message=f"Validation failed: {e}",
-                errors=[str(e)],
+                message=python_msg,
+                errors=[python_msg],
+                component_name="Environment",
             )
+
+    def setup_environment(self) -> bool:
+        """Set up the complete development environment."""
+        try:
+            # Validate environment first
+            validation = self.validate_complete_environment()
+            if not validation.is_valid:
+                return False
+
+            # Set up VS Code configuration
+            vscode_success = self.vscode_manager.create_workspace_configuration()
+
+            return vscode_success
+        except Exception:
+            return False
 
 
 def check_required_paths() -> tuple[bool, list[str]]:
@@ -130,128 +73,132 @@ def check_required_paths() -> tuple[bool, list[str]]:
     Check if all required project paths exist.
 
     Returns:
-        Tuple of (all_required_exist, missing_paths)
+        Tuple of (all_exist, missing_paths)
     """
-    try:
-        project_root = get_project_root()
-        missing_paths: list[str] = []
+    project_root = get_project_root()
+    missing_paths = []
 
-        # Check required paths
-        for path_str in REQUIRED_PROJECT_PATHS:
-            path = project_root / path_str
-            if not path.exists():
-                missing_paths.append(path_str)
+    for path_str in REQUIRED_PROJECT_PATHS:
+        path = project_root / path_str
+        if not path.exists():
+            missing_paths.append(path_str)
 
-        # All required paths must exist
-        all_required_exist = len(missing_paths) == 0
-
-        return all_required_exist, missing_paths
-
-    except Exception:
-        return False, ["Unable to check project structure"]
+    return len(missing_paths) == 0, missing_paths
 
 
 def get_current_environment_status() -> dict[str, Any]:
-    """
-    Get comprehensive current environment status.
-
-    Returns:
-        Dictionary with detailed environment information
-    """
+    """Get current environment status and information."""
     try:
-        # Get Python environment info
-        python_info = get_environment_info()
-
-        # Get project structure info
+        env_info = get_environment_info()
+        python_valid, python_msg = validate_python_version()
         paths_valid, missing_paths = check_required_paths()
 
-        # Get VS Code status
-        workspace_root = get_project_root()
-        vscode_manager = VSCodeIntegrationManager(workspace_root)
-        vscode_status = vscode_manager.get_workspace_status()
-
         return {
-            "workspace_root": str(workspace_root),
-            "python_environment": python_info,
-            "project_structure": {
-                "valid": paths_valid,
-                "missing_paths": missing_paths,
-            },
-            "vscode_workspace": vscode_status,
-            "performance_settings": PERFORMANCE_SETTINGS.__dict__,
+            "python_version": str(env_info.get("python_version", "unknown")),
+            "python_valid": python_valid,
+            "python_message": python_msg,
+            "virtual_env": env_info.get("virtual_env_active", False),
+            "platform": env_info.get("platform_system", "unknown"),
+            "paths_valid": paths_valid,
+            "missing_paths": missing_paths,
         }
-
     except Exception as e:
-        return {"error": str(e), "status": "error"}
+        return {
+            "error": str(e),
+            "python_valid": False,
+            "paths_valid": False,
+        }
 
 
 # Export utility functions for backward compatibility
 def create_vscode_directory() -> Path:
-    """Create VS Code directory and return its path."""
-    from .vscode.settings import VSCodeSettingsManager
-
+    """Create VS Code directory in project root."""
     project_root = get_project_root()
-    settings_manager = VSCodeSettingsManager(project_root)
-    settings_manager.vscode_dir.mkdir(exist_ok=True)
-    return settings_manager.vscode_dir
+    vscode_dir = project_root / ".vscode"
+    vscode_dir.mkdir(exist_ok=True)
+    return vscode_dir
 
 
 def get_modern_vscode_settings() -> dict[str, Any]:
-    """Get modern VS Code settings configuration."""
-    from .vscode.settings import VSCodeSettingsManager
-
-    project_root = get_project_root()
-    settings_manager = VSCodeSettingsManager(project_root)
-    return settings_manager.get_modern_settings()
+    """Get modern VS Code settings for Python development."""
+    return {
+        "python.analysis.typeCheckingMode": "basic",
+        "python.linting.enabled": True,
+        "python.linting.pylintEnabled": False,
+        "python.linting.flake8Enabled": True,
+        "python.formatting.provider": "black",
+        "python.testing.pytestEnabled": True,
+        "python.testing.unittestEnabled": False,
+        "files.exclude": {
+            "**/__pycache__": True,
+            "**/.pytest_cache": True,
+            "**/.mypy_cache": True,
+            "**/dist": True,
+            "**/build": True,
+        },
+        "editor.formatOnSave": True,
+        "editor.codeActionsOnSave": {"source.organizeImports": True},
+    }
 
 
 def should_create_settings_json() -> bool:
-    """Check if settings.json should be created."""
-    from .vscode.settings import VSCodeSettingsManager
-
+    """Check if VS Code settings.json should be created."""
     project_root = get_project_root()
-    settings_manager = VSCodeSettingsManager(project_root)
-    return settings_manager.should_create_settings()
+    settings_path = project_root / ".vscode" / "settings.json"
+    return not settings_path.exists()
 
 
 def get_modern_launch_config() -> dict[str, Any]:
-    """Get modern launch configuration."""
-    from .vscode.launch import VSCodeLaunchManager
-
-    project_root = get_project_root()
-    launch_manager = VSCodeLaunchManager(project_root)
-    return launch_manager.get_launch_config()
+    """Get modern launch configuration for debugging."""
+    return {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Python: Current File",
+                "type": "python",
+                "request": "launch",
+                "program": "${file}",
+                "console": "integratedTerminal",
+                "cwd": "${workspaceFolder}",
+            },
+            {
+                "name": "Python: MCP Server",
+                "type": "python",
+                "request": "launch",
+                "program": "${workspaceFolder}/src/mcp/server/__main__.py",
+                "console": "integratedTerminal",
+                "cwd": "${workspaceFolder}",
+                "env": {"PYTHONPATH": "${workspaceFolder}/src"},
+            },
+        ],
+    }
 
 
 def get_modern_tasks_config() -> dict[str, Any]:
     """Get modern tasks configuration."""
-    from .vscode.tasks import VSCodeTasksManager
-
-    project_root = get_project_root()
-    tasks_manager = VSCodeTasksManager(project_root)
-    return tasks_manager.get_tasks_config()
+    return {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Python: Run Tests",
+                "type": "shell",
+                "command": "python",
+                "args": ["-m", "pytest"],
+                "group": "test",
+                "presentation": {"echo": True, "reveal": "always"},
+            }
+        ],
+    }
 
 
 def create_vscode_extensions_config() -> dict[str, Any]:
     """Create VS Code extensions configuration."""
-    from .vscode.extensions import VSCodeExtensionsManager
-
-    project_root = get_project_root()
-    extensions_manager = VSCodeExtensionsManager(project_root)
-    return extensions_manager.get_extensions_config()
-
-
-__all__ = [
-    "EnvironmentManager",
-    "check_required_paths",
-    "get_current_environment_status",
-    "validate_python_version",
-    "validate_python_environment",
-    "get_environment_info",
-    "create_vscode_directory",
-    "get_modern_vscode_settings",
-    "should_create_settings_json",
-    "get_modern_launch_config",
-    "get_modern_tasks_config",
-    "create_vscode_extensions_config",
-]
+    return {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "ms-python.debugpy",
+            "ms-python.black-formatter",
+            "charliermarsh.ruff",
+        ]
+    }

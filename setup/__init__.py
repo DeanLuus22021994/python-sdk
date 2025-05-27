@@ -21,16 +21,16 @@ from .sequence import SetupOrchestrator
 try:
     from .host import HostSetupManager
 except ImportError:
-    HostSetupManager = None  # type: ignore
+    HostSetupManager = None
 
 # Docker setup capabilities
 try:
     from .docker import DockerSetupManager
 except ImportError:
-    DockerSetupManager = None  # type: ignore
+    DockerSetupManager = None
 
 # Type exports for better IDE support
-from .types import (
+from .typings import (
     ContainerConfig,
     DockerInfo,
     EnvironmentInfo,
@@ -39,7 +39,6 @@ from .types import (
     PerformanceSettings,
     ProjectStructureInfo,
     PythonVersion,
-    SetupContext,
     SetupMode,
     ValidationDetails,
     ValidationStatus,
@@ -49,6 +48,7 @@ from .types import (
 __all__ = [
     "__version__",
     "__author__",
+    # Core managers
     "EnvironmentManager",
     "SetupOrchestrator",
     "HostSetupManager",
@@ -62,7 +62,6 @@ __all__ = [
     "PerformanceSettings",
     "ProjectStructureInfo",
     "PythonVersion",
-    "SetupContext",
     "SetupMode",
     "ValidationDetails",
     "ValidationStatus",

@@ -14,11 +14,11 @@ sys.path.insert(0, str(project_root))
 
 try:
     from setup import sequence
-    from setup.types import LogLevel, SetupMode
+    from setup.typings import LogLevel, SetupMode
 except ImportError:
     # Fallback to direct import if package import fails
     from . import sequence
-    from .types import LogLevel, SetupMode
+    from .typings import LogLevel, SetupMode
 
 
 def parse_args() -> argparse.Namespace:
