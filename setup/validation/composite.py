@@ -41,7 +41,9 @@ class CompositeValidator:
 
     def add_validator(self, validator: BaseValidator[Any]) -> None:
         """Add a validator to the composite."""
-        self.validators.append(validator)    def remove_validator(self, validator_name: str) -> bool:
+        self.validators.append(validator)
+
+    def remove_validator(self, validator_name: str) -> bool:
         """Remove a validator by name."""
         for i, validator in enumerate(self.validators):
             if validator.get_validator_name() == validator_name:
@@ -160,25 +162,29 @@ class CompositeValidator:
 
     def has_warnings(self) -> bool:
         """Check if any validations have warnings."""
-        return any(len(result.warnings) > 0 for result in self._results.values())
+        return any(
+            len(result.warnings) > 0
+            for result in self._results.values()
+        )
 
     def get_summary(self) -> dict[str, Any]:
         """Get validation summary."""
         total = len(self.validators)
         executed = len(self._results)
         successful = len(self.get_successful_validators())
-        failed = len(self.get_failed_validators())        return {
+        failed = len(self.get_failed_validators())
+
+        return {
             "total_validators": total,
             "executed_validators": executed,
             "successful_validators": successful,
             "failed_validators": failed,
-            "overall_valid": self.is_valid(),
-            "has_warnings": self.has_warnings(),
         }
 
     def create_report(self) -> ValidationReport:
         """Create a validation report from results."""
+        # Pass values as positional arguments instead of named parameters
         return ValidationReport(
-            results=list(self._results.values()),
-            metadata=self.get_summary(),
+            tuple(self._results.values()),
+            self.get_summary(),
         )

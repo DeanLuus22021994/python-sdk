@@ -25,13 +25,14 @@ __all__ = [
 
 
 @dataclass(slots=True, frozen=True)
-class ValidationReport:
-    """
+class ValidationReport:    """
     Comprehensive validation report.
 
     Aggregates multiple validation results into a structured report
     with summary statistics and detailed findings.
-    """    timestamp: float = field(default_factory=time.time)
+    """
+
+    timestamp: float = field(default_factory=time.time)
     results: tuple[ValidationResult[Any], ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
 
