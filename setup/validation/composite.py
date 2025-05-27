@@ -183,8 +183,8 @@ class CompositeValidator:
 
     def create_report(self) -> ValidationReport:
         """Create a validation report from results."""
-        # Pass values as positional arguments instead of named parameters
+        # Use named parameters to ensure correct argument assignment
         return ValidationReport(
-            tuple(self._results.values()),
-            self.get_summary(),
+            results=tuple(self._results.values()),
+            metadata=self.get_summary(),
         )
