@@ -30,7 +30,7 @@ class VSCodeExtension(TypedDict):
     enabled: bool
 
 
-@dataclass(slots=True)
+@dataclass
 class VSCodeConfig:
     """
     VS Code configuration settings with comprehensive workspace support.
@@ -168,7 +168,7 @@ class VSCodeConfig:
         }
 
 
-@dataclass(slots=True)
+@dataclass
 class DockerInfo:
     """
     Docker environment information with comprehensive container management.
@@ -198,7 +198,6 @@ class DockerInfo:
             # Set a default version if Docker is available but version is unknown
             self.docker_version = (0, 0, 0)
 
-    @property
     def version_string(self) -> str:
         """Get Docker version as a string."""
         if self.docker_version:
@@ -217,7 +216,7 @@ class DockerInfo:
         """Check if Docker has modern features (BuildKit, etc.)."""
         return (
             self.buildkit_available
-            and self.docker_version
+            and self.docker_version is not None
             and self.docker_version >= (20, 10, 0)
         )
 
@@ -255,7 +254,7 @@ class DockerInfo:
         }
 
 
-@dataclass(slots=True)
+@dataclass
 class DockerConfig:
     """
     Docker configuration for development environment setup.
