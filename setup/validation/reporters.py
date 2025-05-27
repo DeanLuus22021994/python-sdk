@@ -31,11 +31,20 @@ class ValidationReport:
 
     Aggregates multiple validation results into a structured report
     with summary statistics and detailed findings.
-    """
-
-    timestamp: float = field(default_factory=time.time)
+    """    timestamp: float = field(default_factory=time.time)
     results: tuple[ValidationResult[Any], ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __init__(
+        self,
+        timestamp: float = None,
+        results: list[ValidationResult[Any]] | tuple[ValidationResult[Any], ...] = None,
+        metadata: dict[str, Any] = None
+    ) -> None:
+        """Initialize the validation report with proper type handling."""
+        object.__setattr__(self, "timestamp", timestamp if timestamp is not None else time.time())
+        object.__setattr__(self, "results", tuple(results) if results is not None else ())
+        object.__setattr__(self, "metadata", metadata if metadata is not None else {})
 
     @property
     def total_validations(self) -> int:

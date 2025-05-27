@@ -41,9 +41,7 @@ class CompositeValidator:
 
     def add_validator(self, validator: BaseValidator[Any]) -> None:
         """Add a validator to the composite."""
-        self.validators.append(validator)
-
-    def remove_validator(self, validator_name: str) -> bool:
+        self.validators.append(validator)    def remove_validator(self, validator_name: str) -> bool:
         """Remove a validator by name."""
         for i, validator in enumerate(self.validators):
             if validator.get_validator_name() == validator_name:
@@ -52,7 +50,9 @@ class CompositeValidator:
                 if validator_name in self._results:
                     del self._results[validator_name]
                 return True
-        return False    def validate(self) -> ValidationResult[dict[str, Any]]:
+        return False
+
+    def validate(self) -> ValidationResult[dict[str, Any]]:
         """
         Execute all validators and return composite result.
 
@@ -167,9 +167,7 @@ class CompositeValidator:
         total = len(self.validators)
         executed = len(self._results)
         successful = len(self.get_successful_validators())
-        failed = len(self.get_failed_validators())
-
-        return {
+        failed = len(self.get_failed_validators())        return {
             "total_validators": total,
             "executed_validators": executed,
             "successful_validators": successful,
@@ -181,6 +179,6 @@ class CompositeValidator:
     def create_report(self) -> ValidationReport:
         """Create a validation report from results."""
         return ValidationReport(
-            results=tuple(self._results.values()),
+            results=list(self._results.values()),
             metadata=self.get_summary(),
         )
