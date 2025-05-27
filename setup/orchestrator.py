@@ -132,7 +132,7 @@ class ModernSetupOrchestrator:
             from .environment import EnvironmentManager
 
             manager = EnvironmentManager(self.workspace_root)
-            return manager.setup_environment()
+            return await manager.setup_environment()
 
         except Exception as e:
             if self.verbose:

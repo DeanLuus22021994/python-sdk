@@ -13,7 +13,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Dict, Final, Optional, Type
 
 # Add parent directory to path for absolute imports if needed
 _setup_path = Path(__file__).parent
@@ -21,7 +21,10 @@ if str(_setup_path.parent) not in sys.path:
     sys.path.insert(0, str(_setup_path.parent))
 
 # Core setup modules - always import these first
-from .environment import EnvironmentManager
+try:
+    from .environment import EnvironmentManager
+except ImportError:
+    EnvironmentManager = None
 
 # Version and metadata
 __version__: Final[str] = "2.0.0"
@@ -32,20 +35,6 @@ _ModernSetupOrchestrator: type[Any] | None = None
 _HostSetupManager: type[Any] | None = None
 _DockerSetupManager: type[Any] | None = None
 _setup_packages: Callable[[], bool] | None = None
-
-# Type definitions for typings imports
-_ContainerConfig: type[Any] | None = None
-_DockerInfo: type[Any] | None = None
-_EnvironmentInfo: type[Any] | None = None
-_LogLevel: type[Any] | None = None
-_PackageManagerInfo: type[Any] | None = None
-_PerformanceSettings: type[Any] | None = None
-_ProjectStructureInfo: type[Any] | None = None
-_PythonVersion: type[Any] | None = None
-_SetupMode: type[Any] | None = None
-_ValidationDetails: type[Any] | None = None
-_ValidationStatus: type[Any] | None = None
-_VSCodeConfig: type[Any] | None = None
 
 
 def _load_orchestrator() -> type[Any] | None:
@@ -81,9 +70,10 @@ def _load_docker_setup() -> type[Any] | None:
 
 def _load_typings() -> dict[str, type[Any] | None]:
     """Load typing definitions with graceful fallback."""
-    typings = {}
+    typings: dict[str, type[Any] | None] = {}
 
     try:
+        # Import all type definitions
         from .typings import (
             ContainerConfig,
             DockerInfo,
@@ -99,6 +89,7 @@ def _load_typings() -> dict[str, type[Any] | None]:
             VSCodeConfig,
         )
 
+        # Cast each imported type to Type[Any] to match the function's return type
         typings.update(
             {
                 "ContainerConfig": ContainerConfig,
@@ -159,69 +150,45 @@ ProjectStructureInfo = _typings["ProjectStructureInfo"]
 PythonVersion = _typings["PythonVersion"]
 SetupMode = _typings["SetupMode"]
 ValidationDetails = _typings["ValidationDetails"]
-ValidationStatus = _typings["ValidationStatus"]
-VSCodeConfig = _typings["VSCodeConfig"]
-
 # TYPE_CHECKING imports for better IDE support
 if TYPE_CHECKING:
     # Re-import for type checking to ensure proper type hints
     try:
-        from .orchestrator import ModernSetupOrchestrator as _TypedOrchestrator
+        # Using conditional imports to handle potential missing modules
+        try:
+            from .orchestrator import ModernSetupOrchestrator as _TypedOrchestrator
 
-        ModernSetupOrchestrator = _TypedOrchestrator
-    except ImportError:
+            ModernSetupOrchestrator = _TypedOrchestrator
+        except ImportError:
+            pass
+
+        try:
+            from .typings import ContainerConfig as _TypedContainerConfig
+            from .typings import DockerInfo as _TypedDockerInfo
+            from .typings import EnvironmentInfo as _TypedEnvironmentInfo
+            from .typings import LogLevel as _TypedLogLevel
+            from .typings import PackageManagerInfo as _TypedPackageManagerInfo
+            from .typings import PerformanceSettings as _TypedPerformanceSettings
+            from .typings import ProjectStructureInfo as _TypedProjectStructureInfo
+            from .typings import PythonVersion as _TypedPythonVersion
+            from .typings import SetupMode as _TypedSetupMode
+            from .typings import ValidationDetails as _TypedValidationDetails
+            from .typings import ValidationStatus as _TypedValidationStatus
+            from .typings import VSCodeConfig as _TypedVSCodeConfig
+
+            ContainerConfig = _TypedContainerConfig
+            DockerInfo = _TypedDockerInfo
+            EnvironmentInfo = _TypedEnvironmentInfo
+            LogLevel = _TypedLogLevel
+            PackageManagerInfo = _TypedPackageManagerInfo
+            PerformanceSettings = _TypedPerformanceSettings
+            ProjectStructureInfo = _TypedProjectStructureInfo
+            PythonVersion = _TypedPythonVersion
+            SetupMode = _TypedSetupMode
+            ValidationDetails = _TypedValidationDetails
+            ValidationStatus = _TypedValidationStatus
+            VSCodeConfig = _TypedVSCodeConfig
+        except ImportError:
+            pass
+    except Exception:
         pass
-
-    try:
-        from .typings import ContainerConfig as _TypedContainerConfig
-        from .typings import DockerInfo as _TypedDockerInfo
-        from .typings import EnvironmentInfo as _TypedEnvironmentInfo
-        from .typings import LogLevel as _TypedLogLevel
-        from .typings import PackageManagerInfo as _TypedPackageManagerInfo
-        from .typings import PerformanceSettings as _TypedPerformanceSettings
-        from .typings import ProjectStructureInfo as _TypedProjectStructureInfo
-        from .typings import PythonVersion as _TypedPythonVersion
-        from .typings import SetupMode as _TypedSetupMode
-        from .typings import ValidationDetails as _TypedValidationDetails
-        from .typings import ValidationStatus as _TypedValidationStatus
-        from .typings import VSCodeConfig as _TypedVSCodeConfig
-
-        ContainerConfig = _TypedContainerConfig
-        DockerInfo = _TypedDockerInfo
-        EnvironmentInfo = _TypedEnvironmentInfo
-        LogLevel = _TypedLogLevel
-        PackageManagerInfo = _TypedPackageManagerInfo
-        PerformanceSettings = _TypedPerformanceSettings
-        ProjectStructureInfo = _TypedProjectStructureInfo
-        PythonVersion = _TypedPythonVersion
-        SetupMode = _TypedSetupMode
-        ValidationDetails = _TypedValidationDetails
-        ValidationStatus = _TypedValidationStatus
-        VSCodeConfig = _TypedVSCodeConfig
-    except ImportError:
-        pass
-
-__all__ = [
-    "__version__",
-    "__author__",
-    # Core managers
-    "EnvironmentManager",
-    "ModernSetupOrchestrator",
-    "HostSetupManager",
-    "DockerSetupManager",
-    # Utilities
-    "setup_packages",
-    # Type exports
-    "ContainerConfig",
-    "DockerInfo",
-    "EnvironmentInfo",
-    "LogLevel",
-    "PackageManagerInfo",
-    "PerformanceSettings",
-    "ProjectStructureInfo",
-    "PythonVersion",
-    "SetupMode",
-    "ValidationDetails",
-    "ValidationStatus",
-    "VSCodeConfig",
-]
