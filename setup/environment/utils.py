@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -126,8 +127,6 @@ def get_environment_variables() -> dict[str, str]:
 
 def is_virtual_environment() -> bool:
     """Check if running in a virtual environment."""
-    import sys
-
     return hasattr(sys, "real_prefix") or (
         hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
     )
@@ -135,6 +134,4 @@ def is_virtual_environment() -> bool:
 
 def get_python_executable() -> Path:
     """Get current Python executable path."""
-    import sys
-
     return Path(sys.executable)

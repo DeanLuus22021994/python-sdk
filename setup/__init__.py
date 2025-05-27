@@ -8,57 +8,249 @@ Modern, modular setup system for the MCP Python SDK with support for:
 - Clean architecture following SOLID principles
 """
 
-from typing import Any, Final
+from __future__ import annotations
 
+import sys
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Final
+
+# Add parent directory to path for absolute imports if needed
+_setup_path = Path(__file__).parent
+if str(_setup_path.parent) not in sys.path:
+    sys.path.insert(0, str(_setup_path.parent))
+
+# Core setup modules - always import these first
+from .environment import EnvironmentManager
+
+# Version and metadata
 __version__: Final[str] = "2.0.0"
 __author__: Final[str] = "MCP Python SDK Team"
 
-# Core setup modules
-from .environment import EnvironmentManager
+# Type definitions for optional imports
+_ModernSetupOrchestrator: type[Any] | None = None
+_HostSetupManager: type[Any] | None = None
+_DockerSetupManager: type[Any] | None = None
+_setup_packages: Callable[[], bool] | None = None
 
-# Import orchestrator with proper error handling
-# Note: ModernSetupOrchestrator will be available when orchestrator.py is created
-ModernSetupOrchestrator: type[Any] | None = None
+# Type definitions for typings imports
+_ContainerConfig: type[Any] | None = None
+_DockerInfo: type[Any] | None = None
+_EnvironmentInfo: type[Any] | None = None
+_LogLevel: type[Any] | None = None
+_PackageManagerInfo: type[Any] | None = None
+_PerformanceSettings: type[Any] | None = None
+_ProjectStructureInfo: type[Any] | None = None
+_PythonVersion: type[Any] | None = None
+_SetupMode: type[Any] | None = None
+_ValidationDetails: type[Any] | None = None
+_ValidationStatus: type[Any] | None = None
+_VSCodeConfig: type[Any] | None = None
 
-try:
-    from .orchestrator import ModernSetupOrchestrator
-except ImportError:
-    # Graceful fallback - will be resolved when orchestrator.py is properly implemented
-    pass
 
-# Host setup capabilities
-try:
-    from .host.package_manager import setup_packages
+def _load_orchestrator() -> type[Any] | None:
+    """Load the ModernSetupOrchestrator with fallback handling."""
+    try:
+        from .orchestrator import ModernSetupOrchestrator
 
-    # Proper type annotation for HostSetupManager using modern syntax
-    HostSetupManager: type[Any] | None = (
-        None  # Placeholder until host module is implemented
-    )
-except ImportError:
-    setup_packages = None  # type: ignore[misc,assignment]
-    HostSetupManager: type[Any] | None = None  # type: ignore[misc,assignment]
+        return ModernSetupOrchestrator
+    except ImportError:
+        try:
+            from setup.orchestrator import ModernSetupOrchestrator
 
-# Docker setup capabilities
-try:
-    from .docker import DockerSetupManager
-except ImportError:
-    DockerSetupManager = None  # type: ignore[misc,assignment]
+            return ModernSetupOrchestrator
+        except ImportError:
+            return None
 
-# Type exports for better IDE support
-from .typings import (
-    ContainerConfig,
-    DockerInfo,
-    EnvironmentInfo,
-    LogLevel,
-    PackageManagerInfo,
-    PerformanceSettings,
-    ProjectStructureInfo,
-    PythonVersion,
-    SetupMode,
-    ValidationDetails,
-    ValidationStatus,
-    VSCodeConfig,
-)
+
+def _load_host_setup() -> tuple[type[Any] | None, Callable[[], bool] | None]:
+    """Load host setup capabilities with fallback handling."""
+    host_manager = None
+    setup_packages_func = None
+
+    try:
+        from .host.package_manager import setup_packages as sp
+
+        setup_packages_func = sp
+    except ImportError:
+        try:
+            from setup.host.package_manager import setup_packages as sp
+
+            setup_packages_func = sp
+        except ImportError:
+            pass
+
+    return host_manager, setup_packages_func
+
+
+def _load_docker_setup() -> type[Any] | None:
+    """Load Docker setup capabilities with fallback handling."""
+    try:
+        from .docker import DockerSetupManager
+
+        return DockerSetupManager
+    except ImportError:
+        try:
+            from setup.docker import DockerSetupManager
+
+            return DockerSetupManager
+        except ImportError:
+            return None
+
+
+def _load_typings() -> dict[str, type[Any] | None]:
+    """Load typing definitions with fallback handling."""
+    typings_map = {
+        "ContainerConfig": None,
+        "DockerInfo": None,
+        "EnvironmentInfo": None,
+        "LogLevel": None,
+        "PackageManagerInfo": None,
+        "PerformanceSettings": None,
+        "ProjectStructureInfo": None,
+        "PythonVersion": None,
+        "SetupMode": None,
+        "ValidationDetails": None,
+        "ValidationStatus": None,
+        "VSCodeConfig": None,
+    }
+
+    try:
+        from .typings import (
+            ContainerConfig,
+            DockerInfo,
+            EnvironmentInfo,
+            LogLevel,
+            PackageManagerInfo,
+            PerformanceSettings,
+            ProjectStructureInfo,
+            PythonVersion,
+            SetupMode,
+            ValidationDetails,
+            ValidationStatus,
+            VSCodeConfig,
+        )
+
+        typings_map.update(
+            {
+                "ContainerConfig": ContainerConfig,
+                "DockerInfo": DockerInfo,
+                "EnvironmentInfo": EnvironmentInfo,
+                "LogLevel": LogLevel,
+                "PackageManagerInfo": PackageManagerInfo,
+                "PerformanceSettings": PerformanceSettings,
+                "ProjectStructureInfo": ProjectStructureInfo,
+                "PythonVersion": PythonVersion,
+                "SetupMode": SetupMode,
+                "ValidationDetails": ValidationDetails,
+                "ValidationStatus": ValidationStatus,
+                "VSCodeConfig": VSCodeConfig,
+            }
+        )
+    except ImportError:
+        try:
+            from setup.typings import (
+                ContainerConfig,
+                DockerInfo,
+                EnvironmentInfo,
+                LogLevel,
+                PackageManagerInfo,
+                PerformanceSettings,
+                ProjectStructureInfo,
+                PythonVersion,
+                SetupMode,
+                ValidationDetails,
+                ValidationStatus,
+                VSCodeConfig,
+            )
+
+            typings_map.update(
+                {
+                    "ContainerConfig": ContainerConfig,
+                    "DockerInfo": DockerInfo,
+                    "EnvironmentInfo": EnvironmentInfo,
+                    "LogLevel": LogLevel,
+                    "PackageManagerInfo": PackageManagerInfo,
+                    "PerformanceSettings": PerformanceSettings,
+                    "ProjectStructureInfo": ProjectStructureInfo,
+                    "PythonVersion": PythonVersion,
+                    "SetupMode": SetupMode,
+                    "ValidationDetails": ValidationDetails,
+                    "ValidationStatus": ValidationStatus,
+                    "VSCodeConfig": VSCodeConfig,
+                }
+            )
+        except ImportError:
+            # Keep defaults (all None)
+            pass
+
+    return typings_map
+
+
+# Load all optional components
+_ModernSetupOrchestrator = _load_orchestrator()
+_HostSetupManager, _setup_packages = _load_host_setup()
+_DockerSetupManager = _load_docker_setup()
+_typings = _load_typings()
+
+# Create public interface - avoid redefinition by using different names
+ModernSetupOrchestrator = _ModernSetupOrchestrator
+HostSetupManager = _HostSetupManager
+DockerSetupManager = _DockerSetupManager
+setup_packages = _setup_packages
+
+# Export typings
+ContainerConfig = _typings["ContainerConfig"]
+DockerInfo = _typings["DockerInfo"]
+EnvironmentInfo = _typings["EnvironmentInfo"]
+LogLevel = _typings["LogLevel"]
+PackageManagerInfo = _typings["PackageManagerInfo"]
+PerformanceSettings = _typings["PerformanceSettings"]
+ProjectStructureInfo = _typings["ProjectStructureInfo"]
+PythonVersion = _typings["PythonVersion"]
+SetupMode = _typings["SetupMode"]
+ValidationDetails = _typings["ValidationDetails"]
+ValidationStatus = _typings["ValidationStatus"]
+VSCodeConfig = _typings["VSCodeConfig"]
+
+# TYPE_CHECKING imports for better IDE support
+if TYPE_CHECKING:
+    # Re-import for type checking to ensure proper type hints
+    try:
+        from .orchestrator import ModernSetupOrchestrator as _TypedOrchestrator
+
+        ModernSetupOrchestrator = _TypedOrchestrator
+    except ImportError:
+        pass
+
+    try:
+        from .typings import ContainerConfig as _TypedContainerConfig
+        from .typings import DockerInfo as _TypedDockerInfo
+        from .typings import EnvironmentInfo as _TypedEnvironmentInfo
+        from .typings import LogLevel as _TypedLogLevel
+        from .typings import PackageManagerInfo as _TypedPackageManagerInfo
+        from .typings import PerformanceSettings as _TypedPerformanceSettings
+        from .typings import ProjectStructureInfo as _TypedProjectStructureInfo
+        from .typings import PythonVersion as _TypedPythonVersion
+        from .typings import SetupMode as _TypedSetupMode
+        from .typings import ValidationDetails as _TypedValidationDetails
+        from .typings import ValidationStatus as _TypedValidationStatus
+        from .typings import VSCodeConfig as _TypedVSCodeConfig
+
+        ContainerConfig = _TypedContainerConfig
+        DockerInfo = _TypedDockerInfo
+        EnvironmentInfo = _TypedEnvironmentInfo
+        LogLevel = _TypedLogLevel
+        PackageManagerInfo = _TypedPackageManagerInfo
+        PerformanceSettings = _TypedPerformanceSettings
+        ProjectStructureInfo = _TypedProjectStructureInfo
+        PythonVersion = _TypedPythonVersion
+        SetupMode = _TypedSetupMode
+        ValidationDetails = _TypedValidationDetails
+        ValidationStatus = _TypedValidationStatus
+        VSCodeConfig = _TypedVSCodeConfig
+    except ImportError:
+        pass
 
 __all__ = [
     "__version__",

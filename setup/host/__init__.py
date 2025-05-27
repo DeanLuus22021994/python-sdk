@@ -5,6 +5,7 @@ Modern host-based setup capabilities for the MCP Python SDK.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 

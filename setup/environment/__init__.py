@@ -3,6 +3,7 @@ Environment Configuration Package
 Modern environment configuration aligned with the new validation framework.
 """
 
+import sys
 from typing import Any
 
 from ..typings import (
@@ -14,7 +15,6 @@ from ..typings import (
     SetupMode,
     ValidationStatus,
 )
-from ..validation import ValidationRegistry, register_validator
 from .constants import (
     DEFAULT_PERFORMANCE_SETTINGS,
     MAX_TESTED_PYTHON_VERSION,
@@ -29,11 +29,15 @@ from .manager import EnvironmentManager
 # Register validators with the global registry
 def _register_environment_validators() -> None:
     """Register all environment validators."""
-    # Import validators from the main validators module
-    from .. import validators
+    try:
+        # Import validators from the main validators module
+        from .. import validators
 
-    # The validators auto-register themselves via decorators
-    _ = validators  # Force import to trigger registration
+        # The validators auto-register themselves via decorators
+        _ = validators  # Force import to trigger registration
+    except ImportError:
+        # Graceful degradation if validators not available
+        pass
 
 
 # Auto-register on import

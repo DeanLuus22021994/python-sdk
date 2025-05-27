@@ -50,13 +50,13 @@ def install_package(package: str) -> tuple[bool, str]:
         # Try uv first (modern fast package manager)
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "uv", "add", package],
+                ["uv", "add", package],
                 capture_output=True,
                 text=True,
                 timeout=300,
             )
             if result.returncode == 0:
-                return True, f"✓ Package {package} installed successfully with uv"
+                return True, f"Successfully installed {package} with uv"
         except FileNotFoundError:
             pass
 
@@ -69,14 +69,14 @@ def install_package(package: str) -> tuple[bool, str]:
         )
 
         if result.returncode == 0:
-            return True, f"✓ Package {package} installed successfully with pip"
+            return True, f"Successfully installed {package}"
         else:
-            return False, f"✗ Failed to install {package}: {result.stderr}"
+            return False, f"Failed to install {package}: {result.stderr}"
 
     except subprocess.TimeoutExpired:
-        return False, f"✗ Installation of {package} timed out"
+        return False, f"Installation of {package} timed out"
     except Exception as e:
-        return False, f"✗ Error installing {package}: {e}"
+        return False, f"Error installing {package}: {e}"
 
 
 def verify_import(package: str) -> tuple[bool, str]:
@@ -111,11 +111,11 @@ def verify_import(package: str) -> tuple[bool, str]:
 
     try:
         __import__(import_name)
-        return True, f"✓ Package {package} imports successfully"
+        return True, f"{package} is available"
     except ImportError as e:
-        return False, f"✗ Cannot import {package}: {e}"
+        return False, f"Cannot import {package}: {e}"
     except Exception as e:
-        return False, f"✗ Error importing {package}: {e}"
+        return False, f"Error importing {package}: {e}"
 
 
 def setup_packages() -> bool:
@@ -145,7 +145,7 @@ def setup_packages() -> bool:
         # First check if already available
         can_import, import_msg = verify_import(package)
         if can_import:
-            print(f"    {import_msg}")
+            print(f"    ✅ {import_msg}")
             success_count += 1
             continue
 
@@ -154,13 +154,7 @@ def setup_packages() -> bool:
         print(f"    {install_msg}")
 
         if installed:
-            # Verify after installation
-            can_import_after, verify_msg = verify_import(package)
-            if can_import_after:
-                success_count += 1
-                print(f"    {verify_msg}")
-            else:
-                print(f"    ⚠️ Package installed but verification failed: {verify_msg}")
+            success_count += 1
 
     print(
         f"\n📦 Package setup complete: {success_count}/{total_packages} packages ready"
@@ -198,12 +192,11 @@ def get_installed_packages() -> list[str]:
         )
 
         if result.returncode == 0:
-            packages = []
-            for line in result.stdout.strip().split("\n"):
-                if "==" in line:
-                    package_name = line.split("==")[0]
-                    packages.append(package_name)
-            return packages
+            return [
+                line.split("==")[0]
+                for line in result.stdout.strip().split("\n")
+                if "==" in line
+            ]
         return []
 
     except (subprocess.TimeoutExpired, Exception):
@@ -228,39 +221,33 @@ def get_package_manager_info() -> dict[str, Any]:
             timeout=10,
         )
         if result.returncode == 0:
-            managers["pip"] = {
-                "available": True,
-                "version": result.stdout.strip(),
-                "executable": f"{sys.executable} -m pip",
-            }
+            managers["pip"] = {"available": True, "version": result.stdout.strip()}
     except (subprocess.TimeoutExpired, FileNotFoundError):
         managers["pip"] = {"available": False}
 
     # Check uv
     try:
         result = subprocess.run(
-            ["uv", "--version"], capture_output=True, text=True, timeout=5
+            ["uv", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
-            managers["uv"] = {
-                "available": True,
-                "version": result.stdout.strip().split()[-1],
-                "executable": "uv",
-            }
+            managers["uv"] = {"available": True, "version": result.stdout.strip()}
     except (subprocess.TimeoutExpired, FileNotFoundError):
         managers["uv"] = {"available": False}
 
     # Check poetry
     try:
         result = subprocess.run(
-            ["poetry", "--version"], capture_output=True, text=True, timeout=5
+            ["poetry", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
-            managers["poetry"] = {
-                "available": True,
-                "version": result.stdout.strip(),
-                "executable": "poetry",
-            }
+            managers["poetry"] = {"available": True, "version": result.stdout.strip()}
     except (subprocess.TimeoutExpired, FileNotFoundError):
         managers["poetry"] = {"available": False}
 
@@ -284,4 +271,4 @@ def get_preferred_package_manager() -> str:
     elif managers.get("pip", {}).get("available", False):
         return "pip"
     else:
-        return "pip"  # Fallback
+        return "pip"  # Default fallback

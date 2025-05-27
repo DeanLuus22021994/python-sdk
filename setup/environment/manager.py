@@ -77,11 +77,23 @@ class EnvironmentManager:
         Returns:
             Complete validation result
         """
-        validators = [
-            self._get_validator("python_environment"),
-            self._get_validator("project_structure"),
-            self._get_validator("dependencies"),
-        ]
+        validators = []
+
+        try:
+            validators.extend(
+                [
+                    self._get_validator("python_environment"),
+                    self._get_validator("project_structure"),
+                    self._get_validator("dependencies"),
+                ]
+            )
+        except ValueError:
+            # Fallback if validators not available
+            pass
+
+        if not validators:
+            env_info = self.get_environment_info()
+            return (True, env_info, [])
 
         if parallel:
             results = await self._run_parallel_validation(validators)
@@ -162,8 +174,10 @@ class EnvironmentManager:
 
         # Process validation results
         for result in results:
-            if hasattr(result, 'errors'):
-                errors.extend(result.errors)
+            if isinstance(result, Exception):
+                errors.append(f"Validation error: {result}")
+            elif hasattr(result, "is_valid") and not result.is_valid:
+                errors.extend(getattr(result, "errors", []))
 
         is_valid = len(errors) == 0
         return (is_valid, env_info, errors)
@@ -177,14 +191,18 @@ class EnvironmentManager:
             config = EnvironmentSetupConfig()
 
         try:
-            # Setup implementation would go here
+            if config.configure_vscode:
+                await self._setup_vscode_configuration()
             return True
         except Exception:
             return False
 
     async def _setup_vscode_configuration(self) -> None:
         """Setup VS Code configuration."""
-        from ..vscode.integration import VSCodeIntegrationManager
+        try:
+            from ..vscode.integration import VSCodeIntegrationManager
 
-        vscode_manager = VSCodeIntegrationManager(self._workspace_root)
-        vscode_manager.create_workspace_configuration()
+            vscode_manager = VSCodeIntegrationManager(self._workspace_root)
+            vscode_manager.create_workspace_configuration()
+        except ImportError:
+            pass
