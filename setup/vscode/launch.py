@@ -190,7 +190,8 @@ class VSCodeLaunchManager:
 
         try:
             with open(self.launch_path, encoding="utf-8") as f:
-                return json.load(f)
+                current_config: dict[str, Any] = json.load(f)
+                return current_config
         except (json.JSONDecodeError, Exception):
             return {}
 
@@ -270,9 +271,9 @@ class VSCodeLaunchManager:
         if config is None:
             config = self.get_current_launch()
 
-        warnings = []
-        errors = []
-        recommendations = []
+        warnings: list[str] = []
+        errors: list[str] = []
+        recommendations: list[str] = []
 
         # Validate structure
         if not isinstance(config, dict):
@@ -351,6 +352,13 @@ class VSCodeLaunchManager:
             is_valid = True
             message = "Launch validation passed successfully"
 
+        metadata: dict[str, str | int | bool | None] = {
+            "configurations_count": len(configurations),
+            "file_exists": self.launch_path.exists(),
+            "version": str(version) if version else None,
+            "missing_essential": len(missing_essential),
+        }
+
         return ValidationDetails(
             is_valid=is_valid,
             status=status,
@@ -358,12 +366,7 @@ class VSCodeLaunchManager:
             warnings=warnings,
             errors=errors,
             recommendations=recommendations,
-            metadata={
-                "configurations_count": len(configurations),
-                "file_exists": self.launch_path.exists(),
-                "version": version,
-                "missing_essential": len(missing_essential),
-            },
+            metadata=metadata,
         )
 
     def update_launch(self, updates: dict[str, Any], merge: bool = True) -> bool:

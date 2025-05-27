@@ -43,13 +43,13 @@ _orjson: Any = None
 _ujson: Any = None
 
 try:
-    import orjson  # type: ignore
+    import orjson
 
     _orjson = orjson
     _json_backend = "orjson"
 except ImportError:
     try:
-        import ujson  # type: ignore
+        import ujson
 
         _ujson = ujson
         _json_backend = "ujson"
@@ -62,7 +62,7 @@ JSON_BACKEND: str = _json_backend
 _lz4_available: bool = False
 _lz4: Any = None
 try:
-    import lz4.frame  # type: ignore
+    import lz4.frame
 
     _lz4 = lz4.frame
     _lz4_available = True
@@ -74,7 +74,7 @@ LZ4_AVAILABLE: bool = _lz4_available
 _zstd_available: bool = False
 _zstd: Any = None
 try:
-    import zstandard  # type: ignore
+    import zstandard
 
     _zstd = zstandard
     _zstd_available = True
@@ -86,7 +86,7 @@ ZSTD_AVAILABLE: bool = _zstd_available
 _xxhash_available: bool = False
 _xxhash: Any = None
 try:
-    import xxhash  # type: ignore
+    import xxhash
 
     _xxhash = xxhash
     _xxhash_available = True
@@ -100,6 +100,7 @@ class PerformanceOptimizer:
     """High-performance optimizations for MCP operations."""
 
     def __init__(self) -> None:
+        """Initialize the performance optimizer."""
         self.json_backend: str = JSON_BACKEND
         self.compression_enabled: bool = LZ4_AVAILABLE or ZSTD_AVAILABLE
         self.hash_enabled: bool = XXHASH_AVAILABLE
@@ -122,13 +123,16 @@ class PerformanceOptimizer:
     def optimize_json_serialization(self, data: Any) -> bytes:
         """High-performance JSON serialization."""
         if self.json_backend == "orjson" and _orjson is not None:
-            return _orjson.dumps(data)
+            serialized_data: bytes = _orjson.dumps(data)
+            return serialized_data
         elif self.json_backend == "ujson" and _ujson is not None:
-            result: str = _ujson.dumps(data)
-            return result.encode("utf-8")
+            json_str: str = _ujson.dumps(data)
+            return json_str.encode("utf-8")
         else:
-            result = stdlib_json.dumps(data, separators=(",", ":"), ensure_ascii=False)
-            return result.encode("utf-8")
+            json_result: str = stdlib_json.dumps(
+                data, separators=(",", ":"), ensure_ascii=False
+            )
+            return json_result.encode("utf-8")
 
     def optimize_json_deserialization(self, data: bytes | str) -> Any:
         """High-performance JSON deserialization."""
@@ -214,6 +218,7 @@ class ConnectionPool:
     """
 
     def __init__(self, max_size: int = 100, max_overflow: int = 20) -> None:
+        """Initialize the connection pool."""
         self.max_size: int = max_size
         self.max_overflow: int = max_overflow
         self._pool: dict[str, Any] = {}
@@ -242,7 +247,9 @@ class ConnectionPool:
             if len(self._pool) < self.max_size:
                 conn = await self._create_connection(key)
                 self._pool[key] = conn
-                return conn  # Check if we can create an overflow connection
+                return conn
+
+            # Check if we can create an overflow connection
             if self._overflow_counter < self.max_overflow:
                 self._overflow_counter += 1
                 return await self._create_connection(key)
@@ -285,6 +292,7 @@ class PerformanceMonitor:
     """Monitor and report performance metrics."""
 
     def __init__(self) -> None:
+        """Initialize the performance monitor."""
         self.metrics: dict[str, list[dict[str, Any]]] = {}
         self.start_time: float = time.monotonic()
 

@@ -160,7 +160,8 @@ class VSCodeExtensionsManager:
 
         try:
             with open(self.extensions_path, encoding="utf-8") as f:
-                return json.load(f)
+                current_config: dict[str, Any] = json.load(f)
+                return current_config
         except (json.JSONDecodeError, Exception):
             return {}
 
@@ -231,9 +232,9 @@ class VSCodeExtensionsManager:
         if config is None:
             config = self.get_current_extensions()
 
-        warnings = []
-        errors = []
-        recommendations = []
+        warnings: list[str] = []
+        errors: list[str] = []
+        recommendations: list[str] = []
 
         # Validate structure
         if not isinstance(config, dict):
@@ -315,6 +316,14 @@ class VSCodeExtensionsManager:
             is_valid = True
             message = "Extensions validation passed successfully"
 
+        metadata: dict[str, str | int | bool | None] = {
+            "recommendations_count": len(config.get("recommendations", [])),
+            "unwanted_count": len(config.get("unwantedRecommendations", [])),
+            "file_exists": self.extensions_path.exists(),
+            "conflicts_found": len(conflicts),
+            "missing_core": len(missing_core),
+        }
+
         return ValidationDetails(
             is_valid=is_valid,
             status=status,
@@ -322,13 +331,7 @@ class VSCodeExtensionsManager:
             warnings=warnings,
             errors=errors,
             recommendations=recommendations,
-            metadata={
-                "recommendations_count": len(config.get("recommendations", [])),
-                "unwanted_count": len(config.get("unwantedRecommendations", [])),
-                "file_exists": self.extensions_path.exists(),
-                "conflicts_found": len(conflicts),
-                "missing_core": len(missing_core),
-            },
+            metadata=metadata,
         )
 
     def update_extensions(self, updates: dict[str, Any], merge: bool = True) -> bool:

@@ -61,9 +61,7 @@ class VSCodeTasksManager:
                     "reveal": "always",
                     "panel": "shared",
                 },
-                "problemMatcher": [
-                    "$pytest",
-                ],
+                "problemMatcher": ["$python"],
                 "detail": "Run all tests with verbose output",
             },
             {
@@ -84,9 +82,7 @@ class VSCodeTasksManager:
                     "reveal": "always",
                     "panel": "shared",
                 },
-                "problemMatcher": [
-                    "$pytest",
-                ],
+                "problemMatcher": ["$python"],
                 "detail": "Run tests with coverage report",
             },
             {
@@ -184,9 +180,7 @@ class VSCodeTasksManager:
                     "reveal": "always",
                     "panel": "shared",
                 },
-                "problemMatcher": [
-                    "$mypy",
-                ],
+                "problemMatcher": ["$python"],
                 "detail": "Run type checking with MyPy",
             },
             {
@@ -251,7 +245,7 @@ class VSCodeTasksManager:
                     "reveal": "always",
                     "panel": "shared",
                 },
-                "problemMatcher": [],
+                "problemMatcher": ["$python"],
                 "detail": "Run the setup script",
             },
             {
@@ -281,8 +275,7 @@ class VSCodeTasksManager:
                     "panel": "shared",
                 },
                 "problemMatcher": [
-                    "$pytest",
-                    "$mypy",
+                    "$python",
                     {
                         "owner": "ruff",
                         "fileLocation": ["relative", "${workspaceFolder}"],
@@ -307,10 +300,11 @@ class VSCodeTasksManager:
         Returns:
             Dictionary containing tasks configuration
         """
-        return {
+        config: dict[str, Any] = {
             "version": "2.0.0",
             "tasks": self.get_task_definitions(),
         }
+        return config
 
     def create_tasks_file(self) -> bool:
         """Create VS Code tasks.json file.
@@ -377,7 +371,8 @@ class VSCodeTasksManager:
 
         try:
             with open(self.tasks_path, encoding="utf-8") as f:
-                return json.load(f)
+                config: dict[str, Any] = json.load(f)
+                return config
         except (json.JSONDecodeError, Exception):
             return {}
 
@@ -453,9 +448,9 @@ class VSCodeTasksManager:
         if config is None:
             config = self.get_current_tasks()
 
-        warnings = []
-        errors = []
-        recommendations = []
+        warnings: list[str] = []
+        errors: list[str] = []
+        recommendations: list[str] = []
 
         # Validate structure
         if not isinstance(config, dict):
@@ -498,13 +493,13 @@ class VSCodeTasksManager:
                     )
 
         # Check for essential task types
-        task_types = []
+        task_types: list[str] = []
         for task in tasks:
             group = task.get("group", "")
             if isinstance(group, dict):
                 task_types.append(group.get("kind", ""))
             else:
-                task_types.append(group)
+                task_types.append(str(group))
 
         has_build = "build" in task_types
         has_test = "test" in task_types
@@ -537,6 +532,14 @@ class VSCodeTasksManager:
             is_valid = True
             message = "Tasks validation passed successfully"
 
+        metadata: dict[str, str | int | bool | None] = {
+            "tasks_count": len(tasks),
+            "file_exists": self.tasks_path.exists(),
+            "version": str(version) if version is not None else None,
+            "has_build": has_build,
+            "has_test": has_test,
+        }
+
         return ValidationDetails(
             is_valid=is_valid,
             status=status,
@@ -544,13 +547,7 @@ class VSCodeTasksManager:
             warnings=warnings,
             errors=errors,
             recommendations=recommendations,
-            metadata={
-                "tasks_count": len(tasks),
-                "file_exists": self.tasks_path.exists(),
-                "version": version,
-                "has_build": has_build,
-                "has_test": has_test,
-            },
+            metadata=metadata,
         )
 
     def update_tasks(self, updates: dict[str, Any], merge: bool = True) -> bool:

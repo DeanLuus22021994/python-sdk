@@ -35,7 +35,7 @@ class VSCodeSettingsManager:
             # Python interpreter and environment
             "python.defaultInterpreterPath": "./venv/Scripts/python.exe",
             "python.terminal.activateEnvironment": True,
-            # Analysis and IntelliSense
+            # Analysis and IntelliSense - removed typeCheckingMode to avoid conflict with pyrightconfig.json
             "python.analysis.autoImportCompletions": True,
             "python.analysis.diagnosticMode": "workspace",
             "python.analysis.inlayHints.variableTypes": True,
@@ -47,7 +47,6 @@ class VSCodeSettingsManager:
             "python.analysis.userFileIndexingLimit": 5000,
             "python.analysis.autoFormatStrings": True,
             "python.analysis.fixAll": ["source.convertImportFormat"],
-            "python.analysis.typeCheckingMode": "basic",
             # Testing configuration
             "python.testing.pytestEnabled": True,
             "python.testing.unittestEnabled": False,
@@ -171,7 +170,8 @@ class VSCodeSettingsManager:
 
         try:
             with open(self.settings_path, encoding="utf-8") as f:
-                return json.load(f)
+                current_settings: dict[str, Any] = json.load(f)
+                return current_settings
         except (json.JSONDecodeError, Exception):
             return {}
 
@@ -216,9 +216,11 @@ class VSCodeSettingsManager:
         if settings is None:
             settings = self.get_current_settings()
 
-        warnings = []
-        errors = []
-        recommendations = []  # Check for required settings using list comprehension
+        warnings: list[str] = []
+        errors: list[str] = []
+        recommendations: list[str] = []
+
+        # Check for required settings using list comprehension
         required_python_settings = [
             "python.defaultInterpreterPath",
             "python.testing.pytestEnabled",
@@ -236,6 +238,7 @@ class VSCodeSettingsManager:
             "python.linting.pylintEnabled",
             "python.linting.flake8Enabled",
             "python.formatting.provider",
+            "python.analysis.typeCheckingMode",  # This conflicts with pyrightconfig.json
         ]
 
         found_deprecated = [
@@ -271,6 +274,14 @@ class VSCodeSettingsManager:
             is_valid = True
             message = "Settings validation passed successfully"
 
+        metadata: dict[str, str | int | bool | None] = {
+            "settings_count": len(settings),
+            "file_exists": self.settings_path.exists(),
+            "file_size": (
+                self.settings_path.stat().st_size if self.settings_path.exists() else 0
+            ),
+        }
+
         return ValidationDetails(
             is_valid=is_valid,
             status=status,
@@ -278,15 +289,7 @@ class VSCodeSettingsManager:
             warnings=warnings,
             errors=errors,
             recommendations=recommendations,
-            metadata={
-                "settings_count": len(settings),
-                "file_exists": self.settings_path.exists(),
-                "file_size": (
-                    self.settings_path.stat().st_size
-                    if self.settings_path.exists()
-                    else 0
-                ),
-            },
+            metadata=metadata,
         )
 
     def update_settings(self, updates: dict[str, Any], merge: bool = True) -> bool:

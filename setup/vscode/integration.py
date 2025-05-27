@@ -77,6 +77,55 @@ class VSCodeIntegrationManager:
         except Exception:
             return False
 
+    def _safe_get_int(
+        self, metadata: dict[str, str | int | bool | None], key: str, default: int = 0
+    ) -> int:
+        """Safely extract integer from metadata.
+
+        Args:
+            metadata: Metadata dictionary
+            key: Key to extract
+            default: Default value if key is missing or not convertible
+
+        Returns:
+            Integer value
+        """
+        value = metadata.get(key, default)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                return default
+        if isinstance(value, bool):
+            return int(value)
+        return default
+
+    def _safe_convert_metadata(
+        self, metadata: dict[str, str | int | bool | None]
+    ) -> dict[str, str | int | bool | None]:
+        """Safely convert metadata values for ValidationDetails.
+
+        Args:
+            metadata: Input metadata dictionary
+
+        Returns:
+            Safely converted metadata dictionary
+        """
+        converted_metadata: dict[str, str | int | bool | None] = {}
+        for k, v in metadata.items():
+            if isinstance(v, int | float | bool | str):
+                if isinstance(v, float):
+                    converted_metadata[k] = int(v) if v.is_integer() else str(v)
+                else:
+                    converted_metadata[k] = v
+            elif v is None:
+                converted_metadata[k] = None
+            else:
+                converted_metadata[k] = bool(v)
+        return converted_metadata
+
     def validate_workspace(self) -> ValidationDetails:
         """Validate complete VS Code workspace configuration.
 
@@ -96,6 +145,9 @@ class VSCodeIntegrationManager:
             validator = registry.create_validator("vscode_workspace", context)
             result = validator.validate()
 
+            # Safely convert metadata
+            safe_metadata = self._safe_convert_metadata(result.metadata)
+
             return ValidationDetails(
                 is_valid=result.is_valid,
                 status=result.status,
@@ -103,7 +155,7 @@ class VSCodeIntegrationManager:
                 warnings=list(result.warnings),
                 errors=list(result.errors),
                 recommendations=list(result.recommendations),
-                metadata=result.metadata,
+                metadata=safe_metadata,
                 component_name="VSCode",
             )
 
@@ -120,9 +172,9 @@ class VSCodeIntegrationManager:
         launch_validation = self.launch.validate_launch()
 
         # Aggregate results
-        all_warnings = []
-        all_errors = []
-        all_recommendations = []
+        all_warnings: list[str] = []
+        all_errors: list[str] = []
+        all_recommendations: list[str] = []
 
         validations = [
             ("Extensions", extensions_validation),
@@ -150,13 +202,19 @@ class VSCodeIntegrationManager:
             is_valid = True
             message = "All configurations are valid"
 
-        # Collect metadata from all components
-        combined_metadata = {
+        # Collect metadata from all components with safe type conversion
+        combined_metadata: dict[str, str | int | bool | None] = {
             "components_validated": len(validations),
-            "extensions": extensions_validation.metadata,
-            "settings": settings_validation.metadata,
-            "tasks": tasks_validation.metadata,
-            "launch": launch_validation.metadata,
+            "extensions": self._safe_get_int(
+                extensions_validation.metadata, "recommendations_count", 0
+            ),
+            "settings": self._safe_get_int(
+                settings_validation.metadata, "settings_count", 0
+            ),
+            "tasks": self._safe_get_int(tasks_validation.metadata, "tasks_count", 0),
+            "launch": self._safe_get_int(
+                launch_validation.metadata, "configurations_count", 0
+            ),
             "workspace_exists": self.vscode_dir.exists(),
         }
 
@@ -287,7 +345,7 @@ class VSCodeIntegrationManager:
         """Get Python launch configurations."""
         return {"configurations": self.launch.get_debug_configurations()}
 
-    def create_all_configurations(self, **kwargs) -> bool:
+    def create_all_configurations(self, **kwargs: Any) -> bool:
         """Create all VS Code configurations."""
         return self.create_workspace_configuration(**kwargs)
 
