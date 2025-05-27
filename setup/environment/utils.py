@@ -1,12 +1,13 @@
 """
 Environment Utilities
-Common utilities for environment operations.
+Common utilities for environment operations following modern naming conventions.
 """
 
 from __future__ import annotations
 
 import asyncio
 import functools
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -116,3 +117,24 @@ def ensure_directory_exists(path: Path) -> Path:
 def clear_caches() -> None:
     """Clear all cached values."""
     get_project_root.cache_clear()
+
+
+def get_environment_variables() -> dict[str, str]:
+    """Get current environment variables safely."""
+    return dict(os.environ)
+
+
+def is_virtual_environment() -> bool:
+    """Check if running in a virtual environment."""
+    import sys
+
+    return hasattr(sys, "real_prefix") or (
+        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+    )
+
+
+def get_python_executable() -> Path:
+    """Get current Python executable path."""
+    import sys
+
+    return Path(sys.executable)
