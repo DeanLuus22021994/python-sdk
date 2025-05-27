@@ -41,7 +41,7 @@ class ModernSetupOrchestrator:
         workspace_root: Path | str | None = None,
         verbose: bool = False,
     ) -> None:
-        from .environment.utils import get_project_root
+        from .config.utils import get_project_root
 
         self.workspace_root = (
             Path(workspace_root) if workspace_root else get_project_root()
@@ -55,6 +55,17 @@ class ModernSetupOrchestrator:
             environment=dict(os.environ),
             config={"verbose": verbose},
         )
+
+    def orchestrate_setup(self) -> bool:
+        """Synchronous setup orchestration - wrapper for async method."""
+        import asyncio
+        try:
+            result = asyncio.run(self.orchestrate_complete_setup())
+            return result.success
+        except Exception as e:
+            if self.verbose:
+                print(f"Setup orchestration error: {e}")
+            return False
 
     async def orchestrate_complete_setup(
         self,
@@ -106,16 +117,36 @@ class ModernSetupOrchestrator:
 
         except Exception as e:
             errors.append(f"Setup orchestration failed: {e}")
-            return SetupSequenceResult(False, mode, errors, warnings, metadata)
-
-    async def validate_environment(self) -> ValidationDetails:
+            return SetupSequenceResult(False, mode, errors, warnings, metadata)    async def validate_environment(self) -> ValidationDetails:
         """Validate complete environment."""
         try:
-            # Use environment manager for validation
-            from .environment import EnvironmentManager
+            # Use validation registry for validation
+            from .validation.composite import CompositeValidator
 
-            manager = EnvironmentManager(self.workspace_root)
-            return manager.validate_complete_environment()
+            validator = CompositeValidator(self.context)
+
+            # Add available validators from registry
+            for validator_name in self.registry.list_validators():
+                try:
+                    validator_instance = self.registry.get_validator(validator_name, self.context)
+                    if validator_instance:
+                        validator.add_validator(validator_instance)
+                except Exception as e:
+                    if self.verbose:
+                        print(f"Warning: Could not load validator {validator_name}: {e}")
+
+            # Run composite validation
+            result = validator.validate()
+
+            return ValidationDetails(
+                is_valid=result.is_valid,
+                status=result.status,
+                message=result.message,
+                component_name="Environment",
+                errors=result.errors,
+                warnings=result.warnings,
+                recommendations=result.recommendations,
+            )
 
         except Exception as e:
             return ValidationDetails(
