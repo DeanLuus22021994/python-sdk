@@ -70,69 +70,76 @@ class RestructureOrchestrator:
         return [
             # Phase 1: Environment to config migration
             FileMove(
-                "environment/constants.py",
+                "setup/environment/constants.py",
                 "setup/config/constants.py",
                 "Environment constants → config constants",
             ),
             FileMove(
-                "environment/manager.py",
+                "setup/environment/manager.py",
                 "setup/config/manager.py",
                 "Environment manager → config manager",
             ),
             FileMove(
-                "environment/utils.py",
+                "setup/environment/utils.py",
                 "setup/config/utils.py",
                 "Environment utilities → config utilities",
             ),
             FileMove(
-                "environment/__init__.py",
+                "setup/environment/__init__.py",
                 "setup/config/__init__.py",
                 "Environment package init → config package init",
                 is_critical=False,
             ),
             # Phase 2: Docker to infra/docker migration
             FileMove(
-                "docker/config.py",
+                "setup/docker/config.py",
                 "setup/infra/docker/config.py",
                 "Docker config → infra/docker/config",
             ),
             FileMove(
-                "docker/images.py",
+                "setup/docker/images.py",
                 "setup/infra/docker/images.py",
                 "Docker images → infra/docker/images",
             ),
             FileMove(
-                "docker/volume_config.py",
+                "setup/docker/volume_config.py",
                 "setup/infra/docker/volume_config.py",
                 "Docker volume config → infra/docker/volume_config",
             ),
             FileMove(
-                "docker/volumes.py",
+                "setup/docker/volumes.py",
                 "setup/infra/docker/volumes.py",
                 "Docker volumes → infra/docker/volumes",
             ),
             FileMove(
-                "docker/dockerfiles/Dockerfile.dev",
+                "setup/docker/dockerfiles/Dockerfile.dev",
                 "setup/infra/docker/dockerfiles/Dockerfile.dev",
                 "Dockerfile.dev → infra/docker/dockerfiles",
                 is_critical=False,
             ),
             FileMove(
-                "docker/__init__.py",
+                "setup/docker/__init__.py",
                 "setup/infra/docker/__init__.py",
                 "Docker package init → infra/docker package init",
                 is_critical=False,
             ),
             # Phase 3: Host to infra/host migration
             FileMove(
-                "host/package_manager.py",
+                "setup/host/package_manager.py",
                 "setup/infra/host/package_manager.py",
                 "Host package manager → infra/host/package_manager",
             ),
             FileMove(
-                "host/__init__.py",
+                "setup/host/__init__.py",
                 "setup/infra/host/__init__.py",
                 "Host package init → infra/host package init",
+                is_critical=False,
+            ),
+            # Phase 4: Remove root environment.py (per milestone - eliminate root ambiguity)
+            FileMove(
+                "setup/environment.py",
+                "setup/.environment.py.removed",
+                "Remove root environment.py to eliminate ambiguity",
                 is_critical=False,
             ),
         ]
@@ -173,12 +180,12 @@ class RestructureOrchestrator:
 
     def cleanup_empty_directories(self) -> None:
         """Remove empty directories after restructuring."""
-        cleanup_dirs = ["environment", "docker", "host"]
+        cleanup_dirs = ["setup/environment", "setup/docker", "setup/host"]
 
         print("🧹 Cleaning up empty directories...")
 
-        for dir_name in cleanup_dirs:
-            dir_path = self.root_dir / dir_name
+        for dir_path_str in cleanup_dirs:
+            dir_path = self.root_dir / dir_path_str
             if dir_path.exists() and dir_path.is_dir():
                 try:
                     # Check if directory is empty
@@ -197,25 +204,26 @@ class RestructureOrchestrator:
 
                         # Remove the directory if truly empty
                         remaining = list(dir_path.iterdir())
-                        if not remaining or all(
-                            item.name in {".gitkeep"} for item in remaining
-                        ):
+                        if not remaining:
+                            dir_path.rmdir()
+                            print(f"   Removed empty directory: {dir_path_str}/")
+                        elif all(item.name in {".gitkeep"} for item in remaining):
                             print(
-                                f"   Empty directory retained: {dir_name}/ (contains .gitkeep)"
+                                f"   Empty directory retained: {dir_path_str}/ (contains .gitkeep)"
                             )
                         else:
                             contents_list = [item.name for item in remaining]
                             print(
-                                f"   Directory not empty: {dir_name}/ (contents: {contents_list})"
+                                f"   Directory not empty: {dir_path_str}/ (contents: {contents_list})"
                             )
                     else:
                         significant_list = [item.name for item in significant_contents]
                         print(
-                            f"   Directory retained: {dir_name}/ (contains: {significant_list})"
+                            f"   Directory retained: {dir_path_str}/ (contains: {significant_list})"
                         )
 
                 except Exception as e:
-                    print(f"   Error checking {dir_name}/: {e}")
+                    print(f"   Error checking {dir_path_str}/: {e}")
 
     def create_entry_points(self) -> None:
         """Create the required entry points as per milestone specification."""
@@ -255,8 +263,11 @@ if __name__ == "__main__":
 '''
 
         main_file = self.setup_dir / "__main__.py"
-        main_file.write_text(main_py_content)
-        print("   Created: setup/__main__.py")
+        if not main_file.exists():
+            main_file.write_text(main_py_content)
+            print("   Created: setup/__main__.py")
+        else:
+            print("   Exists: setup/__main__.py")
 
         # Update setup/main.py if it doesn't exist or needs updating
         main_py_file = self.setup_dir / "main.py"
@@ -295,6 +306,8 @@ if __name__ == "__main__":
 '''
             main_py_file.write_text(main_content)
             print("   Created: setup/main.py")
+        else:
+            print("   Exists: setup/main.py")
 
         # Update root setup.py for legacy compatibility
         root_setup_py = self.root_dir / "setup.py"
@@ -318,19 +331,33 @@ if __name__ == "__main__":
 '''
             root_setup_py.write_text(setup_py_content)
             print("   Created: setup.py (root)")
+        else:
+            print("   Exists: setup.py (root)")
 
     def update_imports_preview(self) -> None:
         """Show what import updates will be needed."""
         print("📝 Import Updates Required:")
         print("   After restructuring, update these import patterns:")
         print()
-        print("   OLD: from environment.manager import ...")
+        print("   OLD: from setup.environment.manager import ...")
         print("   NEW: from setup.config.manager import ...")
         print()
-        print("   OLD: from docker.config import ...")
+        print("   OLD: from setup.environment.constants import ...")
+        print("   NEW: from setup.config.constants import ...")
+        print()
+        print("   OLD: from setup.environment.utils import ...")
+        print("   NEW: from setup.config.utils import ...")
+        print()
+        print("   OLD: from setup.docker.config import ...")
         print("   NEW: from setup.infra.docker.config import ...")
         print()
-        print("   OLD: from host.package_manager import ...")
+        print("   OLD: from setup.docker.images import ...")
+        print("   NEW: from setup.infra.docker.images import ...")
+        print()
+        print("   OLD: from setup.docker.volumes import ...")
+        print("   NEW: from setup.infra.docker.volumes import ...")
+        print()
+        print("   OLD: from setup.host.package_manager import ...")
         print("   NEW: from setup.infra.host.package_manager import ...")
         print()
 
@@ -338,14 +365,29 @@ if __name__ == "__main__":
         """Validate that restructuring completed successfully."""
         print("🔍 Validating restructure completion...")
 
+        # Check required files and directories
         required_files = [
             "setup/__main__.py",
             "setup/main.py",
+            "setup/__init__.py",
+            "setup/orchestrator.py",
+            "setup/sequence.py",
+            "setup/packages.py",
+            "setup/validators.py",
             "setup/config/__init__.py",
             "setup/infra/__init__.py",
             "setup/infra/docker/__init__.py",
             "setup/infra/host/__init__.py",
         ]
+
+        # Check existing preserved directories
+        preserved_dirs = [
+            "setup/typings/__init__.py",
+            "setup/validation/__init__.py",
+            "setup/vscode/__init__.py",
+        ]
+
+        required_files.extend(preserved_dirs)
 
         validation_success = True
 
@@ -361,7 +403,11 @@ if __name__ == "__main__":
         moved_files = [
             "setup/config/constants.py",
             "setup/config/manager.py",
+            "setup/config/utils.py",
             "setup/infra/docker/config.py",
+            "setup/infra/docker/images.py",
+            "setup/infra/docker/volumes.py",
+            "setup/infra/docker/volume_config.py",
             "setup/infra/host/package_manager.py",
         ]
 
@@ -371,6 +417,36 @@ if __name__ == "__main__":
                 print(f"   ✅ {file_path} (moved)")
             else:
                 print(f"   ⚠️  {file_path} (not found)")
+
+        # Check that preserved files still exist
+        preserved_files = [
+            "setup/typings/config.py",
+            "setup/typings/core.py",
+            "setup/typings/enums.py",
+            "setup/typings/environment.py",
+            "setup/typings/protocols.py",
+            "setup/typings/tools.py",
+            "setup/validation/base.py",
+            "setup/validation/composite.py",
+            "setup/validation/decorators.py",
+            "setup/validation/registry.py",
+            "setup/validation/reporters.py",
+            "setup/vscode/extensions.py",
+            "setup/vscode/integration.py",
+            "setup/vscode/launch.py",
+            "setup/vscode/settings.py",
+            "setup/vscode/tasks.py",
+            "setup/pyrightconfig.basic.json",
+            "setup/pyrightconfig.intermediate.json",
+            "setup/pyrightconfig.json",
+        ]
+
+        for file_path in preserved_files:
+            full_path = self.root_dir / file_path
+            if full_path.exists():
+                print(f"   ✅ {file_path} (preserved)")
+            else:
+                print(f"   ⚠️  {file_path} (missing preserved file)")
 
         return validation_success
 
