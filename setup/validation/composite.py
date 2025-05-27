@@ -235,12 +235,12 @@ class ParallelCompositeValidator(CompositeValidator):
                 return validator.get_validator_name(), result
 
         # Create tasks for all validators
-        tasks = [validate_with_semaphore(validator) for validator in self.validators]
-
-        # Execute all tasks
-        completed_validations = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Process results similar to sequential version
+        tasks = [
+            validate_with_semaphore(validator) for validator in self.validators
+        ]  # Execute all tasks
+        completed_validations = await asyncio.gather(
+            *tasks, return_exceptions=True
+        )  # Process results similar to sequential version
         results: dict[str, ValidationResult[Any]] = {}
         all_errors: list[str] = []
         all_warnings: list[str] = []
@@ -253,8 +253,13 @@ class ParallelCompositeValidator(CompositeValidator):
                 all_errors.append(error_msg)
                 continue
 
-            validator_name, result = validation_result
-            results[validator_name] = result
+            try:
+                validator_name, result = validation_result
+                results[validator_name] = result
+            except (ValueError, TypeError) as e:
+                error_msg = f"Invalid validation result format: {e}"
+                all_errors.append(error_msg)
+                continue
 
             # Collect results same as sequential version
             all_errors.extend(result.errors)

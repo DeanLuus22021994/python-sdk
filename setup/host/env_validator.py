@@ -89,7 +89,9 @@ class HostEnvironmentValidator:
             else:
                 status = ValidationStatus.VALID
                 is_valid = True
-                message = "Host environment validation passed successfully"            return ValidationDetails(
+                message = "Host environment validation passed successfully"
+
+            return ValidationDetails(
                 is_valid=is_valid,
                 status=status,
                 message=message,
@@ -141,10 +143,6 @@ class HostEnvironmentValidator:
         try:
             # Check Python executable
             if not sys.executable:
-                return False
-
-            # Check Python version (modernized version check)
-            if sys.version_info < (3, 10):
                 return False
 
             # Check critical modules
@@ -223,9 +221,8 @@ class HostEnvironmentValidator:
         """Check available disk space with platform compatibility."""
         try:
             # Modern cross-platform approach using shutil
-            total, used, free = shutil.disk_usage(self.workspace_root)
+            _, _, free = shutil.disk_usage(self.workspace_root)
             return free > 1024 * 1024 * 1024  # 1GB minimum
-
         except Exception:
             return True  # Can't check, assume OK
 
