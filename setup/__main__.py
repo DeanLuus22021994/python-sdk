@@ -19,8 +19,8 @@ if str(_setup_path.parent) not in sys.path:
     sys.path.insert(0, str(_setup_path.parent))
 
 if TYPE_CHECKING:
-    from .orchestrator import ModernSetupOrchestrator
-    from .typings.enums import SetupMode
+    from setup.orchestrator import ModernSetupOrchestrator
+    from setup.typings.enums import SetupMode
 else:
     ModernSetupOrchestrator = None
     SetupMode = None

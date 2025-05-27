@@ -52,9 +52,7 @@ class CompositeValidator:
                 if validator_name in self._results:
                     del self._results[validator_name]
                 return True
-        return False
-
-    def validate(self) -> ValidationResult[dict[str, Any]]:
+        return False    def validate(self) -> ValidationResult[dict[str, Any]]:
         """
         Execute all validators and return composite result.
 
@@ -102,31 +100,31 @@ class CompositeValidator:
                     is_valid=False,
                     status=ValidationStatus.ERROR,
                     message=error_msg,
-                    errors=(error_msg,),
+                    errors=[error_msg],
                 )
 
                 if self.fail_fast:
                     break
 
         # Create composite result
+        status = ValidationStatus.VALID
+        message = "All validations passed successfully"
+
         if aggregated_errors:
             status = ValidationStatus.ERROR
             message = f"Composite validation failed: {len(aggregated_errors)} error(s)"
         elif aggregated_warnings:
             status = ValidationStatus.WARNING
             message = f"Composite validation passed with {len(aggregated_warnings)} warning(s)"
-        else:
-            status = ValidationStatus.VALID
-            message = "All validations passed successfully"
 
         return ValidationResult(
             is_valid=all_valid,
             status=status,
             message=message,
             data=aggregated_metadata,
-            errors=tuple(aggregated_errors),
-            warnings=tuple(aggregated_warnings),
-            recommendations=tuple(aggregated_recommendations),
+            errors=list(aggregated_errors),
+            warnings=list(aggregated_warnings),
+            recommendations=list(aggregated_recommendations),
             metadata={
                 "validators_executed": len(self._results),
                 "total_validators": len(self.validators),

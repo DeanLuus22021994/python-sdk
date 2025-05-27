@@ -3,4 +3,4 @@ Infrastructure Package
 Provides containerization and host configuration capabilities.
 """
 
-__all__ = []
+__all__: list[str] = []
