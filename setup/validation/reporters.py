@@ -25,7 +25,8 @@ __all__ = [
 
 
 @dataclass(slots=True, frozen=True)
-class ValidationReport:    """
+class ValidationReport:
+    """
     Comprehensive validation report.
 
     Aggregates multiple validation results into a structured report
@@ -38,13 +39,19 @@ class ValidationReport:    """
 
     def __init__(
         self,
-        timestamp: float = None,
-        results: list[ValidationResult[Any]] | tuple[ValidationResult[Any], ...] = None,
-        metadata: dict[str, Any] = None
+        timestamp: float | None = None,
+        results: (
+            list[ValidationResult[Any]] | tuple[ValidationResult[Any], ...] | None
+        ) = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the validation report with proper type handling."""
-        object.__setattr__(self, "timestamp", timestamp if timestamp is not None else time.time())
-        object.__setattr__(self, "results", tuple(results) if results is not None else ())
+        object.__setattr__(
+            self, "timestamp", timestamp if timestamp is not None else time.time()
+        )
+        object.__setattr__(
+            self, "results", tuple(results) if results is not None else ()
+        )
         object.__setattr__(self, "metadata", metadata if metadata is not None else {})
 
     @property
@@ -111,7 +118,9 @@ class ValidationReport:    """
             "success_rate": self.valid_count / self.total_validations,
         }
 
-    def get_results_by_status(self, status: ValidationStatus) -> list[ValidationResult[Any]]:
+    def get_results_by_status(
+        self, status: ValidationStatus
+    ) -> list[ValidationResult[Any]]:
         """Get all results with specific status."""
         return [result for result in self.results if result.status == status]
 
@@ -153,6 +162,7 @@ class ValidationReporter:
             Generated validation report
         """
         return ValidationReport(
+            timestamp=None,
             results=tuple(results),
             metadata=metadata or {},
         )
@@ -246,8 +256,10 @@ class ConsoleReporter(ValidationReporter):
         lines.append(f"Errors: {summary['error_count']}")
         lines.append(f"Warnings: {summary['warning_count']}")
         lines.append(f"Success Rate: {summary['success_rate']:.1%}")
-        lines.append(f"Overall Status: {self._colorize_status(summary['overall_status'])}")
-        lines.append("")        # Detailed results
+        lines.append(
+            f"Overall Status: {self._colorize_status(summary['overall_status'])}"
+        )
+        lines.append("")  # Detailed results
         if self.verbose and report.results:
             lines.append(self._format_section("Detailed Results"))
             for i, result in enumerate(report.results, 1):
@@ -258,7 +270,7 @@ class ConsoleReporter(ValidationReporter):
                     lines.extend(f"   ⚠️  {warning}" for warning in result.warnings)
                 if result.recommendations:
                     lines.extend(f"   💡 {rec}" for rec in result.recommendations)
-                lines.append("")        # Failed validations (always show if any)
+                lines.append("")  # Failed validations (always show if any)
         failed_results = report.get_failed_results()
         if failed_results and not self.verbose:
             lines.append(self._format_section("Failed Validations"))
@@ -294,10 +306,10 @@ class ConsoleReporter(ValidationReporter):
             return status.upper()
 
         color_map = {
-            "valid": "\033[32m",      # Green
-            "warning": "\033[33m",    # Yellow
-            "error": "\033[31m",      # Red
-            "unknown": "\033[35m",    # Magenta
+            "valid": "\033[32m",  # Green
+            "warning": "\033[33m",  # Yellow
+            "error": "\033[31m",  # Red
+            "unknown": "\033[35m",  # Magenta
         }
 
         color = color_map.get(status.lower(), "")
@@ -372,7 +384,7 @@ class JSONReporter(ValidationReporter):
 
     def _result_to_dict(self, result: ValidationResult[Any]) -> dict[str, Any]:
         """Convert validation result to dictionary."""
-        return {
+        data = {
             "is_valid": result.is_valid,
             "status": result.status.value,
             "message": result.message,
@@ -381,8 +393,12 @@ class JSONReporter(ValidationReporter):
             "warnings": list(result.warnings),
             "recommendations": list(result.recommendations),
             "metadata": result.metadata,
-            "validation_time": result.validation_time,
         }
+        # Add validation_time if it exists
+        if hasattr(result, "validation_time"):
+            data["validation_time"] = getattr(result, "validation_time")
+
+        return data
 
 
 class HTMLReporter(ValidationReporter):
@@ -435,7 +451,9 @@ class HTMLReporter(ValidationReporter):
         html_parts.append("<head>")
         html_parts.append(f"<title>{self.title}</title>")
         html_parts.append("<meta charset='utf-8'>")
-        html_parts.append("<meta name='viewport' content='width=device-width, initial-scale=1'>")
+        html_parts.append(
+            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        )
 
         if self.include_css:
             html_parts.append(self._get_embedded_css())
@@ -512,12 +530,16 @@ class HTMLReporter(ValidationReporter):
 
             if result.warnings:
                 html_parts.append("<ul class='warnings'>")
-                html_parts.extend(f"<li>⚠️ {warning}</li>" for warning in result.warnings)
+                html_parts.extend(
+                    f"<li>⚠️ {warning}</li>" for warning in result.warnings
+                )
                 html_parts.append("</ul>")
 
             if result.recommendations:
                 html_parts.append("<ul class='recommendations'>")
-                html_parts.extend(f"<li>💡 {rec}</li>" for rec in result.recommendations)
+                html_parts.extend(
+                    f"<li>💡 {rec}</li>" for rec in result.recommendations
+                )
                 html_parts.append("</ul>")
 
             html_parts.append("</div>")
