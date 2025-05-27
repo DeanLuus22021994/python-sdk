@@ -53,7 +53,7 @@ def _load_host_setup() -> tuple[type[Any] | None, Callable[[], bool] | None]:
 def _load_docker_setup() -> type[Any] | None:
     """Load Docker setup components with graceful fallback."""
     try:
-        from .docker import DockerSetupManager
+        from .infra.docker import DockerSetupManager
 
         return DockerSetupManager
     except ImportError:
