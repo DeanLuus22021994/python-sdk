@@ -8,11 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .environment.constants import REQUIRED_PROJECT_PATHS
-from .environment.path_utils import get_project_root
-from .environment.python_validator import (
-    get_environment_info,
-    validate_python_version,
-)
+from .environment.utils import get_project_root
 from .typings import SetupMode, ValidationDetails, ValidationStatus
 from .validation.base import ValidationContext
 from .validation.registry import get_global_registry
@@ -71,7 +67,6 @@ class EnvironmentManager:
             component_name="Environment",
             errors=errors if errors else [],
         )
-        
 
     def setup_environment(self) -> bool:
         """Set up the complete development environment."""
@@ -110,16 +105,30 @@ def check_required_paths() -> tuple[bool, list[str]]:
 def get_current_environment_status() -> dict[str, Any]:
     """Get current environment status and information."""
     try:
-        env_info = get_environment_info()
-        python_valid, python_msg = validate_python_version()
+        # Use modern validation framework
+        from .environment.manager import EnvironmentManager as ModernManager
+
+        manager = ModernManager()
+        env_info = manager.get_environment_info()
+
+        # Get validation results
+        context = ValidationContext(
+            workspace_root=str(get_project_root()),
+            environment={},
+        )
+
+        registry = get_global_registry()
+        python_validator = registry.create_validator("python_environment", context)
+        python_result = python_validator.validate()
+
         paths_valid, missing_paths = check_required_paths()
 
         return {
-            "python_version": str(env_info.get("python_version", "unknown")),
-            "python_valid": python_valid,
-            "python_message": python_msg,
-            "virtual_env": env_info.get("virtual_env_active", False),
-            "platform": env_info.get("platform_system", "unknown"),
+            "python_version": str(env_info.python_version),
+            "python_valid": python_result.is_valid,
+            "python_message": python_result.message,
+            "virtual_env": env_info.virtual_env_active,
+            "platform": env_info.platform_system,
             "paths_valid": paths_valid,
             "missing_paths": missing_paths,
         }
@@ -223,3 +232,49 @@ def create_vscode_extensions_config() -> dict[str, Any]:
             "charliermarsh.ruff",
         ]
     }
+
+
+# Legacy compatibility imports - bridge to modern validation
+def validate_python_version() -> tuple[bool, str]:
+    """Legacy function for Python version validation."""
+    try:
+        context = ValidationContext(
+            workspace_root=str(get_project_root()),
+            environment={},
+        )
+
+        registry = get_global_registry()
+        validator = registry.create_validator("python_environment", context)
+        result = validator.validate()
+
+        return result.is_valid, result.message
+    except Exception as e:
+        return False, f"Validation failed: {e}"
+
+
+def get_environment_info() -> dict[str, Any]:
+    """Legacy function for environment info."""
+    try:
+        from .environment.manager import EnvironmentManager as ModernManager
+
+        manager = ModernManager()
+        env_info = manager.get_environment_info()
+
+        return {
+            "python_version": env_info.python_version,
+            "virtual_env_active": env_info.virtual_env_active,
+            "platform_system": env_info.platform_system,
+            "architecture": env_info.architecture,
+        }
+    except Exception:
+        import platform
+        import sys
+
+        # Fallback to basic info
+        return {
+            "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            "virtual_env_active": hasattr(sys, "real_prefix")
+            or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix),
+            "platform_system": platform.system(),
+            "architecture": platform.machine(),
+        }

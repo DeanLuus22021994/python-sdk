@@ -207,3 +207,10 @@ class CachedValidator(BaseValidator[T]):
         """Clear both local and wrapped validator caches."""
         super().clear_cache()
         self._wrapped.clear_cache()
+
+
+# Forward declaration for registry to avoid circular imports
+class ValidationRegistry:
+    """Forward declaration - implementation in registry.py"""
+
+    pass
