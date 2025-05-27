@@ -12,7 +12,6 @@ from typing import Any
 from ..environment.utils import get_project_root
 from ..typings import ContainerConfig, ValidationStatus
 from ..typings.environment import ValidationDetails
-from ..typings.tools import DockerConfig, DockerInfo
 
 
 class DockerConfigManager:
@@ -181,38 +180,25 @@ CMD ["python", "-m", "mcp.server"]
             },
         )
 
-    def get_container_info(self) -> DockerInfo:
+    def get_container_info(self) -> dict[str, Any]:
         """Get Docker container information."""
-        return DockerInfo(
-            docker_available=True,
-            compose_available=True,
-            images_status={},
-            volumes_status={},
-            network_status={},
-        )
+        return {
+            "docker_available": True,
+            "compose_available": True,
+            "workspace_root": str(self.workspace_root),
+        }
 
-    def create_container_config(self) -> DockerConfig:
+    def create_container_config(self) -> dict[str, Any]:
         """Create complete Docker configuration."""
-        return DockerConfig(
-            base_image=self.config.base_image,
-            working_directory=self.config.work_dir,
-            exposed_ports=[self.config.expose_port],
-            environment_variables={
+        return {
+            "base_image": self.config.base_image,
+            "working_directory": self.config.work_dir,
+            "exposed_ports": [self.config.expose_port],
+            "environment_variables": {
                 "PYTHONPATH": f"{self.config.work_dir}/src",
                 "PYTHONDONTWRITEBYTECODE": "1",
                 "PYTHONUNBUFFERED": "1",
             },
-            build_context=str(self.workspace_root),
-            dockerfile_path="Dockerfile",
-        )
-
-
-def create_default_config_manager() -> DockerConfigManager:
-    """Create a Docker config manager with default configuration."""
-    return DockerConfigManager()
-
-
-def validate_docker_environment() -> ValidationDetails:
-    """Validate the Docker environment."""
-    manager = create_default_config_manager()
-    return manager.validate_configuration()
+            "build_context": str(self.workspace_root),
+            "dockerfile_path": "Dockerfile",
+        }

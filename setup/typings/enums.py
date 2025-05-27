@@ -28,6 +28,9 @@ class SetupMode(Enum):
     HYBRID = "hybrid"
     """Hybrid mode supporting both host and container operations."""
 
+    DEVELOPMENT = "development"
+    """Development mode with enhanced debugging and tooling."""
+
     def __str__(self) -> str:
         return self.value
 

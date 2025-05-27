@@ -1,336 +1,236 @@
 """
-Host Environment Setup
-Modern host system configuration and validation for the MCP Python SDK.
-
-Modernized for Python 3.13+ with comprehensive validation framework integration.
+Host Environment Setup Module
+Manages host-based setup and validation for the MCP Python SDK.
 """
 
 from __future__ import annotations
 
+import os
 import platform
 import sys
 from pathlib import Path
 from typing import Any
 
-from ..typings import ValidationDetails, ValidationStatus
-from ..validation.base import ValidationContext
-from ..validation.registry import get_global_registry
+from ..typings import EnvironmentInfo, PythonVersion, ValidationStatus
+from ..typings.environment import ValidationDetails
+from ..validation.base import BaseValidator, ValidationContext, ValidationResult
+from ..validation.registry import get_global_registry, register_validator
 
 
-class HostEnvironmentValidator:
+@register_validator("host_environment")
+class HostEnvironmentValidator(BaseValidator[dict[str, Any]]):
     """
-    Modern host environment validator using the validation framework.
+    Validates host environment for direct installation.
 
-    Replaces the legacy env_validator with framework-integrated validation.
+    Follows SRP by focusing on host-specific validation requirements.
     """
 
-    def __init__(self, workspace_root: Path) -> None:
-        """Initialize with workspace root."""
-        self.workspace_root = workspace_root
-        self.context = ValidationContext(
-            workspace_root=str(workspace_root),
-            environment={},
-            config={"component": "host", "python_version": "3.13+"},
+    def get_validator_name(self) -> str:
+        """Get validator name."""
+        return "Host Environment"
+
+    def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
+        """Validate host environment."""
+        errors: list[str] = []
+        warnings: list[str] = []
+        recommendations: list[str] = []
+        metadata: dict[str, Any] = {}
+
+        # Get environment info
+        env_info = self._get_environment_info()
+        metadata.update(
+            {
+                "python_version": str(env_info.python_version),
+                "platform": env_info.platform_system,
+                "architecture": env_info.architecture,
+                "virtual_env_active": env_info.virtual_env_active,
+            }
         )
-        self.registry = get_global_registry()
 
-    def validate_complete_environment(self) -> ValidationDetails:
-        """
-        Validate complete host environment using modern framework.
+        # Check Python version
+        if env_info.python_version < PythonVersion(3, 10, 0):
+            errors.append(
+                f"Python {env_info.python_version} is not supported. Minimum version is 3.10"
+            )
+        elif env_info.python_version < PythonVersion(3, 11, 0):
+            warnings.append(
+                f"Python {env_info.python_version} works but 3.11+ is recommended"
+            )
 
-        Returns:
-            ValidationDetails with comprehensive validation results
-        """
+        # Check virtual environment
+        if not env_info.virtual_env_active:
+            warnings.append("Not running in a virtual environment")
+            recommendations.append(
+                "Consider using a virtual environment for dependency isolation"
+            )
+
+        # Platform-specific checks
+        if env_info.platform_system == "Windows":
+            self._check_windows_environment(metadata, warnings, recommendations)
+        elif env_info.platform_system == "Linux":
+            self._check_linux_environment(metadata, warnings, recommendations)
+        elif env_info.platform_system == "Darwin":
+            self._check_macos_environment(metadata, warnings, recommendations)
+
+        # Determine status
+        if errors:
+            status = ValidationStatus.ERROR
+            is_valid = False
+            message = f"Host environment validation failed: {len(errors)} error(s)"
+        elif warnings:
+            status = ValidationStatus.WARNING
+            is_valid = True
+            message = f"Host environment has {len(warnings)} warning(s)"
+        else:
+            status = ValidationStatus.VALID
+            is_valid = True
+            message = "Host environment is ready"
+
+        return self._create_result(
+            is_valid=is_valid,
+            status=status,
+            message=message,
+            data=metadata,
+            errors=errors,
+            warnings=warnings,
+            recommendations=recommendations,
+        )
+
+    def _get_environment_info(self) -> EnvironmentInfo:
+        """Get comprehensive environment information."""
+        version_info = sys.version_info
+        python_version = PythonVersion(
+            version_info.major, version_info.minor, version_info.micro
+        )
+
+        # Check virtual environment
+        in_venv = hasattr(sys, "real_prefix") or (
+            hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+        )
+
+        return EnvironmentInfo(
+            python_version=python_version,
+            python_executable=sys.executable,
+            virtual_env_active=in_venv,
+            virtual_env_type="venv" if in_venv else None,
+            virtual_env_path=sys.prefix if in_venv else None,
+            platform_system=platform.system(),
+            platform_release=platform.release(),
+            architecture=platform.machine(),
+        )
+
+    def _check_windows_environment(
+        self, metadata: dict[str, Any], warnings: list[str], recommendations: list[str]
+    ) -> None:
+        """Windows-specific environment checks."""
+        # Check for Windows-specific tools
         try:
-            # Create composite validator for host environment
-            validators = []
+            import subprocess
 
-            # Add available validators from registry
-            available_validators = ["python_environment", "project_structure"]
-            for validator_name in available_validators:
-                try:
-                    validator = self.registry.create_validator(validator_name, self.context)
-                    validators.append(validator)
-                except ValueError:
-                    # Validator not available, skip
-                    continue
+            result = subprocess.run(["where", "git"], capture_output=True, text=True)
+            metadata["git_available"] = result.returncode == 0
+            if result.returncode != 0:
+                warnings.append("Git not found in PATH")
+                recommendations.append("Install Git for Windows")
+        except Exception:
+            warnings.append("Could not check Git availability")
 
-            if not validators:
-                # Fallback validation
-                return ValidationDetails(
-                    is_valid=True,
-                    status=ValidationStatus.WARNING,
-                    message="Host environment validation completed with limited checks",
-                    warnings=["Modern validators not available, using basic validation"],
-                    component_name="HostEnvironment",
+    def _check_linux_environment(
+        self, metadata: dict[str, Any], warnings: list[str], recommendations: list[str]
+    ) -> None:
+        """Linux-specific environment checks."""
+        # Check for build tools
+        try:
+            import subprocess
+
+            result = subprocess.run(["which", "gcc"], capture_output=True, text=True)
+            metadata["gcc_available"] = result.returncode == 0
+            if result.returncode != 0:
+                warnings.append("GCC compiler not found")
+                recommendations.append("Install build-essential or equivalent package")
+        except Exception:
+            warnings.append("Could not check build tools")
+
+    def _check_macos_environment(
+        self, metadata: dict[str, Any], warnings: list[str], recommendations: list[str]
+    ) -> None:
+        """macOS-specific environment checks."""
+        # Check for Xcode command line tools
+        try:
+            import subprocess
+
+            result = subprocess.run(
+                ["xcode-select", "-p"], capture_output=True, text=True
+            )
+            metadata["xcode_tools_available"] = result.returncode == 0
+            if result.returncode != 0:
+                warnings.append("Xcode command line tools not installed")
+                recommendations.append(
+                    "Install Xcode command line tools: xcode-select --install"
                 )
-
-            # Run validations and combine results
-            all_valid = True
-            all_errors: list[str] = []
-            all_warnings: list[str] = []
-            all_recommendations: list[str] = []
-
-            for validator in validators:
-                try:
-                    result = validator.validate()
-                    if not result.is_valid:
-                        all_valid = False
-                        all_errors.extend(result.errors)
-                    all_warnings.extend(result.warnings)
-                    all_recommendations.extend(result.recommendations)
-                except Exception as e:
-                    all_valid = False
-                    all_errors.append(f"Validator {validator.get_validator_name()} failed: {e}")
-
-            status = ValidationStatus.VALID if all_valid else ValidationStatus.ERROR
-            message = "Host environment validation passed" if all_valid else "Host environment validation failed"
-
-            return ValidationDetails(
-                is_valid=all_valid,
-                status=status,
-                message=message,
-                warnings=all_warnings,
-                errors=all_errors,
-                recommendations=all_recommendations,
-                component_name="HostEnvironment",
-            )
-
-        except Exception as e:
-            return ValidationDetails(
-                is_valid=False,                status=ValidationStatus.ERROR,
-                message=f"Host environment validation failed: {e}",
-                errors=[str(e)],
-                component_name="HostEnvironment",
-            )
-
-
-class SystemInfoCollector:
-    @staticmethod
-    def collect_all_info() -> dict[str, Any]:
-        """Collect comprehensive system information."""
-        return {
-            "platform": {
-                "system": platform.system(),
-                "release": platform.release(),
-                "version": platform.version(),
-                "machine": platform.machine(),
-                "processor": platform.processor(),
-            },
-            "python": {
-                "version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-                "executable": sys.executable,
-                "implementation": platform.python_implementation(),
-            },
-        }
-
-    @staticmethod
-    def get_system_type() -> str:
-        """Get system type."""
-        return platform.system()
+        except Exception:
+            warnings.append("Could not check Xcode tools")
 
 
 class HostSetupManager:
-    """
-    Modern host environment setup and validation manager.
+    """Manages host environment setup and validation."""
 
-    Provides comprehensive host system validation, configuration,
-    and optimization for development environments.
-    """
+    def __init__(self, workspace_root: Path | str) -> None:
+        """Initialize host setup manager."""
+        self.workspace_root = (
+            Path(workspace_root) if isinstance(workspace_root, str) else workspace_root
+        )
 
-    def __init__(self, workspace_root: Path, verbose: bool = False) -> None:
-        """
-        Initialize host setup manager.
-
-        Args:
-            workspace_root: Root directory of the workspace
-            verbose: Enable verbose logging
-        """
-        self.workspace_root = Path(workspace_root).resolve()
-        self.verbose = verbose
-        self.validator = HostEnvironmentValidator(self.workspace_root)
-        self.system_info = SystemInfoCollector()
+        self.context = ValidationContext(
+            workspace_root=str(self.workspace_root),
+            environment=dict(os.environ),
+            config={"component": "host"},
+        )
 
     def validate_host_environment(self) -> ValidationDetails:
-        """
-        Comprehensive host environment validation.
+        """Validate host environment."""
+        registry = get_global_registry()
 
-        Returns:
-            ValidationDetails with complete validation results
-        """
-        return self.validator.validate_complete_environment()
-
-    def setup_host_environment(self, config: dict[str, Any] | None = None) -> bool:
-        """
-        Set up complete host development environment.
-
-        Args:
-            config: Optional configuration overrides
-
-        Returns:
-            True if setup completed successfully
-        """
         try:
-            config = config or {}
+            validator = registry.create_validator("host_environment", self.context)
+            result = validator.validate()
 
-            if self.verbose:
-                print("Setting up host environment...")
+            return ValidationDetails(
+                is_valid=result.is_valid,
+                status=result.status,
+                message=result.message,
+                warnings=list(result.warnings),
+                errors=list(result.errors),
+                recommendations=list(result.recommendations),
+                metadata=result.metadata,
+                component_name="Host Environment",
+            )
 
-            # Validate current environment
-            validation = self.validate_host_environment()
-            if not validation.is_valid and validation.status == ValidationStatus.ERROR:
-                if self.verbose:
-                    print(f"Host validation failed: {validation.message}")
-                return False
-
-            # Configure system-specific optimizations
-            success = self._configure_system_optimizations(config)
-            if not success:
-                if self.verbose:
-                    print("Failed to configure system optimizations")
-                return False
-
-            # Setup development tools integration
-            success = self._setup_development_tools(config)
-            if not success:
-                if self.verbose:
-                    print("Failed to setup development tools")
-                return False
-
-            if self.verbose:
-                print("✓ Host environment setup completed successfully")
-
-            return True
-
-        except Exception as e:
-            if self.verbose:
-                print(f"Host setup failed: {e}")
-            return False
-
-    def get_host_status(self) -> dict[str, Any]:
-        """
-        Get comprehensive host environment status.
-
-        Returns:
-            Dictionary with detailed host status information
-        """
-        try:
-            # Get system information
-            system_info = self.system_info.collect_all_info()
-
-            # Get validation results
-            validation = self.validate_host_environment()
-
-            # Get environment-specific info
-            env_info = self.validator.get_environment_info()
-
-            return {
-                "system_info": system_info,
-                "validation": {
-                    "is_valid": validation.is_valid,
-                    "status": validation.status.value,
-                    "message": validation.message,
-                    "warnings": validation.warnings,
-                    "errors": validation.errors,
-                    "recommendations": validation.recommendations,
-                },
-                "environment": env_info,
-                "workspace_root": str(self.workspace_root),
-            }
-
-        except Exception as e:
-            return {
-                "error": str(e),
-                "status": "error",
-                "workspace_root": str(self.workspace_root),
-            }
-
-    def _configure_system_optimizations(self, config: dict[str, Any]) -> bool:
-        """Configure system-specific optimizations."""
-        try:
-            # Platform-specific optimizations
-            system_type = self.system_info.get_system_type()
-
-            if system_type == "Windows":
-                return self._configure_windows_optimizations(config)
-            elif system_type == "Darwin":
-                return self._configure_macos_optimizations(config)
-            elif system_type == "Linux":
-                return self._configure_linux_optimizations(config)
-
-            return True
-
-        except Exception:
-            return False
-
-    def _configure_windows_optimizations(self, config: dict[str, Any]) -> bool:
-        """Configure Windows-specific optimizations."""
-        # Windows-specific configuration
-        # Could include PowerShell execution policy, Windows Defender exclusions, etc.
-        return True
-
-    def _configure_macos_optimizations(self, config: dict[str, Any]) -> bool:
-        """Configure macOS-specific optimizations."""
-        # macOS-specific configuration
-        # Could include Xcode tools, Homebrew setup, etc.
-        return True
-
-    def _configure_linux_optimizations(self, config: dict[str, Any]) -> bool:
-        """Configure Linux-specific optimizations."""
-        # Linux-specific configuration
-        # Could include package manager setup, system packages, etc.
-        return True
-
-    def _setup_development_tools(self, config: dict[str, Any]) -> bool:
-        """Setup development tools integration."""
-        try:
-            # Setup git configuration if needed
-            # Setup shell integrations
-            # Configure terminal settings
-            return True
-        except Exception:
-            return False
+        except ValueError:
+            # Fallback validation
+            return ValidationDetails(
+                is_valid=True,
+                status=ValidationStatus.WARNING,
+                message="Host validator not available",
+                warnings=["Host validator not registered"],
+                errors=[],
+                recommendations=["Ensure host validator is properly registered"],
+                metadata={"workspace_root": str(self.workspace_root)},
+                component_name="Host Environment",
+            )
 
 
-# Utility functions for backward compatibility
-def validate_host_environment() -> tuple[bool, str]:
-    """Validate host environment - compatibility function."""
-    try:
-        from ..environment.path_utils import get_project_root
-
-        validator = HostEnvironmentValidator(get_project_root())
-        result = validator.validate_complete_environment()
-        return result.is_valid, result.message
-    except Exception as e:
-        return False, f"Host validation failed: {e}"
-
-
-def get_system_info() -> dict[str, Any]:
-    """Get system information."""
-    try:
-        collector = SystemInfoCollector()
-        return collector.collect_all_info()
-    except Exception:
-        return {"error": "Failed to collect system information"}
-
-
-def check_host_requirements() -> bool:
-    """Check if host meets basic requirements."""
-    try:
-        from ..environment.path_utils import get_project_root
-
-        validator = HostEnvironmentValidator(get_project_root())
-        result = validator.validate_complete_environment()
-        return result.is_valid
-    except Exception:
-        return False
+def validate_host_environment(
+    workspace_root: Path | str | None = None,
+) -> ValidationDetails:
+    """Validate the host environment."""
+    root = Path(workspace_root) if workspace_root else Path.cwd()
+    manager = HostSetupManager(root)
+    return manager.validate_host_environment()
 
 
 __all__ = [
-    "HostSetupManager",
     "HostEnvironmentValidator",
-    "SystemInfoCollector",
+    "HostSetupManager",
     "validate_host_environment",
-    "get_system_info",
-    "check_host_requirements",
 ]

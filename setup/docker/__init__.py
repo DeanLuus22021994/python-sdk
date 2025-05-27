@@ -5,7 +5,7 @@ Modern Docker configuration and management for the MCP Python SDK setup.
 
 from __future__ import annotations
 
-import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +13,7 @@ from ..typings import ValidationStatus
 from ..typings.environment import ValidationDetails
 from ..validation.base import ValidationContext
 from ..validation.registry import get_global_registry
+from .config import DockerConfigManager
 
 
 class DockerSetupManager:
@@ -31,6 +32,8 @@ class DockerSetupManager:
         self.verbose = verbose
 
         # Create validation context
+        import os
+
         self.context = ValidationContext(
             workspace_root=str(self.workspace_root),
             environment=dict(os.environ),
@@ -106,8 +109,6 @@ class DockerSetupManager:
     def cleanup_environment(self) -> bool:
         """Clean up Docker environment."""
         try:
-            import subprocess
-
             # Clean up Docker containers and volumes if needed
             containers = subprocess.run(
                 ["docker", "ps", "-a", "-q", "--filter", "label=mcp-python-sdk"],
@@ -140,41 +141,16 @@ class DockerSetupManager:
         }
 
 
-# Convenience functions for backward compatibility
-def configure_docker_environment(workspace_root: Path | str | None = None) -> bool:
-    """Configure Docker environment for the project."""
-    root = Path(workspace_root) if workspace_root else Path.cwd()
-    manager = DockerSetupManager(root)
-    return manager.setup_docker_environment()
-
-
 def validate_docker_environment(
     workspace_root: Path | str | None = None,
 ) -> ValidationDetails:
     """Validate the Docker environment."""
     root = Path(workspace_root) if workspace_root else Path.cwd()
-    manager = DockerSetupManager(root)
-    return manager.validate_complete_setup()
-
-
-def cleanup_docker_environment(workspace_root: Path | str | None = None) -> bool:
-    """Clean up Docker environment."""
-    root = Path(workspace_root) if workspace_root else Path.cwd()
-    manager = DockerSetupManager(root)
-    return manager.cleanup_environment()
-
-
-def get_docker_status(workspace_root: Path | str | None = None) -> dict[str, Any]:
-    """Get Docker environment status."""
-    root = Path(workspace_root) if workspace_root else Path.cwd()
-    manager = DockerSetupManager(root)
-    return manager.get_setup_status()
+    manager = DockerConfigManager(root)
+    return manager.validate_configuration()
 
 
 __all__ = [
     "DockerSetupManager",
-    "configure_docker_environment",
     "validate_docker_environment",
-    "cleanup_docker_environment",
-    "get_docker_status",
 ]
