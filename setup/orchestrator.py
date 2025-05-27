@@ -82,15 +82,17 @@ class ModernSetupOrchestrator:
             "workspace_root": str(self.workspace_root),
         }
 
-        try:
-            # Phase 1: Environment validation
+        try:            # Phase 1: Environment validation
             if self.verbose:
                 print("📋 Phase 1: Environment validation...")
 
             validation = await self.validate_environment()
+
             if not validation.is_valid:
                 errors.extend(validation.errors)
-                return SetupSequenceResult(False, mode, errors, warnings, metadata)
+                return SetupSequenceResult(
+                    False, mode, errors, warnings, metadata
+                )
 
             # Phase 2: Environment setup
             if self.verbose:
@@ -98,7 +100,9 @@ class ModernSetupOrchestrator:
 
             env_success = await self._setup_environment()
             if not env_success:
-                errors.append("Environment setup failed")            # Phase 3: Tools setup
+                errors.append("Environment setup failed")
+
+            # Phase 3: Tools setup
             if self.verbose:
                 print("🛠️  Phase 3: Tools setup...")
 
@@ -150,8 +154,7 @@ class ModernSetupOrchestrator:
 
         except Exception as e:
             return ValidationDetails(
-                is_valid=False,
-                status=ValidationStatus.ERROR,
+                is_valid=False,                status=ValidationStatus.ERROR,
                 message=f"Environment validation failed: {e}",
                 component_name="Environment",
                 errors=[str(e)],
@@ -160,7 +163,7 @@ class ModernSetupOrchestrator:
     async def _setup_environment(self) -> bool:
         """Setup environment components."""
         try:
-            from .environment import EnvironmentManager
+            from .config import EnvironmentManager
 
             manager = EnvironmentManager(self.workspace_root)
             return await manager.setup_environment()
