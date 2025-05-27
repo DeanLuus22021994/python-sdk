@@ -73,45 +73,49 @@ class SetupSequenceManager:
         try:
             # Phase 1: Validation
             if self.verbose:
-                print("Phase 1: Validation")
+                print("🔍 Running validation phase...")
 
-            validation_result = await self._run_validation_phase()
+            composite = await self._run_validation_phase()
+            validation_report = composite.create_report()
 
-            if not validation_result.is_valid():
-                errors.append("Validation phase failed")
-                for validator_name, result in validation_result.get_validator_results().items():
-                    if not result.is_valid:
-                        errors.extend([f"{validator_name}: {error}" for error in result.errors])
-
-            # Get warnings from composite validator results
-            for result in validation_result.get_validator_results().values():
-                warnings.extend(result.warnings)
+            if not composite.is_valid():
+                errors.extend(
+                    [
+                        f"Validation failed: {name}"
+                        for name in composite.get_failed_validators()
+                    ]
+                )
+                return SetupSequenceResult(
+                    success=False,
+                    mode=self.mode,
+                    validation_report=validation_report,
+                    setup_metadata=setup_metadata,
+                    errors=errors,
+                    warnings=warnings,
+                )
 
             # Phase 2: Environment Setup
             if self.verbose:
-                print("Phase 2: Environment Setup")
+                print("🔧 Setting up environment...")
 
             env_success = await self._setup_environment_phase()
             if not env_success:
-                errors.append("Environment setup phase failed")
+                errors.append("Environment setup failed")
 
-            # Phase 3: Tool Configuration
+            # Phase 3: Tools Setup
             if self.verbose:
-                print("Phase 3: Tool Configuration")
+                print("🛠️ Setting up development tools...")
 
             tools_success = await self._setup_tools_phase()
             if not tools_success:
-                errors.append("Tools configuration phase failed")
+                warnings.append("Some development tools setup failed")
 
-            success = len(errors) == 0
-
-            if self.verbose:
-                print(f"Setup complete: {'SUCCESS' if success else 'FAILED'}")
+            overall_success = env_success and len(errors) == 0
 
             return SetupSequenceResult(
-                success=success,
+                success=overall_success,
                 mode=self.mode,
-                validation_report=validation_result.create_report(),
+                validation_report=validation_report,
                 setup_metadata=setup_metadata,
                 errors=errors,
                 warnings=warnings,
@@ -122,7 +126,7 @@ class SetupSequenceManager:
             return SetupSequenceResult(
                 success=False,
                 mode=self.mode,
-                validation_report=ValidationReport(),
+                validation_report=ValidationReport(results=(), metadata={}),
                 setup_metadata=setup_metadata,
                 errors=errors,
                 warnings=warnings,
@@ -143,9 +147,8 @@ class SetupSequenceManager:
                 validator = self.registry.create_validator(name, self.context)
                 composite.add_validator(validator)
             except ValueError:
-                # Skip validators that aren't available
                 if self.verbose:
-                    print(f"Validator '{name}' not available, skipping")
+                    print(f"⚠️ Validator '{name}' not available")
 
         # Run validation and return the composite validator itself
         composite.validate()

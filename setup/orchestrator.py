@@ -54,7 +54,7 @@ class ModernSetupOrchestrator:
             print(f"🚀 Starting {mode.value} setup orchestration...")
 
         sequence_manager = SetupSequenceManager(
-            self.workspace_root,
+            workspace_root=self.workspace_root,
             mode=mode,
             verbose=self.verbose,
         )
@@ -67,75 +67,53 @@ class ModernSetupOrchestrator:
         return result
 
     async def validate_environment(self) -> ValidationDetails:
-        """Validate environment using orchestrator."""
+        """Validate environment using registered validators."""
         try:
-            # Use environment manager for validation
-            from .environment.manager import EnvironmentManager
-
-            env_manager = EnvironmentManager(self.workspace_root, self.registry)
-            validation_result = await env_manager.validate_environment()
-
-            # Convert to ValidationDetails format
-            is_valid, env_info, errors = validation_result
+            validator = self.registry.create_validator(
+                "python_environment", self.context
+            )
+            result = validator.validate()
 
             return ValidationDetails(
-                is_valid=is_valid,
-                status=ValidationStatus.VALID if is_valid else ValidationStatus.ERROR,
-                message="Environment validation completed",
-                errors=errors,
-                warnings=[],
-                recommendations=[],
+                is_valid=result.is_valid,
+                status=result.status,
+                message=result.message,
+                warnings=list(result.warnings),
+                errors=list(result.errors),
+                recommendations=list(result.recommendations),
+                metadata=result.metadata,
                 component_name="Environment",
-                metadata={
-                    "python_version": str(env_info.python_version),
-                    "platform": env_info.platform_system,
-                    "virtual_env_active": env_info.virtual_env_active,
-                },
             )
 
-        except Exception as e:
+        except ValueError:
+            # Fallback validation
             return ValidationDetails(
-                is_valid=False,
-                status=ValidationStatus.ERROR,
-                message=f"Environment validation failed: {str(e)}",
-                errors=[str(e)],
-                warnings=[],
-                recommendations=["Check environment setup and try again"],
-                component_name="Environment",
+                is_valid=True,
+                status=ValidationStatus.WARNING,
+                message="Python environment validator not available",
+                warnings=["Python environment validator not registered"],
+                errors=[],
+                recommendations=["Register python environment validator"],
                 metadata={"workspace_root": str(self.workspace_root)},
+                component_name="Environment",
             )
 
     def get_orchestration_status(self) -> dict[str, Any]:
         """Get orchestration status."""
         return {
             "workspace_root": str(self.workspace_root),
-            "registry_initialized": self.registry is not None,
-            "available_validators": len(self.registry.list_validators()),
+            "registry_validators": len(self.registry.list_validators()),
             "verbose": self.verbose,
         }
 
     def _print_orchestration_summary(self, result: SetupSequenceResult) -> None:
         """Print orchestration summary."""
-        print("\n" + "=" * 60)
-        print("🎯 SETUP ORCHESTRATION SUMMARY")
-        print("=" * 60)
-
-        status_icon = "✅" if result.success else "❌"
-        print(f"{status_icon} Status: {'SUCCESS' if result.success else 'FAILED'}")
-        print(f"🔧 Mode: {result.mode.value}")
-        print(f"📁 Workspace: {result.setup_metadata.get('workspace_root', 'Unknown')}")
-
-        if result.errors:
-            print(f"\n❌ Errors ({len(result.errors)}):")
+        if result.success:
+            print("✅ Setup orchestration completed successfully")
+        else:
+            print("❌ Setup orchestration failed")
             for error in result.errors:
                 print(f"  • {error}")
-
-        if result.warnings:
-            print(f"\n⚠️ Warnings ({len(result.warnings)}):")
-            for warning in result.warnings:
-                print(f"  • {warning}")
-
-        print("\n" + "=" * 60)
 
 
 # Convenience functions for backward compatibility

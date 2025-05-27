@@ -3,6 +3,7 @@ Docker Image Management
 Handles Docker image building and management for the MCP Python SDK.
 """
 
+import subprocess
 from pathlib import Path
 
 from ..environment.utils import get_project_root
@@ -18,7 +19,9 @@ class DockerImageManager:
         self.workspace_root = (
             Path(workspace_root) if workspace_root else get_project_root()
         )
-        self.dockerfile_path = self.workspace_root / "Dockerfile"
+        self.dockerfile_path = (
+            self.workspace_root / "setup" / "docker" / "dockerfiles" / "Dockerfile.dev"
+        )
 
     def validate_image_config(self) -> ValidationDetails:
         """Validate Docker image configuration."""
@@ -51,11 +54,17 @@ class DockerImageManager:
 
     def build_image(self, tag: str = "mcp-python-sdk:latest") -> bool:
         """Build Docker image."""
-        import subprocess
-
         try:
             result = subprocess.run(
-                ["docker", "build", "-t", tag, str(self.workspace_root)],
+                [
+                    "docker",
+                    "build",
+                    "-f",
+                    str(self.dockerfile_path),
+                    "-t",
+                    tag,
+                    str(self.workspace_root),
+                ],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -66,8 +75,6 @@ class DockerImageManager:
 
     def pull_required_images(self) -> dict[str, bool]:
         """Pull required base images."""
-        import subprocess
-
         required_images = [
             "python:3.11-slim",
             "python:3.12-slim",
@@ -80,18 +87,16 @@ class DockerImageManager:
                     ["docker", "pull", image],
                     capture_output=True,
                     text=True,
-                    timeout=300,
+                    check=True,
                 )
                 results[image] = result.returncode == 0
-            except (subprocess.TimeoutExpired, FileNotFoundError):
+            except (subprocess.CalledProcessError, FileNotFoundError):
                 results[image] = False
 
         return results
 
     def check_required_images(self) -> dict[str, bool]:
         """Check if required images are available."""
-        import subprocess
-
         required_images = [
             "python:3.11-slim",
             "python:3.12-slim",
@@ -101,12 +106,17 @@ class DockerImageManager:
         for image in required_images:
             try:
                 result = subprocess.run(
-                    ["docker", "image", "inspect", image],
+                    ["docker", "images", "-q", image],
                     capture_output=True,
                     text=True,
                 )
-                results[image] = result.returncode == 0
-            except FileNotFoundError:
+                results[image] = bool(result.stdout.strip())
+            except (subprocess.CalledProcessError, FileNotFoundError):
                 results[image] = False
 
         return results
+
+
+__all__ = [
+    "DockerImageManager",
+]
