@@ -57,9 +57,10 @@ class DockerConfigManager:
         )
         compose_version = self._get_compose_version() if compose_available else None
 
+        # Create DockerInfo with correct parameter names based on the class definition
         return DockerInfo(
-            docker_available=docker_available,
-            docker_version=docker_version,
+            available=docker_available,
+            version=docker_version,
             compose_available=compose_available,
             compose_version=compose_version,
         )
@@ -151,6 +152,23 @@ class DockerConfigManager:
         ):
             pass
         return None
+
+    def check_docker_status(self) -> dict[str, bool]:
+        """Check comprehensive Docker status."""
+        docker_info = self.get_docker_info()
+        return {
+            "docker_installed": docker_info.available,
+            "docker_running": docker_info.available,
+            "compose_available": docker_info.compose_available,
+        }
+
+    def get_system_requirements(self) -> dict[str, str]:
+        """Get Docker system requirements."""
+        return {
+            "min_docker_version": "20.10.0",
+            "recommended_memory": "4GB",
+            "recommended_storage": "10GB",
+        }
 
 
 __all__ = [

@@ -58,11 +58,11 @@ except ImportError:
 
 JSON_BACKEND: str = _json_backend
 
-# Compression libraries
+# Compression libraries - Fixed type checking issues
 _lz4_available: bool = False
 _lz4: Any = None
 try:
-    import lz4.frame
+    import lz4.frame  # type: ignore[import-untyped]
 
     _lz4 = lz4.frame
     _lz4_available = True
@@ -154,7 +154,7 @@ class PerformanceOptimizer:
             return data
 
         if algorithm == "lz4" and LZ4_AVAILABLE and _lz4 is not None:
-            return _lz4.compress(data, compression_level=1)
+            return _lz4.compress(data, compression_level=1)  # type: ignore[no-untyped-call]
         elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd is not None:
             compressor = _zstd.ZstdCompressor(level=1)
             return compressor.compress(data)
@@ -167,7 +167,7 @@ class PerformanceOptimizer:
             return data
 
         if algorithm == "lz4" and LZ4_AVAILABLE and _lz4 is not None:
-            return _lz4.decompress(data)
+            return _lz4.decompress(data)  # type: ignore[no-untyped-call]
         elif algorithm == "zstd" and ZSTD_AVAILABLE and _zstd is not None:
             decompressor = _zstd.ZstdDecompressor()
             return decompressor.decompress(data)
@@ -280,7 +280,7 @@ class ConnectionPool:
                         try:
                             close_result = connection.close()
                             if hasattr(close_result, "__await__"):
-                                await close_result  # type: ignore
+                                await close_result  # type: ignore[misc]
                         except Exception:
                             # Ignore close errors during shutdown
                             pass

@@ -39,17 +39,22 @@ class DockerImageManager:
                 warnings.append(f"Required file/directory missing: {file_name}")
 
         is_valid = len(errors) == 0
+
+        # Use correct parameter names for ValidationDetails
         return ValidationDetails(
-            is_valid=is_valid,
+            valid=is_valid,
             status=ValidationStatus.VALID if is_valid else ValidationStatus.ERROR,
-            message=(
+            details=(
                 "Image configuration is valid"
                 if is_valid
                 else "Image validation failed"
             ),
-            errors=errors,
-            warnings=warnings,
-            component_name="Docker Image",
+            error_messages=errors,
+            warning_messages=warnings,
+            metadata={
+                "component": "Docker Image",
+                "dockerfile_path": str(self.dockerfile_path),
+            },
         )
 
     def build_image(self, tag: str = "mcp-python-sdk:latest") -> bool:
@@ -115,6 +120,69 @@ class DockerImageManager:
                 results[image] = False
 
         return results
+
+    def get_image_info(self, image_name: str) -> dict[str, str | None]:
+        """Get information about a specific image."""
+        try:
+            result = subprocess.run(
+                ["docker", "inspect", image_name, "--format", "{{json .}}"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                import json
+
+                image_data = json.loads(result.stdout.strip())
+                return {
+                    "id": image_data.get("Id", ""),
+                    "created": image_data.get("Created", ""),
+                    "size": str(image_data.get("Size", 0)),
+                }
+        except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
+            pass
+        return {"id": None, "created": None, "size": None}
+
+    def cleanup_images(self, force: bool = False) -> bool:
+        """Clean up unused Docker images."""
+        try:
+            cmd = ["docker", "image", "prune"]
+            if force:
+                cmd.append("--force")
+            else:
+                cmd.append("--all")
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+            )
+            return result.returncode == 0
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return False
+
+    def get_build_context_size(self) -> int:
+        """Get the size of the Docker build context."""
+        try:
+            import os
+
+            total_size = 0
+            for dirpath, dirnames, filenames in os.walk(self.workspace_root):
+                # Skip .git and other unnecessary directories
+                dirnames[:] = [
+                    d
+                    for d in dirnames
+                    if not d.startswith(".")
+                    and d not in ["__pycache__", "node_modules"]
+                ]
+                for filename in filenames:
+                    filepath = os.path.join(dirpath, filename)
+                    try:
+                        total_size += os.path.getsize(filepath)
+                    except (OSError, FileNotFoundError):
+                        continue
+            return total_size
+        except Exception:
+            return 0
 
 
 __all__ = [

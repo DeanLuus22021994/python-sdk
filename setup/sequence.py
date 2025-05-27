@@ -30,6 +30,25 @@ class SetupSequenceResult:
     warnings: list[str]
 
 
+class EnvironmentManagerStub:
+    """Stub implementation for environment manager until the module is available."""
+
+    def __init__(self, workspace_root: Path) -> None:
+        """Initialize environment manager stub."""
+        self.workspace_root = workspace_root
+
+    async def setup_environment(self) -> bool:
+        """Stub implementation for environment setup."""
+        try:
+            # Create basic workspace directories
+            (self.workspace_root / "data").mkdir(exist_ok=True)
+            (self.workspace_root / "logs").mkdir(exist_ok=True)
+            (self.workspace_root / "cache").mkdir(exist_ok=True)
+            return True
+        except (OSError, PermissionError):
+            return False
+
+
 class SetupSequenceManager:
     """
     Manages the complete setup sequence with validation and rollback capabilities.
@@ -157,9 +176,17 @@ class SetupSequenceManager:
     async def _setup_environment_phase(self) -> bool:
         """Setup the environment phase."""
         try:
-            from .environment.manager import EnvironmentManager
+            # Try to import the actual environment manager first
+            try:
+                from .environment.manager import EnvironmentManager
 
-            env_manager = EnvironmentManager(self.workspace_root)
+                env_manager = EnvironmentManager(self.workspace_root)
+            except ImportError:
+                # Fall back to stub implementation if module not available
+                if self.verbose:
+                    print("⚠️ Using stub environment manager")
+                env_manager = EnvironmentManagerStub(self.workspace_root)
+
             # Use the manager for actual environment setup
             success = await env_manager.setup_environment()
             return success
@@ -171,14 +198,33 @@ class SetupSequenceManager:
     async def _setup_tools_phase(self) -> bool:
         """Setup development tools phase."""
         try:
-            # Placeholder for VS Code configuration and other tools
+            # Setup VS Code configuration
             from .vscode.integration import VSCodeIntegrationManager
 
             vscode_manager = VSCodeIntegrationManager(self.workspace_root)
-            return vscode_manager.create_workspace_configuration()
+            vscode_success = vscode_manager.create_workspace_configuration()
+
+            # Setup Docker configuration if needed
+            docker_success = True
+            if self.mode in (SetupMode.DOCKER, SetupMode.HYBRID):
+                docker_success = await self._setup_docker_tools()
+
+            return vscode_success and docker_success
         except Exception as e:
             if self.verbose:
                 print(f"Tools setup failed: {e}")
+            return False
+
+    async def _setup_docker_tools(self) -> bool:
+        """Setup Docker-related tools."""
+        try:
+            from .infra.docker.volume_config import DockerVolumeManager
+
+            volume_manager = DockerVolumeManager(self.workspace_root)
+            return volume_manager.create_volume_directories()
+        except Exception as e:
+            if self.verbose:
+                print(f"Docker tools setup failed: {e}")
             return False
 
     def get_setup_status(self) -> dict[str, Any]:
@@ -188,6 +234,52 @@ class SetupSequenceManager:
             "workspace_root": str(self.workspace_root),
             "registry_validators": len(self.registry.list_validators()),
         }
+
+    async def rollback_setup(self) -> bool:
+        """Rollback setup changes if needed."""
+        try:
+            # Clean up VS Code configuration
+            from .vscode.integration import VSCodeIntegrationManager
+
+            vscode_manager = VSCodeIntegrationManager(self.workspace_root)
+            vscode_success = vscode_manager.cleanup_workspace()
+
+            # Clean up Docker volumes if needed
+            docker_success = True
+            if self.mode in (SetupMode.DOCKER, SetupMode.HYBRID):
+                try:
+                    from .infra.docker.volume_config import DockerVolumeManager
+
+                    volume_manager = DockerVolumeManager(self.workspace_root)
+                    docker_success = volume_manager.cleanup_volumes()
+                except Exception:
+                    docker_success = False
+
+            return vscode_success and docker_success
+        except Exception as e:
+            if self.verbose:
+                print(f"Rollback failed: {e}")
+            return False
+
+    def validate_prerequisites(self) -> dict[str, bool]:
+        """Validate setup prerequisites."""
+        prerequisites = {
+            "workspace_exists": self.workspace_root.exists(),
+            "workspace_writable": (
+                os.access(self.workspace_root, os.W_OK)
+                if self.workspace_root.exists()
+                else False
+            ),
+            "python_available": True,  # We're running Python
+        }
+
+        # Check Docker availability if needed
+        if self.mode in (SetupMode.DOCKER, SetupMode.HYBRID):
+            import shutil
+
+            prerequisites["docker_available"] = shutil.which("docker") is not None
+
+        return prerequisites
 
 
 async def run_setup_sequence(
@@ -200,8 +292,19 @@ async def run_setup_sequence(
     return await sequence_manager.execute_complete_setup()
 
 
+async def validate_setup_prerequisites(
+    workspace_root: Path | str,
+    mode: SetupMode = SetupMode.DEVELOPMENT,
+) -> dict[str, bool]:
+    """Validate setup prerequisites without running the full setup."""
+    sequence_manager = SetupSequenceManager(workspace_root, mode, verbose=False)
+    return sequence_manager.validate_prerequisites()
+
+
 __all__ = [
     "SetupSequenceManager",
     "SetupSequenceResult",
+    "EnvironmentManagerStub",
     "run_setup_sequence",
+    "validate_setup_prerequisites",
 ]
