@@ -41,10 +41,12 @@ class SetupSequenceManager:
         self,
         workspace_root: Path | str,
         mode: SetupMode = SetupMode.DEVELOPMENT,
-        verbose: bool = False
+        verbose: bool = False,
     ) -> None:
         """Initialize setup sequence manager."""
-        self.workspace_root = Path(workspace_root) if isinstance(workspace_root, str) else workspace_root
+        self.workspace_root = (
+            Path(workspace_root) if isinstance(workspace_root, str) else workspace_root
+        )
         self.mode = mode
         self.verbose = verbose
 
@@ -71,32 +73,25 @@ class SetupSequenceManager:
         try:
             # Phase 1: Validation
             if self.verbose:
-                print("🔍 Phase 1: Running validation checks...")
+                print("🔍 Phase 1: Validating environment...")
 
             validation_result = await self._run_validation_phase()
 
             if not validation_result.is_valid():
-                # Get errors from composite validator results
-                for validator_name, result in validation_result.get_validator_results().items():
-                    if not result.is_valid:
-                        errors.extend(result.errors)
-
-                return SetupSequenceResult(
-                    success=False,
-                    mode=self.mode,
-                    validation_report=validation_result.create_report(),
-                    setup_metadata=setup_metadata,
-                    errors=errors,
-                    warnings=warnings,
+                errors.extend(
+                    [
+                        f"Validation failed: {name}"
+                        for name in validation_result.get_failed_validators()
+                    ]
                 )
 
             # Get warnings from composite validator results
-            for validator_name, result in validation_result.get_validator_results().items():
+            for result in validation_result.get_validator_results().values():
                 warnings.extend(result.warnings)
 
             # Phase 2: Environment Setup
             if self.verbose:
-                print("⚙️ Phase 2: Setting up environment...")
+                print("🛠️ Phase 2: Setting up environment...")
 
             env_success = await self._setup_environment_phase()
             if not env_success:
@@ -108,13 +103,13 @@ class SetupSequenceManager:
 
             tools_success = await self._setup_tools_phase()
             if not tools_success:
-                warnings.append("Some development tools may not be fully configured")
+                errors.append("Tools configuration failed")
 
             success = len(errors) == 0
 
             if self.verbose:
-                status = "✅ SUCCESS" if success else "❌ FAILED"
-                print(f"{status}: Setup sequence completed")
+                status_icon = "✅" if success else "❌"
+                print(f"{status_icon} Setup sequence completed")
 
             return SetupSequenceResult(
                 success=success,
@@ -150,12 +145,8 @@ class SetupSequenceManager:
             validator_names.append("docker_environment")
 
         for name in validator_names:
-            try:
-                validator = self.registry.create_validator(name, self.context)
-                composite.add_validator(validator)
-            except ValueError:
-                if self.verbose:
-                    print(f"⚠️ Validator '{name}' not available")
+            validator = self.registry.create_validator(name, self.context)
+            composite.add_validator(validator)
 
         # Run validation and return the composite validator itself
         composite.validate()
@@ -164,21 +155,16 @@ class SetupSequenceManager:
     async def _setup_environment_phase(self) -> bool:
         """Setup the environment phase."""
         try:
+            # Use environment manager if available
             from .environment.manager import EnvironmentManager
 
-            env_manager = EnvironmentManager(self.workspace_root, self.registry)
-
-            if self.mode == SetupMode.DEVELOPMENT:
-                from .environment.manager import EnvironmentSetupConfig
-                config = EnvironmentSetupConfig(
-                    setup_mode=SetupMode.DEVELOPMENT,
-                    configure_vscode=True,
-                    enable_pre_commit=True,
-                )
-                return await env_manager.setup_environment(config)
-            else:
-                validation_result = await env_manager.validate_environment()
-                return validation_result[0]  # Return is_valid
+            env_manager = EnvironmentManager(self.workspace_root)
+            config = env_manager.EnvironmentSetupConfig(
+                setup_mode=self.mode,
+                parallel_operations=True,
+                timeout_seconds=60.0,
+            )
+            return await env_manager.setup_environment(config)
 
         except Exception as e:
             if self.verbose:
@@ -188,18 +174,18 @@ class SetupSequenceManager:
     async def _setup_tools_phase(self) -> bool:
         """Setup development tools phase."""
         try:
+            # Setup VS Code if in development mode
             if self.mode == SetupMode.DEVELOPMENT:
-                # Setup VS Code integration
                 from .vscode.integration import VSCodeIntegrationManager
 
                 vscode_manager = VSCodeIntegrationManager(self.workspace_root)
-                vscode_manager.create_workspace_configuration()
+                return vscode_manager.create_workspace_configuration()
 
             return True
 
         except Exception as e:
             if self.verbose:
-                print(f"⚠️ Tools setup warning: {e}")
+                print(f"❌ Tools setup failed: {e}")
             return False
 
     def get_setup_status(self) -> dict[str, Any]:

@@ -57,9 +57,9 @@ def cache_validation(
             # Check cache
             current_time = time.time()
             if cache_key in _validation_cache:
-                cached_result, cache_time = _validation_cache[cache_key]
-                if current_time - cache_time < ttl_seconds:
-                    return cached_result
+                result, timestamp = _validation_cache[cache_key]
+                if current_time - timestamp < ttl_seconds:
+                    return result
 
             # Execute function and cache result
             result = func(*args, **kwargs)
@@ -105,7 +105,7 @@ def idempotent_validation(func: F) -> F:
         if cache_key in wrapper._idempotent_cache:  # type: ignore
             return wrapper._idempotent_cache[cache_key]  # type: ignore
 
-        # Execute function and store result
+        # Execute and cache result
         result = func(*args, **kwargs)
         wrapper._idempotent_cache[cache_key] = result  # type: ignore
 
@@ -134,49 +134,21 @@ def timed_validation(func: F) -> F:
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        start_time = time.perf_counter()
-
+        start_time = time.time()
         try:
             result = func(*args, **kwargs)
-            end_time = time.perf_counter()
-            execution_time = end_time - start_time
 
-            # If result is a ValidationResult, add timing metadata
-            if isinstance(result, ValidationResult):
-                # Create new result with timing metadata
-                new_metadata = result.metadata.copy()
-                new_metadata.update(
-                    {
-                        "execution_time_seconds": execution_time,
-                        "start_time": start_time,
-                        "end_time": end_time,
-                    }
-                )
-
-                # Create new ValidationResult with updated metadata
-                return ValidationResult(
-                    is_valid=result.is_valid,
-                    status=result.status,
-                    message=result.message,
-                    data=result.data,
-                    errors=result.errors,
-                    warnings=result.warnings,
-                    recommendations=result.recommendations,
-                    metadata=new_metadata,
-                    validation_time=result.validation_time,
-                )
+            # If result has metadata, add timing info
+            if hasattr(result, "metadata") and isinstance(result.metadata, dict):
+                result.metadata["execution_time"] = time.time() - start_time
 
             return result
-
-        except Exception as e:
-            end_time = time.perf_counter()
-            execution_time = end_time - start_time
-
-            # Add timing info to exception
-            if hasattr(e, "execution_time"):
-                e.execution_time = execution_time  # type: ignore
-
-            raise
+        finally:
+            execution_time = time.time() - start_time
+            # Store timing in function attribute for debugging
+            if not hasattr(wrapper, "_timing_history"):
+                wrapper._timing_history = []  # type: ignore
+            wrapper._timing_history.append(execution_time)  # type: ignore
 
     return cast(F, wrapper)
 
@@ -211,37 +183,32 @@ def retry_validation(
                 try:
                     result = func(*args, **kwargs)
 
-                    # If this is a ValidationResult and it's not valid,
-                    # decide whether to retry based on error type
-                    if isinstance(result, ValidationResult) and not result.is_valid:
-                        # Only retry if errors suggest a temporary issue
-                        if attempt < max_retries and _should_retry_validation(result):
-                            if attempt > 0:  # Don't delay on first attempt
-                                time.sleep(current_delay)
-                                if exponential_backoff:
-                                    current_delay *= 2
-                            continue
+                    # If result is a ValidationResult, check if we should retry
+                    if hasattr(result, "is_valid") and hasattr(result, "errors"):
+                        if result.is_valid or not _should_retry_validation(result):
+                            return result
 
-                    return result
+                        # Should retry, but this was the last attempt
+                        if attempt == max_retries:
+                            return result
+                    else:
+                        return result
 
                 except Exception as e:
                     last_exception = e
-
-                    if attempt < max_retries:
-                        if attempt > 0:  # Don't delay on first attempt
-                            time.sleep(current_delay)
-                            if exponential_backoff:
-                                current_delay *= 2
-                        continue
-                    else:
-                        # Max retries exceeded, raise the last exception
+                    if attempt == max_retries:
                         raise
 
-            # This should not be reached, but handle it gracefully
+                # Wait before retry
+                if attempt < max_retries:
+                    time.sleep(current_delay)
+                    if exponential_backoff:
+                        current_delay *= 2
+
+            # Should not reach here, but just in case
             if last_exception:
                 raise last_exception
-            else:
-                raise RuntimeError("Validation retry failed for unknown reason")
+            return func(*args, **kwargs)
 
         # Add retry configuration info
         wrapper.retry_config = {  # type: ignore
@@ -265,10 +232,10 @@ def _generate_default_cache_key(
     # Add args (skip 'self' for methods)
     for i, arg in enumerate(args):
         if i == 0 and hasattr(arg, "__class__"):
-            # Likely 'self', use class name instead of instance
-            key_parts.append(f"arg{i}:{arg.__class__.__name__}")
+            # Skip 'self' parameter for methods
+            key_parts.append(arg.__class__.__name__)
         else:
-            key_parts.append(f"arg{i}:{repr(arg)}")
+            key_parts.append(repr(arg))
 
     # Add sorted kwargs
     for key, value in sorted(kwargs.items()):

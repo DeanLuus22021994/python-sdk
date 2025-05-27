@@ -5,11 +5,12 @@ Concrete validators for the MCP Python SDK setup system.
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+import tomllib
 
 from .typings.enums import ValidationStatus
 from .validation.base import BaseValidator, ValidationResult
@@ -51,10 +52,10 @@ class PythonEnvironmentValidator(BaseValidator[dict[str, Any]]):
             )
         elif version_info < (3, 11):
             warnings.append(
-                f"Python {python_version} is supported but Python 3.11+ is recommended."
+                f"Python {python_version} is supported but 3.11+ is recommended"
             )
             recommendations.append(
-                "Consider upgrading to Python 3.11 or higher for better performance."
+                "Consider upgrading to Python 3.11 for better performance"
             )
 
         # Check if virtual environment is active
@@ -64,10 +65,8 @@ class PythonEnvironmentValidator(BaseValidator[dict[str, Any]]):
         metadata["in_virtual_environment"] = in_venv
 
         if not in_venv:
-            warnings.append("Not running in a virtual environment.")
-            recommendations.append(
-                "Consider using a virtual environment to isolate dependencies."
-            )
+            warnings.append("Not running in virtual environment")
+            recommendations.append("Use virtual environment for better isolation")
 
         # Determine overall status
         if errors:
@@ -81,7 +80,7 @@ class PythonEnvironmentValidator(BaseValidator[dict[str, Any]]):
         else:
             status = ValidationStatus.VALID
             is_valid = True
-            message = f"Python {python_version} environment is valid"
+            message = "Python environment is valid"
 
         return self._create_result(
             is_valid=is_valid,
@@ -91,7 +90,6 @@ class PythonEnvironmentValidator(BaseValidator[dict[str, Any]]):
             errors=errors,
             warnings=warnings,
             recommendations=recommendations,
-            **metadata,
         )
 
 
@@ -146,29 +144,26 @@ class ProjectStructureValidator(BaseValidator[dict[str, Any]]):
         # Check optional paths
         for path_str in optional_paths:
             path = workspace_root / path_str
-            if not path.exists():
+            if path.exists():
+                found_paths.append(path_str)
+            else:
                 missing_optional.append(path_str)
-                warnings.append(f"Optional path missing: {path_str}")
 
         # Add recommendations for missing optional paths
         if "docs" in missing_optional:
-            recommendations.append(
-                "Consider adding documentation in a 'docs' directory."
-            )
+            recommendations.append("Consider adding documentation directory")
         if "examples" in missing_optional:
-            recommendations.append(
-                "Consider adding examples to help users understand usage."
-            )
+            recommendations.append("Consider adding examples for better usability")
 
         # Determine overall status
         if missing_required:
             status = ValidationStatus.ERROR
             is_valid = False
-            message = f"Project structure validation failed: {len(missing_required)} required path(s) missing"
+            message = f"Project structure invalid: {len(missing_required)} required paths missing"
         elif missing_optional:
             status = ValidationStatus.WARNING
             is_valid = True
-            message = f"Project structure valid with {len(missing_optional)} optional path(s) missing"
+            message = f"Project structure valid with {len(missing_optional)} optional improvements"
         else:
             status = ValidationStatus.VALID
             is_valid = True
@@ -186,9 +181,6 @@ class ProjectStructureValidator(BaseValidator[dict[str, Any]]):
             errors=errors,
             warnings=warnings,
             recommendations=recommendations,
-            workspace_root=str(workspace_root),
-            required_paths_found=len(found_paths),
-            total_required_paths=len(required_paths),
         )
 
 
@@ -202,7 +194,7 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
 
     def get_validator_name(self) -> str:
         """Get validator name."""
-        return "Dependencies"
+        return "Project Dependencies"
 
     def _perform_validation(self) -> ValidationResult[dict[str, Any]]:
         """Validate dependencies."""
@@ -228,9 +220,6 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
             )
 
         try:
-            # Try to import and check if we can load the project config
-            import tomllib
-
             with open(pyproject_path, "rb") as f:
                 pyproject_data = tomllib.load(f)
 
@@ -262,28 +251,23 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
                     "Consider specifying 'requires-python' in pyproject.toml"
                 )
 
-            # Try to check if dependencies are installable
+            # Count dependencies
             dependencies = project_data.get("dependencies", [])
-            metadata.update(
-                {
-                    "dependencies_count": len(dependencies),
-                    "has_dev_dependencies": "dev"
-                    in pyproject_data.get("project", {}).get(
-                        "optional-dependencies", {}
-                    ),
-                }
-            )
+            metadata["dependencies_count"] = len(dependencies)
 
-        except ImportError:
-            warnings.append(
-                "tomllib not available (Python 3.11+), using basic validation"
-            )
-            metadata.update({"validation_limited": True})
+            # Check for dev dependencies
+            optional_deps = project_data.get("optional-dependencies", {})
+            metadata["has_dev_dependencies"] = "dev" in optional_deps
+
+            if not metadata["has_dev_dependencies"]:
+                recommendations.append(
+                    "Consider adding development dependencies in [project.optional-dependencies.dev]"
+                )
+
         except Exception as e:
-            errors.append(f"Error reading pyproject.toml: {e}")
-            metadata.update({"read_error": str(e)})
+            errors.append(f"Failed to parse pyproject.toml: {e}")
 
-        # Determine overall status
+        # Determine status
         if errors:
             status = ValidationStatus.ERROR
             is_valid = False
@@ -291,7 +275,7 @@ class DependencyValidator(BaseValidator[dict[str, Any]]):
         elif warnings:
             status = ValidationStatus.WARNING
             is_valid = True
-            message = f"Dependencies validation has {len(warnings)} warning(s)"
+            message = f"Dependencies valid with {len(warnings)} warning(s)"
         else:
             status = ValidationStatus.VALID
             is_valid = True
@@ -330,12 +314,9 @@ class VSCodeWorkspaceValidator(BaseValidator[dict[str, Any]]):
         workspace_root = Path(self.context.workspace_root)
         vscode_dir = workspace_root / ".vscode"
 
-        # Check if .vscode directory exists
         if not vscode_dir.exists():
-            warnings.append(".vscode directory not found")
-            recommendations.append(
-                "Run setup to create VS Code workspace configuration"
-            )
+            warnings.append("VS Code configuration directory missing")
+            recommendations.append("Create .vscode directory with recommended settings")
 
         config_files = ["settings.json", "tasks.json", "launch.json", "extensions.json"]
         found_configs = []
@@ -345,13 +326,6 @@ class VSCodeWorkspaceValidator(BaseValidator[dict[str, Any]]):
             config_path = vscode_dir / config_file
             if config_path.exists():
                 found_configs.append(config_file)
-
-                # Validate JSON syntax
-                try:
-                    with open(config_path, encoding="utf-8") as f:
-                        json.load(f)
-                except json.JSONDecodeError as e:
-                    errors.append(f"Invalid JSON in {config_file}: {e}")
             else:
                 missing_configs.append(config_file)
 
@@ -364,8 +338,8 @@ class VSCodeWorkspaceValidator(BaseValidator[dict[str, Any]]):
         )
 
         if missing_configs:
-            warnings.extend(
-                [f"Missing VS Code config: {cfg}" for cfg in missing_configs]
+            recommendations.extend(
+                [f"Consider adding {config}" for config in missing_configs]
             )
 
         # Determine status

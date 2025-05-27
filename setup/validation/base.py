@@ -77,7 +77,7 @@ class ValidationContext:
     verbose: bool = False
 
     def get_config_value(self, key: str, default: Any = None) -> Any:
-        """Get configuration value with fallback."""
+        """Get configuration value with default fallback."""
         return self.config.get(key, default)
 
     def has_environment_var(self, var_name: str) -> bool:
@@ -178,7 +178,6 @@ class BaseValidator(abc.ABC, Generic[T]):
             warnings=tuple(warnings or []),
             recommendations=tuple(recommendations or []),
             metadata=metadata,
-            validation_time=time.time(),
         )
 
 
@@ -191,20 +190,19 @@ class CachedValidator(BaseValidator[T]):
     """
 
     def __init__(self, wrapped_validator: BaseValidator[T]) -> None:
-        """Initialize with wrapped validator."""
         super().__init__(wrapped_validator.context)
         self._wrapped = wrapped_validator
 
     def get_validator_name(self) -> str:
         """Get validator name from wrapped validator."""
-        return f"Cached({self._wrapped.get_validator_name()})"
+        return self._wrapped.get_validator_name()
 
     def _perform_validation(self) -> ValidationResult[T]:
         """Delegate to wrapped validator."""
         return self._wrapped._perform_validation()
 
     def clear_cache(self) -> None:
-        """Clear both local and wrapped validator caches."""
+        """Clear both our cache and wrapped validator cache."""
         super().clear_cache()
         self._wrapped.clear_cache()
 
