@@ -1,144 +1,97 @@
 """
-Main Setup Orchestration
-Coordinates the entire setup process using the modern validation framework.
+Main setup entry point for the MCP Python SDK.
+Provides CLI interface for setup operations.
 """
 
+from __future__ import annotations
+
 import argparse
+import asyncio
 import sys
-import time
 from pathlib import Path
 
-# Add the project root to the path so imports work correctly
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-try:
-    from setup.sequence import ModernSetupOrchestrator
-    from setup.typings import LogLevel, SetupMode
-except ImportError:
-    # Fallback to direct import if package import fails
-    from .sequence import ModernSetupOrchestrator
-    from .typings import LogLevel, SetupMode
+from . import ModernSetupOrchestrator, SetupMode
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="MCP Python SDK Setup")
+async def main() -> int:
+    """Main setup function."""
+    parser = argparse.ArgumentParser(
+        description="MCP Python SDK Setup System",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
     parser.add_argument(
         "--mode",
-        choices=["host", "docker", "hybrid"],
-        default="host",
-        help="Setup mode (default: host)",
+        type=str,
+        choices=[mode.value for mode in SetupMode],
+        default=SetupMode.DEVELOPMENT.value,
+        help="Setup mode to use",
     )
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+
     parser.add_argument(
-        "--skip-vscode", action="store_true", help="Skip VS Code configuration"
+        "--workspace",
+        type=Path,
+        help="Workspace root directory",
     )
+
     parser.add_argument(
-        "--skip-docker", action="store_true", help="Skip Docker configuration"
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose output",
     )
+
     parser.add_argument(
-        "--log-level",
-        choices=["debug", "info", "warning", "error"],
-        default="info",
-        help="Set logging level (default: info)",
+        "--validate-only",
+        action="store_true",
+        help="Only validate environment, don't perform setup",
     )
-    return parser.parse_args()
 
-
-def print_header() -> None:
-    """Print setup header information."""
-    print("\n" + "=" * 60)
-    print("🐍 MCP Python SDK Setup")
-    print("Preparing development environment...")
-    print("=" * 60)
-
-
-def print_footer(success: bool) -> None:
-    """Print setup completion footer."""
-    print("\n" + "=" * 60)
-    if success:
-        print("✅ Setup completed successfully!")
-        print("🚀 Your development environment is ready.")
-    else:
-        print("❌ Setup failed!")
-        print("🔧 Please check the errors above and try again.")
-    print("=" * 60 + "\n")
-
-
-def log_message(level: LogLevel, message: str, verbose: bool = False) -> None:
-    """
-    Log a message with the appropriate level.
-
-    Args:
-        level: Log level
-        message: Message to log
-        verbose: Whether to show debug messages
-    """
-    if level == LogLevel.DEBUG and not verbose:
-        return
-
-    level_prefixes = {
-        LogLevel.DEBUG: "🔍 DEBUG:",
-        LogLevel.INFO: "ℹ️ INFO:",
-        LogLevel.WARNING: "⚠️ WARNING:",
-        LogLevel.ERROR: "❌ ERROR:",
-    }
-
-    prefix = level_prefixes.get(level, "")
-    print(f"{prefix} {message}")
-
-
-def main() -> int:
-    """Main setup orchestrator using modern validation framework."""
-    start_time = time.time()
-    args = parse_args()
-    verbose = args.verbose
-
-    print_header()
+    args = parser.parse_args()
 
     try:
-        # Convert string mode to enum
-        mode_map = {
-            "host": SetupMode.HOST,
-            "docker": SetupMode.DOCKER,
-            "hybrid": SetupMode.HYBRID,
-        }
-        setup_mode = mode_map.get(args.mode, SetupMode.HOST)
-
-        # Create modern orchestrator
-        workspace_root = Path.cwd()
+        mode = SetupMode(args.mode)
         orchestrator = ModernSetupOrchestrator(
-            workspace_root=workspace_root,
-            mode=setup_mode,
-            verbose=verbose,
+            workspace_root=args.workspace,
+            verbose=args.verbose,
         )
 
-        log_message(LogLevel.INFO, f"Starting setup in {args.mode} mode", verbose)
-        log_message(LogLevel.INFO, f"Workspace: {workspace_root}", verbose)
+        if args.validate_only:
+            print("🔍 Validating environment...")
+            validation_result = await orchestrator.validate_environment()
 
-        # Run complete setup
-        success = orchestrator.run_complete_setup()
+            if validation_result.is_valid:
+                print("✅ Environment validation passed")
+                return 0
+            else:
+                print("❌ Environment validation failed")
+                for error in validation_result.errors:
+                    print(f"  • {error}")
+                return 1
+        else:
+            print(f"🚀 Starting {mode.value} setup...")
+            result = await orchestrator.orchestrate_complete_setup(mode)
 
-        # Print results
-        elapsed_time = time.time() - start_time
-        log_message(
-            LogLevel.INFO, f"Setup completed in {elapsed_time:.2f} seconds", verbose
-        )
-
-        print_footer(success)
-        return 0 if success else 1
+            if result.success:
+                print("✅ Setup completed successfully")
+                return 0
+            else:
+                print("❌ Setup failed")
+                for error in result.errors:
+                    print(f"  • {error}")
+                return 1
 
     except KeyboardInterrupt:
-        log_message(LogLevel.WARNING, "Setup interrupted by user")
-        return 1
+        print("\n⚠️ Setup interrupted by user")
+        return 130
     except Exception as e:
-        log_message(LogLevel.ERROR, f"Setup failed with error: {e}")
-        if verbose:
+        print(f"❌ Setup failed with error: {e}")
+        if args.verbose:
             import traceback
+
             traceback.print_exc()
         return 1
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(asyncio.run(main()))

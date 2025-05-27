@@ -6,6 +6,7 @@ Orchestrates the complete setup process with proper error handling and rollback.
 from __future__ import annotations
 
 import asyncio
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -40,18 +41,14 @@ class SetupSequenceManager:
         self,
         workspace_root: Path | str,
         mode: SetupMode = SetupMode.DEVELOPMENT,
-        verbose: bool = False,
+        verbose: bool = False
     ) -> None:
         """Initialize setup sequence manager."""
-        self.workspace_root = (
-            Path(workspace_root) if isinstance(workspace_root, str) else workspace_root
-        )
+        self.workspace_root = Path(workspace_root) if isinstance(workspace_root, str) else workspace_root
         self.mode = mode
         self.verbose = verbose
 
         # Create validation context
-        import os
-
         self.context = ValidationContext(
             workspace_root=str(self.workspace_root),
             environment=dict(os.environ),
@@ -78,8 +75,12 @@ class SetupSequenceManager:
 
             validation_result = await self._run_validation_phase()
 
-            if not validation_result.is_valid:
-                errors.extend(validation_result.errors)
+            if not validation_result.is_valid():
+                # Get errors from composite validator results
+                for validator_name, result in validation_result.get_validator_results().items():
+                    if not result.is_valid:
+                        errors.extend(result.errors)
+
                 return SetupSequenceResult(
                     success=False,
                     mode=self.mode,
@@ -89,7 +90,9 @@ class SetupSequenceManager:
                     warnings=warnings,
                 )
 
-            warnings.extend(validation_result.warnings)
+            # Get warnings from composite validator results
+            for validator_name, result in validation_result.get_validator_results().items():
+                warnings.extend(result.warnings)
 
             # Phase 2: Environment Setup
             if self.verbose:
@@ -154,8 +157,8 @@ class SetupSequenceManager:
                 if self.verbose:
                     print(f"⚠️ Validator '{name}' not available")
 
-        # Run validation
-        result = composite.validate()
+        # Run validation and return the composite validator itself
+        composite.validate()
         return composite
 
     async def _setup_environment_phase(self) -> bool:
@@ -167,7 +170,6 @@ class SetupSequenceManager:
 
             if self.mode == SetupMode.DEVELOPMENT:
                 from .environment.manager import EnvironmentSetupConfig
-
                 config = EnvironmentSetupConfig(
                     setup_mode=SetupMode.DEVELOPMENT,
                     configure_vscode=True,
@@ -217,3 +219,10 @@ async def run_setup_sequence(
     """Run the complete setup sequence."""
     manager = SetupSequenceManager(workspace_root, mode, verbose)
     return await manager.execute_complete_setup()
+
+
+__all__ = [
+    "SetupSequenceManager",
+    "SetupSequenceResult",
+    "run_setup_sequence",
+]

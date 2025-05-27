@@ -68,7 +68,9 @@ class VSCodeIntegrationManager:
             success &= self.launch.create_launch_file() or not force_overwrite
 
             if include_optional:
-                success &= self.extensions.create_extensions_file() or not force_overwrite
+                success &= (
+                    self.extensions.create_extensions_file() or not force_overwrite
+                )
 
             return success
 
@@ -194,14 +196,10 @@ class VSCodeIntegrationManager:
                 )
 
             if "tasks" in config_updates:
-                success &= self.tasks.update_tasks(
-                    config_updates["tasks"], merge
-                )
+                success &= self.tasks.update_tasks(config_updates["tasks"], merge)
 
             if "launch" in config_updates:
-                success &= self.launch.update_launch(
-                    config_updates["launch"], merge
-                )
+                success &= self.launch.update_launch(config_updates["launch"], merge)
 
             if "extensions" in config_updates:
                 success &= self.extensions.update_extensions(
@@ -258,6 +256,7 @@ class VSCodeIntegrationManager:
         try:
             if remove_vscode_dir and self.vscode_dir.exists():
                 import shutil
+
                 shutil.rmtree(self.vscode_dir)
             else:
                 # Remove individual files
