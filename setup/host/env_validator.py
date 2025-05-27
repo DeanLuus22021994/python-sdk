@@ -89,9 +89,7 @@ class HostEnvironmentValidator:
             else:
                 status = ValidationStatus.VALID
                 is_valid = True
-                message = "Host environment validation passed successfully"
-
-            return ValidationDetails(
+                message = "Host environment validation passed successfully"            return ValidationDetails(
                 is_valid=is_valid,
                 status=status,
                 message=message,
@@ -103,6 +101,8 @@ class HostEnvironmentValidator:
                     "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
                     "workspace_root": str(self.workspace_root),
                 },
+                component_name="HostEnvironmentValidator",
+                validation_time=0.0,
             )
 
         except Exception as e:

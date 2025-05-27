@@ -242,9 +242,7 @@ class ConnectionPool:
             if len(self._pool) < self.max_size:
                 conn = await self._create_connection(key)
                 self._pool[key] = conn
-                return conn
-
-            # Check if we can create an overflow connection
+                return conn  # Check if we can create an overflow connection
             if self._overflow_counter < self.max_overflow:
                 self._overflow_counter += 1
                 return await self._create_connection(key)
@@ -271,7 +269,14 @@ class ConnectionPool:
             async with self._lock:
                 for connection in self._pool.values():
                     if hasattr(connection, "close") and callable(connection.close):
-                        await connection.close()
+                        # Try to close the connection
+                        try:
+                            close_result = connection.close()
+                            if hasattr(close_result, "__await__"):
+                                await close_result  # type: ignore
+                        except Exception:
+                            # Ignore close errors during shutdown
+                            pass
                 self._pool.clear()
                 self._overflow_counter = 0
 
