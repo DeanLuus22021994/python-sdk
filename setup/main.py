@@ -1,6 +1,6 @@
 """
 Main Setup Orchestration
-Coordinates the entire setup process
+Coordinates the entire setup process using the modern validation framework.
 """
 
 import argparse
@@ -13,11 +13,11 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 try:
-    from setup import sequence
+    from setup.sequence import ModernSetupOrchestrator
     from setup.typings import LogLevel, SetupMode
 except ImportError:
     # Fallback to direct import if package import fails
-    from . import sequence
+    from .sequence import ModernSetupOrchestrator
     from .typings import LogLevel, SetupMode
 
 
@@ -94,19 +94,37 @@ def log_message(level: LogLevel, message: str, verbose: bool = False) -> None:
 
 
 def main() -> int:
-    """Main setup orchestrator."""
+    """Main setup orchestrator using modern validation framework."""
     start_time = time.time()
     args = parse_args()
     verbose = args.verbose
 
     print_header()
+
     try:
-        # Set up setup mode
-        mode = SetupMode(args.mode)
-        log_message(LogLevel.INFO, f"Running in {mode.value} mode", verbose)
+        # Convert string mode to enum
+        mode_map = {
+            "host": SetupMode.HOST,
+            "docker": SetupMode.DOCKER,
+            "hybrid": SetupMode.HYBRID,
+        }
+        setup_mode = mode_map.get(args.mode, SetupMode.HOST)
 
-        success = sequence.run_setup_sequence()
+        # Create modern orchestrator
+        workspace_root = Path.cwd()
+        orchestrator = ModernSetupOrchestrator(
+            workspace_root=workspace_root,
+            mode=setup_mode,
+            verbose=verbose,
+        )
 
+        log_message(LogLevel.INFO, f"Starting setup in {args.mode} mode", verbose)
+        log_message(LogLevel.INFO, f"Workspace: {workspace_root}", verbose)
+
+        # Run complete setup
+        success = orchestrator.run_complete_setup()
+
+        # Print results
         elapsed_time = time.time() - start_time
         log_message(
             LogLevel.INFO, f"Setup completed in {elapsed_time:.2f} seconds", verbose
@@ -114,11 +132,12 @@ def main() -> int:
 
         print_footer(success)
         return 0 if success else 1
+
     except KeyboardInterrupt:
-        print("\n\n⚠️  Setup interrupted by user")
-        return 130
+        log_message(LogLevel.WARNING, "Setup interrupted by user")
+        return 1
     except Exception as e:
-        print(f"\n\n💥 Unexpected error: {str(e)}")
+        log_message(LogLevel.ERROR, f"Setup failed with error: {e}")
         if verbose:
             import traceback
 

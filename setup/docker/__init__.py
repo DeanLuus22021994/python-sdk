@@ -1,6 +1,7 @@
 """
 Docker Setup Manager
 Comprehensive Docker environment setup and management for the MCP Python SDK.
+Modern implementation using the validation framework.
 """
 
 import json
@@ -11,6 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from ..typings import ValidationDetails, ValidationStatus
+from ..validation.base import BaseValidator, ValidationContext, ValidationResult
+from ..validation.registry import get_global_registry
 from .container_config import DockerContainerManager
 from .docker_validator import validate_docker_environment
 from .image_manager import DockerImageManager
@@ -22,7 +25,7 @@ class DockerSetupManager:
     Comprehensive Docker setup and management for the MCP Python SDK.
 
     Coordinates Docker container, volume, and image management for both
-    development and production environments.
+    development and production environments following SOLID principles.
     """
 
     def __init__(self, workspace_root: Path, verbose: bool = False) -> None:
@@ -35,6 +38,7 @@ class DockerSetupManager:
         """
         self.workspace_root = Path(workspace_root).resolve()
         self.verbose = verbose
+        self.registry = get_global_registry()
 
         # Initialize component managers
         self.container_manager = DockerContainerManager(self.workspace_root)
@@ -93,73 +97,52 @@ class DockerSetupManager:
                 print(f"✗ Docker setup failed: {e}")
             return False
 
-    def validate_docker_setup(self) -> ValidationDetails:
+    def validate_docker_environment(self) -> ValidationDetails:
         """
-        Validate Docker environment setup.
+        Validate Docker environment using modern validation framework.
 
         Returns:
-            ValidationDetails with comprehensive validation results
+            ValidationDetails: Comprehensive validation results
         """
+        context = ValidationContext(
+            workspace_root=str(self.workspace_root),
+            environment={},
+            config={"component": "docker", "verbose": self.verbose},
+        )
+
+        # Create Docker validator if available
         try:
-            warnings: list[str] = []
-            errors: list[str] = []
-            recommendations: list[str] = []
-
-            # Validate Docker environment
-            docker_valid, docker_info = validate_docker_environment()
-            if not docker_valid:
-                errors.append("Docker environment is not properly configured")
-                recommendations.append("Install Docker and ensure daemon is running")
-
-            # Validate volumes
-            volumes_valid = self.volume_manager.validate_volume_config()
-            if not volumes_valid:
-                warnings.append("Docker volumes are not properly configured")
-                recommendations.append("Run volume configuration setup")
-
-            # Check required images
-            images_status = self.image_manager.check_required_images()
-            missing_images = [
-                img for img, available in images_status.items() if not available
-            ]
-            if missing_images:
-                warnings.append(f"Missing Docker images: {', '.join(missing_images)}")
-                recommendations.append("Pull required Docker images")
-
-            # Determine overall status
-            if errors:
-                is_valid = False
-                status = ValidationStatus.ERROR
-                message = f"Docker setup has {len(errors)} critical errors"
-            elif warnings:
-                is_valid = True
-                status = ValidationStatus.WARNING
-                message = f"Docker setup is functional with {len(warnings)} warnings"
-            else:
-                is_valid = True
-                status = ValidationStatus.VALID
-                message = "Docker setup is fully configured and ready"
-
-            return ValidationDetails(
-                is_valid=is_valid,
-                status=status,
-                message=message,
-                warnings=warnings,
-                errors=errors,
-                recommendations=recommendations,
-                metadata={
-                    "workspace_root": str(self.workspace_root),
-                    "docker_info": docker_info,
-                },
+            validator = self.registry.create_validator("docker_environment", context)
+            result = validator.validate()
+              return ValidationDetails(
+                is_valid=result.is_valid,
+                status=ValidationStatus.VALID if result.is_valid else ValidationStatus.ERROR,
+                message=result.message or "Docker validation completed",
+                component_name="Docker",
+                errors=result.data.get("errors", []) if result.data else [],
             )
+        except Exception:
+            # Fallback to legacy validation
+            return self._legacy_docker_validation()
 
-        except Exception as e:
-            return ValidationDetails(
-                is_valid=False,
-                status=ValidationStatus.ERROR,
-                message=f"Docker validation failed: {e}",
-                errors=[str(e)],
-            )
+    def _legacy_docker_validation(self) -> ValidationDetails:
+        """Legacy Docker validation for backward compatibility."""
+        # Use existing docker validator
+        docker_valid, docker_info = validate_docker_environment()
+
+        # Extract message from docker info dict
+        message = str(docker_info.get("message", "Docker validation completed"))
+        errors = []
+        if not docker_valid and "errors" in docker_info:
+            errors = [str(docker_info["errors"])]
+
+        return ValidationDetails(
+            is_valid=docker_valid,
+            status=ValidationStatus.VALID if docker_valid else ValidationStatus.ERROR,
+            message=message,
+            component_name="Docker",
+            errors=errors,
+        )
 
     def get_docker_status(self) -> dict[str, Any]:
         """

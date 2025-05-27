@@ -1,20 +1,21 @@
 """
 Environment Management Module
 Comprehensive environment setup and validation for the MCP Python SDK.
+Modern implementation using the validation framework.
 """
 
 from pathlib import Path
 from typing import Any
 
-from .environment.constants import (
-    REQUIRED_PROJECT_PATHS,
-)
+from .environment.constants import REQUIRED_PROJECT_PATHS
 from .environment.path_utils import get_project_root
 from .environment.python_validator import (
     get_environment_info,
     validate_python_version,
 )
 from .typings import SetupMode, ValidationDetails, ValidationStatus
+from .validation.base import ValidationContext
+from .validation.registry import get_global_registry
 from .vscode.integration import VSCodeIntegrationManager
 
 
@@ -23,34 +24,54 @@ class EnvironmentManager:
     Comprehensive environment management for the MCP Python SDK setup.
 
     Coordinates environment validation, configuration, and optimization
-    for development environments.
+    for development environments following SOLID principles.
     """
 
     def __init__(self, workspace_root: Path, mode: SetupMode = SetupMode.HOST) -> None:
         self.workspace_root = Path(workspace_root).resolve()
         self.mode = mode
         self.vscode_manager = VSCodeIntegrationManager(self.workspace_root)
+        self.registry = get_global_registry()
 
     def validate_complete_environment(self) -> ValidationDetails:
-        """Validate the complete development environment."""
-        # Use python validator from environment module
-        python_valid, python_msg = validate_python_version()
+        """Validate the complete development environment using modern framework."""
+        context = ValidationContext(
+            workspace_root=str(self.workspace_root),
+            environment={},
+            config={"mode": self.mode.value},
+        )
 
-        if python_valid:
-            return ValidationDetails(
-                is_valid=True,
-                status=ValidationStatus.VALID,
-                message=python_msg,
-                component_name="Environment",
-            )
-        else:
-            return ValidationDetails(
-                is_valid=False,
-                status=ValidationStatus.ERROR,
-                message=python_msg,
-                errors=[python_msg],
-                component_name="Environment",
-            )
+        # Create composite validator for complete environment
+        validators = [
+            self.registry.create_validator("python_environment", context),
+            self.registry.create_validator("project_structure", context),
+            self.registry.create_validator("dependencies", context),
+        ]
+
+        # Run all validations
+        all_valid = True
+        messages = []
+        errors = []
+
+        for validator in validators:
+            result = validator.validate()
+            if not result.is_valid:
+                all_valid = False
+                if result.message:
+                    errors.append(result.message)
+            else:
+                if result.message:
+                    messages.append(result.message)
+        status = ValidationStatus.VALID if all_valid else ValidationStatus.ERROR
+        message = "; ".join(messages) if all_valid else "; ".join(errors)
+        return ValidationDetails(
+            is_valid=all_valid,
+            status=status,
+            message=message,
+            component_name="Environment",
+            errors=errors if errors else [],
+        )
+        
 
     def setup_environment(self) -> bool:
         """Set up the complete development environment."""
