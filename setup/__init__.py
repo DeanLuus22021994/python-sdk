@@ -62,8 +62,47 @@ def _load_docker_setup() -> type[Any] | None:
 
 def _load_typings() -> dict[str, Any | None]:
     """Load typing definitions with graceful fallback."""
-    # Removed typings references due to missing module
-    return {}
+    try:
+        from .typings import (
+            ContainerConfig,
+            DockerInfo,
+            EnvironmentInfo,
+            LogLevel,
+            PackageManagerInfo,
+            PerformanceSettings,
+            ProjectStructureInfo,
+            PythonVersion,
+            SetupMode,
+            ValidationDetails,
+        )
+
+        return {
+            "ContainerConfig": ContainerConfig,
+            "DockerInfo": DockerInfo,
+            "EnvironmentInfo": EnvironmentInfo,
+            "LogLevel": LogLevel,
+            "PackageManagerInfo": PackageManagerInfo,
+            "PerformanceSettings": PerformanceSettings,
+            "ProjectStructureInfo": ProjectStructureInfo,
+            "PythonVersion": PythonVersion,
+            "SetupMode": SetupMode,
+            "ValidationDetails": ValidationDetails,
+        }
+
+    except ImportError:
+        # Fallback to None values if typings module is missing
+        return {
+            "ContainerConfig": None,
+            "DockerInfo": None,
+            "EnvironmentInfo": None,
+            "LogLevel": None,
+            "PackageManagerInfo": None,
+            "PerformanceSettings": None,
+            "ProjectStructureInfo": None,
+            "PythonVersion": None,
+            "SetupMode": None,
+            "ValidationDetails": None,
+        }
 
 
 _typings = _load_typings()
@@ -71,17 +110,17 @@ HostSetupManager = _HostSetupManager
 DockerSetupManager = _DockerSetupManager
 setup_packages = _setup_packages
 
-# Export typings
-ContainerConfig = _typings["ContainerConfig"]
-DockerInfo = _typings["DockerInfo"]
-EnvironmentInfo = _typings["EnvironmentInfo"]
-LogLevel = _typings["LogLevel"]
-PackageManagerInfo = _typings["PackageManagerInfo"]
-PerformanceSettings = _typings["PerformanceSettings"]
-ProjectStructureInfo = _typings["ProjectStructureInfo"]
-PythonVersion = _typings["PythonVersion"]
-SetupMode = _typings["SetupMode"]
-ValidationDetails = _typings["ValidationDetails"]
+# Export typings with safe access
+ContainerConfig = _typings.get("ContainerConfig")
+DockerInfo = _typings.get("DockerInfo")
+EnvironmentInfo = _typings.get("EnvironmentInfo")
+LogLevel = _typings.get("LogLevel")
+PackageManagerInfo = _typings.get("PackageManagerInfo")
+PerformanceSettings = _typings.get("PerformanceSettings")
+ProjectStructureInfo = _typings.get("ProjectStructureInfo")
+PythonVersion = _typings.get("PythonVersion")
+SetupMode = _typings.get("SetupMode")
+ValidationDetails = _typings.get("ValidationDetails")
 # TYPE_CHECKING imports for better IDE support
 if TYPE_CHECKING:
     # Re-import for type checking to ensure proper type hints
