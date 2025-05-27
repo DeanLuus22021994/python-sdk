@@ -57,28 +57,28 @@ class SetupManager(Protocol):
 
     def setup(self) -> Any:
         """
-        Perform setup and return results.
+        Execute setup operations.
 
         Returns:
-            SetupResult tuple containing success status and operation details.
+            Setup results with success status and details.
         """
         ...
 
     def cleanup(self) -> bool:
         """
-        Clean up resources and temporary files.
+        Clean up setup artifacts and temporary files.
 
         Returns:
-            True if cleanup was successful, False otherwise.
+            True if cleanup was successful.
         """
         ...
 
     def get_status(self) -> dict[str, Any]:
         """
-        Get current setup status and configuration.
+        Get current setup status and information.
 
         Returns:
-            Dictionary containing current setup state and configuration.
+            Dictionary containing status information.
         """
         ...
 
@@ -96,10 +96,10 @@ class ConfigManager(Protocol):
         Load configuration from file.
 
         Args:
-            path: Path to configuration file.
+            path: Path to configuration file
 
         Returns:
-            Dictionary containing configuration data.
+            Loaded configuration dictionary
         """
         ...
 
@@ -108,23 +108,23 @@ class ConfigManager(Protocol):
         Save configuration to file.
 
         Args:
-            config: Configuration data to save.
-            path: Path where to save configuration.
+            config: Configuration to save
+            path: Path to save configuration
 
         Returns:
-            True if save was successful, False otherwise.
+            True if save was successful
         """
         ...
 
     def validate_config(self, config: dict[str, Any]) -> Any:
         """
-        Validate configuration data.
+        Validate configuration structure and values.
 
         Args:
-            config: Configuration data to validate.
+            config: Configuration to validate
 
         Returns:
-            ValidationDetails containing validation results.
+            Validation results
         """
         ...
 
@@ -139,28 +139,28 @@ class EnvironmentProvider(Protocol):
 
     def get_environment_info(self) -> Any:
         """
-        Gather comprehensive environment information.
+        Get comprehensive environment information.
 
         Returns:
-            EnvironmentInfo containing system and environment details.
+            Environment information object
         """
         ...
 
     def validate_environment(self) -> Any:
         """
-        Validate current environment for setup requirements.
+        Validate current environment for compatibility.
 
         Returns:
-            ValidationDetails containing environment validation results.
+            Environment validation results
         """
         ...
 
     def get_python_info(self) -> Any:
         """
-        Get Python version information.
+        Get Python-specific environment information.
 
         Returns:
-            PythonVersion containing Python version details.
+            Python environment details
         """
         ...
 
@@ -175,25 +175,25 @@ class ProjectStructureValidator(Protocol):
 
     def validate_structure(self, root_path: str) -> Any:
         """
-        Validate project directory structure.
+        Validate project structure at given path.
 
         Args:
-            root_path: Root directory of the project to validate.
+            root_path: Root path to validate
 
         Returns:
-            ValidationDetails containing structure validation results.
+            Structure validation results
         """
         ...
 
     def get_structure_info(self, root_path: str) -> Any:
         """
-        Analyze and return project structure information.
+        Get detailed information about project structure.
 
         Args:
-            root_path: Root directory of the project to analyze.
+            root_path: Root path to analyze
 
         Returns:
-            ProjectStructureInfo containing detailed structure analysis.
+            Project structure information
         """
         ...
 
@@ -202,9 +202,9 @@ class ProjectStructureValidator(Protocol):
         Suggest improvements for project structure.
 
         Args:
-            root_path: Root directory of the project to analyze.
+            root_path: Root path to analyze
 
         Returns:
-            List of improvement suggestions.
+            List of improvement suggestions
         """
         ...

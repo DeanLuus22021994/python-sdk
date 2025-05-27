@@ -6,7 +6,7 @@ Modern host system configuration and validation for the MCP Python SDK.
 from pathlib import Path
 from typing import Any
 
-from ..types import ValidationDetails, ValidationStatus
+from ..typings import ValidationDetails, ValidationStatus
 from .env_validator import HostEnvironmentValidator
 
 
